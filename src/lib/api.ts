@@ -127,6 +127,47 @@ export interface UploadListEntry {
   modified_at: string;
 }
 
+// ── Kanban Types ──
+
+export interface KanbanTask {
+  id: string;
+  title: string;
+  body: string | null;
+  assignee: string | null;
+  status: string;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KanbanColumn {
+  id: string;
+  title: string;
+  tasks: KanbanTask[];
+}
+
+export interface KanbanBoard {
+  columns: KanbanColumn[];
+  total: number;
+}
+
+// ── Cron/Schedule Types ──
+
+export interface CronJob {
+  id: string;
+  name: string;
+  schedule: string;
+  prompt_preview: string;
+  skills: string[];
+  enabled: boolean;
+  last_run: string | null;
+  next_run: string | null;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+  status: string;
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {
