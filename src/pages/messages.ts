@@ -599,13 +599,13 @@ function renderMessageCard(msg: any): string {
           ${escapeHtml(msg.status || "unknown")}
         </span>
         ${msg.type ? `<span class="event-type-badge" title="Type: ${escapeHtml(msg.type)}" style="--type-color:${typeColor(msg.type)};background:${typeColor(msg.type)}22;border-color:${typeColor(msg.type)}44;color:${typeColor(msg.type)}">${msg.type}</span>` : ""}
-        ${msg.subtype ? `<span class="event-subtype" title="Subtype: ${escapeHtml(msg.subtype)}" style="font-size:0.6875rem;color:var(--text-muted);font-style:italic;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${msg.subtype}</span>` : ""}
-        <span class="event-row-meta" style="display:inline-flex;align-items:center;gap:0.25rem;font-size:0.6875rem;color:var(--text-muted)">
+        ${msg.subtype ? `<span class="event-subtype" title="Subtype: ${escapeHtml(msg.subtype)}" style="font-size:0.8rem;color:var(--text-muted);font-style:italic;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${msg.subtype}</span>` : ""}
+        <span class="event-row-meta" style="display:inline-flex;align-items:center;gap:0.25rem;font-size:0.8rem;color:var(--text-muted)">
           ${msg.provider ? `<span class="ev-provider" title="Provider">${escapeHtml(msg.provider)}</span>` : ""}
           ${msg.provider && msg.model ? `<span style="color:var(--text-muted);opacity:0.4">·</span>` : ""}
           ${msg.model ? `<span class="ev-model" title="Model">${escapeHtml(msg.model)}</span>` : ""}
           ${(msg.provider || msg.model) && (msg.thread_id || msg.processing_time_ms !== null || tokens > 0) ? `<span style="color:var(--text-muted);opacity:0.4">·</span>` : ""}
-          ${msg.thread_id ? `<code style="font-size:0.65rem;color:var(--text-secondary);background:rgba(0,0,0,0.2);padding:0.1em 0.3em;border-radius:3px" title="Thread ID">${escapeHtml(truncateMiddle(msg.thread_id, 12))}</code>` : ""}
+          ${msg.thread_id ? `<code style="font-size:0.8rem;color:var(--text-secondary);background:rgba(0,0,0,0.2);padding:0.1em 0.3em;border-radius:3px" title="Thread ID">${escapeHtml(truncateMiddle(msg.thread_id, 12))}</code>` : ""}
           ${msg.processing_time_ms !== null ? `<span title="Processing time">${msg.processing_time_ms.toFixed(0)}ms</span>` : ""}
           ${tokens > 0 ? `<span title="Token count">${tokens.toLocaleString()} tokens</span>` : ""}
         </span>

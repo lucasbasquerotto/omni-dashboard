@@ -1929,7 +1929,7 @@ tr:hover td {
 .ev-id-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 0.625rem;
+  font-size: 0.8rem;
   font-family: monospace;
   color: var(--text-muted);
   opacity: 0.55;
@@ -1942,7 +1942,7 @@ tr:hover td {
   align-items: center;
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   font-weight: 600;
   border: 1px solid;
   letter-spacing: 0.01em;
@@ -1954,7 +1954,7 @@ tr:hover td {
   align-items: center;
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-sm);
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   font-weight: 600;
   border: 1px solid;
   white-space: nowrap;
@@ -1967,7 +1967,7 @@ tr:hover td {
   color: var(--accent-amber);
 }
 .ev-time {
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   margin-left: auto;
   white-space: nowrap;
@@ -2015,7 +2015,7 @@ tr:hover td {
   border-radius: var(--radius-sm);
   padding: 0.2rem 0.625rem;
   cursor: pointer;
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   font-weight: 500;
   transition: all 0.15s ease;
 }
@@ -2426,7 +2426,7 @@ tr:hover td {
 .ev-id-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 0.625rem;
+  font-size: 0.8rem;
   font-family: var(--font-mono, monospace);
   color: var(--text-muted);
   opacity: 0.55;
@@ -2441,7 +2441,7 @@ tr:hover td {
   align-items: center;
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   font-weight: 600;
   border: 1px solid;
   letter-spacing: 0.01em;
@@ -2455,7 +2455,7 @@ tr:hover td {
   align-items: center;
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-sm);
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   font-weight: 600;
   border: 1px solid;
   white-space: nowrap;
@@ -2464,7 +2464,7 @@ tr:hover td {
 
 /* Subtype */
 .event-subtype {
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   font-style: italic;
   max-width: 120px;
@@ -2478,7 +2478,7 @@ tr:hover td {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   max-width: 180px;
   overflow: hidden;
@@ -2537,7 +2537,7 @@ tr:hover td {
 
 /* Timestamp */
 .ev-time {
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   margin-left: auto;
   white-space: nowrap;
