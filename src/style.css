@@ -3523,6 +3523,9 @@ a.thread-row {
 
 /* Dashboard overview rows */
 .dashboard-overview-row {
+  display: block;
+  color: inherit;
+  text-decoration: none;
   transition: background 0.15s ease;
 }
 
@@ -3729,7 +3732,11 @@ a.thread-row {
   margin-bottom: 1rem;
 }
 
-/* ── Settings Page ── */
+/* Settings card */
+
+.settings-card + .settings-card {
+  margin-top: 1.5rem;
+}
 
 .settings-card-body {
   padding: 0;

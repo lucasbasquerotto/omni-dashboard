@@ -80,8 +80,8 @@ function renderSettingRow(setting: SettingCategory["settings"][0]): string {
     switch (meta.type) {
       case "number":
         inputHtml = `
-          <input type="number" id="${inputId}" class="filter-input setting-input"
-            value="${escapeHtml(value)}"
+          <input type="tel" id="${inputId}" class="filter-input setting-input"
+            value="${escapeHtml(value)}" inputmode="numeric" pattern="[0-9.]*"
             data-name="${escapeHtml(name)}" data-original="${escapeHtml(value)}" />
         `;
         break;
