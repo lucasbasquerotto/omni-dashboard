@@ -33,24 +33,12 @@ export async function renderPrompt(container: HTMLElement): Promise<void> {
       </div>
       <div id="preview-results" class="preview-results" style="display:none;">
         <div class="card">
-          <div class="card-header"><span class="card-title">System Prompt</span></div>
-          <div class="card-body">
-            <pre id="system-prompt-output" class="preview-pre"></pre>
-          </div>
-        </div>
-        <div class="card">
           <div class="card-header"><span class="card-title">Messages</span></div>
           <div class="card-body" id="messages-output"></div>
         </div>
-        <div id="plan-output" class="card" style="display:none;">
-          <div class="card-header"><span class="card-title">Plan</span></div>
-          <div class="card-body">
-            <pre id="plan-content" class="preview-pre"></pre>
-          </div>
-        </div>
       </div>
       <div id="preview-error" class="error-state" style="display:none;"></div>
-      <div id="preview-loading" class="loading" style="display:none;">Loading... This may take a moment if planning is enabled.</div>
+      <div id="preview-loading" class="loading" style="display:none;">Loading...</div>
     </div>
   `;
 
@@ -187,11 +175,7 @@ async function submitPreview(): Promise<void> {
       return;
     }
 
-    // System prompt
-    const sysPromptEl = document.getElementById("system-prompt-output")!;
-    sysPromptEl.textContent = data.system_prompt;
-
-    // Messages
+    // Messages — includes system prompt, user message, and plan as inner msg-cards
     const msgsEl = document.getElementById("messages-output")!;
     if (data.messages && data.messages.length > 0) {
       msgsEl.innerHTML = data.messages
@@ -211,16 +195,6 @@ async function submitPreview(): Promise<void> {
         .join("");
     } else {
       msgsEl.innerHTML = '<div class="empty-state">No messages</div>';
-    }
-
-    // Plan
-    const planOutput = document.getElementById("plan-output")!;
-    const planContent = document.getElementById("plan-content")!;
-    if (data.plan) {
-      planContent.textContent = data.plan;
-      planOutput.style.display = "block";
-    } else {
-      planOutput.style.display = "none";
     }
 
     resultsEl.style.display = "block";
