@@ -4,6 +4,8 @@ import { renderMessages } from "../pages/messages";
 import { renderKanban, renderKanbanDetail } from "../pages/kanban";
 import { renderSchedule, renderScheduleDetail } from "../pages/schedule";
 import { renderWiki } from "../pages/wiki";
+import { renderPrompt } from "../pages/prompt";
+import { renderSettings } from "../pages/settings";
 
 type PageRenderer = (container: HTMLElement) => void;
 type ParamPageRenderer = (container: HTMLElement, param: string) => void;
@@ -24,7 +26,9 @@ const routes: Route[] = [
   { name: "messages", handler: renderMessages },
   { name: "kanban", handler: renderKanban },
   { name: "schedule", handler: renderSchedule },
+  { name: "settings", handler: renderSettings },
   { name: "wiki", handler: renderWiki },
+  { name: "prompt", handler: renderPrompt },
 ];
 
 const paramRoutes: ParamRoute[] = [

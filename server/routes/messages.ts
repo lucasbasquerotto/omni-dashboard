@@ -135,10 +135,12 @@ messagesRouter.get("/events", (req: Request, res: Response) => {
           t.profile,
           t.provider,
           t.model,
-          t.duration_ms as processing_time_ms,
-          t.input_tokens,
-          t.output_tokens,
-          t.cached_tokens,
+          t.duration_ms as thread_duration_ms,
+          t.input_tokens as thread_input_tokens,
+          t.output_tokens as thread_output_tokens,
+          t.cached_tokens as thread_cached_tokens,
+          m.processing_time_ms as processing_time_ms,
+          m.token_usage as token_usage,
           c.name as channel_name
         FROM messages m
         JOIN threads t ON t.id = m.thread_id
@@ -151,12 +153,29 @@ messagesRouter.get("/events", (req: Request, res: Response) => {
 
       const messages = rows.map((row: any) => {
         let tokenUsage = null;
-        const pt = row.input_tokens ? parseInt(row.input_tokens) : 0;
-        const ot = row.output_tokens ? parseInt(row.output_tokens) : 0;
-        const ct = row.cached_tokens ? parseInt(row.cached_tokens) : 0;
-        if (pt > 0 || ot > 0 || ct > 0) {
-          tokenUsage = { prompt_tokens: pt, completion_tokens: ot, cached_tokens: ct };
+        // Parse per-message token_usage (JSONB) — different schema than thread-level fields
+        if (row.token_usage && row.token_usage !== "null" && row.token_usage !== "") {
+          try {
+            const parsed =
+              typeof row.token_usage === "string" ? JSON.parse(row.token_usage) : row.token_usage;
+            const pt = parseInt(parsed.prompt_tokens) || 0;
+            const ot = parseInt(parsed.completion_tokens) || 0;
+            const ct = parseInt(parsed.cached_tokens) || 0;
+            const rt = parseInt(parsed.reasoning_tokens) || 0;
+            if (pt > 0 || ot > 0 || ct > 0 || rt > 0) {
+              tokenUsage = {
+                prompt_tokens: pt,
+                completion_tokens: ot,
+                cached_tokens: ct,
+                reasoning_tokens: rt,
+              };
+            }
+          } catch {
+            // Ignore parse errors
+          }
         }
+        // No thread-level fallback — only per-message token_usage is shown.
+        // Messages without their own token_usage (tool, tool_result, etc.) show null.
 
         return {
           id: row.id,

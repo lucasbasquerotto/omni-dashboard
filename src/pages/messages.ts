@@ -590,6 +590,16 @@ async function loadMessages(): Promise<void> {
       });
     });
 
+    // Post-render: remove has-more class and button for content that doesn't actually overflow
+    listEl.querySelectorAll(".ev-content-text.has-more").forEach((el) => {
+      const textEl = el as HTMLElement;
+      if (textEl.scrollHeight <= textEl.clientHeight) {
+        textEl.classList.remove("has-more");
+        const btn = textEl.parentElement?.querySelector(".ev-expand-btn");
+        if (btn) btn.remove();
+      }
+    });
+
     // Sync current filters to URL search params
     syncFiltersToUrl();
   } catch (e) {
@@ -601,9 +611,10 @@ async function loadMessages(): Promise<void> {
 function renderMessageCard(msg: any): string {
   const role = msg.role || "unknown";
   const rColor = roleColor(role);
-  const isEmpty = !msg.content;
-  const content = msg.content ? escapeHtml(msg.content) : "";
-  const hasMore = msg.content && msg.content.length > 200;
+  const contentRaw = msg.content || "";
+  const isEmpty = !contentRaw.trim();
+  const content = contentRaw ? escapeHtml(contentRaw) : "";
+  const hasMore = !isEmpty;
   const ts = formatRelativeTime(
     new Date(msg.created_at.endsWith("Z") ? msg.created_at : msg.created_at + "Z"),
   );
