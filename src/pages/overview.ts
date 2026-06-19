@@ -101,25 +101,7 @@ function wireDashboard(
   // Wire line chart
   const lineChartEl = document.getElementById("chart-line");
   if (lineChartEl) lineChartEl.innerHTML = renderLineChart(data.token_trend);
-
-  // Wire recent activity row clicks
-  document.querySelectorAll(".dashboard-overview-row").forEach((el) => {
-    el.addEventListener("click", () => {
-      const threadId = (el as HTMLElement).getAttribute("data-thread-id");
-      if (threadId) {
-        const url = `/messages?thread_id=${encodeURIComponent(threadId)}`;
-        history.pushState({}, "", url);
-        void import("../lib/router").then(({ router }) => {
-          router.go("messages");
-          document.querySelectorAll(".nav-item, .mobile-nav-item").forEach((n) => {
-            n.classList.toggle("active", n.getAttribute("data-route") === "messages");
-          });
-        });
-      }
-    });
-  });
 }
-
 // ── Row 1: KPI Cards ──
 
 function renderKpiRow(kpis: DashboardKpis): string {
@@ -150,7 +132,7 @@ function renderKpiRow(kpis: DashboardKpis): string {
         <div class="stat-card-label">Threads Today</div>
         <div class="stat-card-value">${kpis.threads_today.toLocaleString()}</div>
         <div class="stat-card-sub">${threadsTrend}</div>
-        <svg class="stat-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        <svg class="stat-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </div>
       <div class="stat-card cyan">
         <div class="stat-card-label">Avg Response Time</div>
@@ -214,7 +196,10 @@ function renderBarChart(hourly: HourlyBucket[]): string {
   const daily: { label: string; count: number }[] = [];
   const dayMap = new Map<string, number>();
   for (const h of hourly) {
-    const day = h.bucket.slice(0, 10);
+    // bucket may be Date object (pg rowMode:array) or ISO string (JSON aggregate); normalize to ISO string
+    const bucketStr =
+      typeof h.bucket === "object" && h.bucket instanceof Date ? h.bucket.toISOString() : String(h.bucket);
+    const day = bucketStr.slice(0, 10);
     dayMap.set(day, (dayMap.get(day) || 0) + h.count);
   }
   for (const [day, count] of dayMap) {
@@ -400,12 +385,9 @@ function renderTableRow(recent: DashboardData["recent_activity"], channelHealth:
   const recentHtml =
     recent.length === 0
       ? '<div class="empty-state">No recent activity</div>'
-      : `<div class="table-scroll"><table class="data-table">
-        <thead><tr>
-          <th>Status</th><th>Channel</th><th>Preview</th><th>Time</th><th>Tokens</th><th>When</th>
-        </tr></thead>
-        <tbody>${recent.map((r) => renderRecentRow(r)).join("")}</tbody>
-      </table></div>`;
+      : `<div class="table-scroll"><div class="data-table" role="table"><div role="rowgroup"><div class="thread-header" role="row">
+          <div role="columnheader">Status</div><div role="columnheader">Channel</div><div role="columnheader" class="col-preview">Preview</div><div role="columnheader" style="text-align:right">Time</div><div role="columnheader" style="text-align:right">Tokens</div><div role="columnheader">When</div>
+        </div></div><div role="rowgroup">${recent.map((r) => renderRecentRow(r)).join("")}</div></div></div>`;
 
   const healthHtml =
     channelHealth.length === 0
@@ -437,14 +419,15 @@ function renderRecentRow(r: DashboardData["recent_activity"][0]): string {
     : "<em>Empty</em>";
   const ts = formatTimeAgo(r.created_at);
   const tokens = r.completion_tokens || 0;
-  return `<tr class="dashboard-overview-row" data-thread-id="${escapeHtml(r.thread_id || "")}" style="cursor:pointer;">
-    <td><span class="badge status-badge-${r.status ? r.status.toLowerCase() : "unknown"}">${escapeHtml(r.status || "unknown")}</span></td>
-    <td><span class="badge badge-neutral">${escapeHtml(r.channel_name || "\u2014")}</span></td>
-    <td class="cell-preview">${preview}</td>
-    <td class="cell-num">${r.processing_time_ms !== null ? r.processing_time_ms.toFixed(0) + "ms" : "\u2014"}</td>
-    <td class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "\u2014"}</td>
-    <td class="cell-timestamp">${ts}</td>
-  </tr>`;
+  const url = `/messages?thread_id=${escapeHtml(r.thread_id || "")}`;
+  return `<a href="${url}" class="dashboard-overview-row" role="row">
+    <div role="cell"><span class="badge status-badge-${r.status ? r.status.toLowerCase() : "unknown"}">${escapeHtml(r.status || "unknown")}</span></div>
+    <div role="cell"><span class="badge badge-neutral">${escapeHtml(r.channel_name || "\u2014")}</span></div>
+    <div role="cell" class="cell-preview">${preview}</div>
+    <div role="cell" class="cell-num">${r.processing_time_ms !== null ? r.processing_time_ms.toFixed(0) + "ms" : "\u2014"}</div>
+    <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "\u2014"}</div>
+    <div role="cell" class="cell-timestamp">${ts}</div>
+  </a>`;
 }
 
 function renderHealthRow(ch: ChannelHealthRow): string {
@@ -528,7 +511,18 @@ function shortDate(dateStr: string): string {
 }
 
 function formatTimeAgo(dateStr: string): string {
-  const d = new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z");
+  // Handle both Date objects (from pg rowMode:array) and ISO strings (from JSON aggregates)
+  const dateVal =
+    typeof dateStr === "object" && dateStr instanceof Date
+      ? dateStr
+      : new Date(
+          typeof dateStr === "string"
+            ? dateStr.endsWith("Z") || dateStr.includes("+") || dateStr.includes("T")
+              ? dateStr
+              : dateStr + "Z"
+            : dateStr,
+        );
+  const d = dateVal;
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMin = Math.floor(diffMs / 60000);

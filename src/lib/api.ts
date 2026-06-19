@@ -247,6 +247,33 @@ export interface CronJob {
   status: string;
 }
 
+// ── Settings Types ──
+
+export interface SettingOption {
+  value: string;
+  label: string;
+}
+
+export interface SettingMeta {
+  type: "number" | "boolean" | "secret" | "select" | "text" | "textarea";
+  description: string;
+  options: SettingOption[] | null;
+  readonly: boolean;
+  default: string;
+}
+
+export interface SettingEntry {
+  name: string;
+  value: string;
+  metadata: SettingMeta;
+}
+
+export interface SettingCategory {
+  name: string;
+  label: string;
+  settings: SettingEntry[];
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {
@@ -259,6 +286,19 @@ export async function apiGet<T>(path: string): Promise<T> {
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "Unknown error");
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });

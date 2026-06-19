@@ -12,6 +12,8 @@ import { wikiSearchRouter } from "./routes/wiki-search.js";
 import { uploadsRouter } from "./routes/uploads.js";
 import { fsRouter } from "./routes/fs.js";
 import { threadsRouter } from "./routes/threads.js";
+import { channelsRouter } from "./routes/channels.js";
+import { settingsRouter } from "./routes/settings.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -32,6 +34,29 @@ app.use("/api/wiki-search", wikiSearchRouter);
 app.use("/api/uploads", uploadsRouter);
 app.use("/api/fs", fsRouter);
 app.use("/api/threads", threadsRouter);
+app.use("/api/channels", channelsRouter);
+app.use("/api/settings", settingsRouter);
+
+// Proxy for prompt-preview — forward to OmniAgent HTTP API
+app.post("/api/prompt-preview/:channelName", async (req, res) => {
+  try {
+    const { channelName } = req.params;
+    const { prompt, plan } = req.body;
+    const omniagentUrl = `http://omniagent-omniagent-1:8080/prompt-preview/${encodeURIComponent(channelName)}`;
+    const response = await fetch(omniagentUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, plan }),
+    });
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (err) {
+    console.error("[prompt-preview] Proxy error:", err);
+    res
+      .status(502)
+      .json({ error: "Failed to reach OmniAgent: " + (err instanceof Error ? err.message : String(err)) });
+  }
+});
 
 // Serve static files from ../dist (built frontend)
 const distPath = join(__dirname, "..", "dist");

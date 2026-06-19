@@ -10,6 +10,7 @@ threadsRouter.get("/", (req: Request, res: Response) => {
       const offset = Math.max(0, parseInt(req.query.offset as string) || 0);
       const status = req.query.status as string;
       const cause = req.query.cause as string;
+      const threadId = req.query.thread_id as string;
 
       let where = "WHERE 1=1";
       const params: any[] = [];
@@ -22,6 +23,10 @@ threadsRouter.get("/", (req: Request, res: Response) => {
       if (cause) {
         where += ` AND t.cause = $${paramIdx++}`;
         params.push(cause);
+      }
+      if (threadId) {
+        where += ` AND t.id::text LIKE $${paramIdx++}`;
+        params.push(`%${threadId}%`);
       }
 
       const countSql = `

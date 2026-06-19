@@ -38,6 +38,7 @@ const currentLimit = 50;
 let currentOffset = 0;
 let currentStatus = "all";
 let currentCause = "all";
+let currentThreadId = "";
 
 // ── Status badge colors ──
 function statusBadgeStyle(status: string): string {
@@ -94,6 +95,10 @@ export function renderThreads(container: HTMLElement): void {
         <select class="filter-select" id="filter-cause">
           <option value="all">All</option>
         </select>
+      </div>
+      <div class="filter-section">
+        <label class="filter-label">Thread ID</label>
+        <input class="filter-input" id="filter-thread-id" type="text" placeholder="Thread ID..." />
       </div>
       <div class="filter-actions">
         <button class="btn btn-secondary" id="btn-refresh">⟳ Refresh</button>
@@ -161,13 +166,21 @@ function wireFilterEvents(): void {
     currentOffset = 0;
     void loadThreads();
   });
+  const threadInput = document.getElementById("filter-thread-id") as HTMLInputElement;
+  threadInput.addEventListener("input", () => {
+    currentThreadId = threadInput.value.trim();
+    currentOffset = 0;
+    void loadThreads();
+  });
   document.getElementById("btn-refresh")!.addEventListener("click", () => void loadThreads());
   document.getElementById("btn-reset")!.addEventListener("click", () => {
     currentStatus = "all";
     currentCause = "all";
+    currentThreadId = "";
     currentOffset = 0;
     (document.getElementById("filter-status") as HTMLSelectElement).value = "all";
     (document.getElementById("filter-cause") as HTMLSelectElement).value = "all";
+    (document.getElementById("filter-thread-id") as HTMLInputElement).value = "";
     void loadThreads();
   });
   document.getElementById("prev-page")!.addEventListener("click", () => {
@@ -198,6 +211,7 @@ async function loadThreads(): Promise<void> {
     params.set("offset", String(currentOffset));
     if (currentStatus !== "all") params.set("status", currentStatus);
     if (currentCause !== "all") params.set("cause", currentCause);
+    if (currentThreadId) params.set("thread_id", currentThreadId);
 
     const data = await apiGet<ThreadsResponse>(`/threads?${params.toString()}`);
 
@@ -219,42 +233,26 @@ async function loadThreads(): Promise<void> {
 
     listEl.innerHTML = `
       <div class="table-scroll">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Status</th>
-              <th>Cause</th>
-              <th>Channel</th>
-              <th>Created</th>
-              <th>Msgs</th>
-              <th>Preview</th>
-              <th>Time (ms)</th>
-              <th>Tokens</th>
-            </tr>
-          </thead>
-          <tbody>
+        <div class="data-table" role="table">
+          <div role="rowgroup">
+            <div class="thread-header" role="row">
+              <div role="columnheader">ID</div>
+              <div role="columnheader">Status</div>
+              <div role="columnheader">Cause</div>
+              <div role="columnheader">Channel</div>
+              <div role="columnheader">Created</div>
+              <div role="columnheader" style="text-align:right">Msgs</div>
+              <div role="columnheader" class="col-preview">Preview</div>
+              <div role="columnheader" style="text-align:right">Time (ms)</div>
+              <div role="columnheader" style="text-align:right">Tokens</div>
+            </div>
+          </div>
+          <div role="rowgroup">
             ${data.threads.map((row) => renderRow(row)).join("")}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
     `;
-
-    // Wire row clicks — navigate to messages filtered by thread_id
-    listEl.querySelectorAll(".thread-row").forEach((el) => {
-      el.addEventListener("click", () => {
-        const threadId = (el as HTMLElement).getAttribute("data-thread-id");
-        if (threadId) {
-          const url = `/messages?thread_id=${encodeURIComponent(threadId)}`;
-          history.pushState({}, "", url);
-          void import("../lib/router").then(({ router }) => {
-            router.go("messages");
-            document.querySelectorAll(".nav-item, .mobile-nav-item").forEach((n) => {
-              n.classList.toggle("active", n.getAttribute("data-route") === "messages");
-            });
-          });
-        }
-      });
-    });
   } catch (e) {
     listEl.innerHTML = `<div class="error-state">Failed to load threads: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
   }
@@ -272,17 +270,20 @@ function renderRow(row: ThreadRow): string {
   const tokens = (row.input_tokens || 0) + (row.output_tokens || 0);
   const causeCol = causeColor(row.cause);
 
+  const url = `/messages?thread_id=${escapeHtml(row.id)}`;
+
   return `
-    <tr class="thread-row" data-thread-id="${escapeHtml(row.id)}" style="cursor:pointer;">
-      <td><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span></td>
-      <td><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></td>
-      <td><span class="badge badge-neutral">${escapeHtml(row.channel_name)}</span></td>
-      <td class="cell-timestamp">${ts}</td>
-      <td class="cell-num">${row.msg_count}</td>
-      <td class="cell-preview">${preview}</td>
-      <td class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "\u2014"}</td>
-      <td class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "\u2014"}</td>
-    </tr>
+    <a href="${url}" class="thread-row" role="row">
+      <div role="cell"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code></div>
+      <div role="cell"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span></div>
+      <div role="cell"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></div>
+      <div role="cell"><span class="badge badge-neutral">${escapeHtml(row.channel_name)}</span></div>
+      <div role="cell" class="cell-timestamp">${ts}</div>
+      <div role="cell" class="cell-num">${row.msg_count}</div>
+      <div role="cell" class="cell-preview">${preview}</div>
+      <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "—"}</div>
+      <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "—"}</div>
+    </a>
   `;
 }
 
