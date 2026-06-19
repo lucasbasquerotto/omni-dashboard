@@ -88,7 +88,7 @@ function renderDashboard(
 
 function wireDashboard(
   data: DashboardData,
-  kanbanSnapshot: { id: string; status: string; count: number }[],
+  _kanbanSnapshot: { id: string; status: string; count: number }[],
 ): void {
   // Wire bar chart
   const barChartEl = document.getElementById("chart-bar");
@@ -177,9 +177,9 @@ function renderKpiRow(kpis: DashboardKpis): string {
 // ── Row 2: Charts ──
 
 function renderChartRow(
-  hourly: HourlyBucket[],
-  statusDist: StatusCount[],
-  tokenTrend: DailyTokens[],
+  _hourly: HourlyBucket[],
+  _statusDist: StatusCount[],
+  _tokenTrend: DailyTokens[],
 ): string {
   return `
     <div class="dashboard-chart-row">
@@ -275,7 +275,7 @@ function renderDonutChart(statusDist: StatusCount[]): string {
   });
 
   const arcs = slices
-    .map((s, i) => {
+    .map((s) => {
       const color = STATUS_COLORS[s.status] || COLORS.muted;
       const dashArray = `${s.length} ${circumference - s.length}`;
       const dashOffset = -s.offset;
@@ -323,7 +323,6 @@ function renderLineChart(tokenTrend: DailyTokens[]): string {
 
   const values = tokenTrend.map((d) => d.tokens);
   const maxVal = Math.max(...values, 1);
-  const minVal = 0;
 
   // Y-axis ticks
   const yTicks = 4;
