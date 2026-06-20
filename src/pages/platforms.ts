@@ -26,9 +26,11 @@ let pluginsData: PluginData[] = [];
 async function loadPlatforms(): Promise<void> {
   const content = document.getElementById("platforms-content")!;
   try {
-    const allPlugins = await apiGet<PluginData[]>("/plugins");
+    const response = await apiGet<any>("/plugins");
+    // Backend wraps in { success, data } — extract data array
+    const allPlugins: PluginData[] = response.data || response;
     // Filter to platforms only, plus always include cli as built-in
-    const platforms = allPlugins.filter((p) => p.plugin_type === "platform");
+    const platforms = allPlugins.filter((p: PluginData) => p.plugin_type === "platform");
     // Ensure cli is always shown even if not returned by API
     if (!platforms.find((p) => p.name === "cli")) {
       platforms.unshift({
