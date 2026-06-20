@@ -298,6 +298,7 @@ export interface ProfileData {
   max_tokens: number | null;
   temperature: number | null;
   allowed_tools: string | null; // JSONB
+  skills: string[]; // filenames from filesystem
   created_at: string;
   updated_at: string;
   default_channels: ProfileChannel[];
