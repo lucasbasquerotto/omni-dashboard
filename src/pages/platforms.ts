@@ -184,6 +184,70 @@ function wirePlatforms(): void {
       void addSubscription(platform, subscriberResource, parseInt(channelId, 10));
     });
   });
+
+  // Enhance subscription selects with custom dropdown (replaces OS-native)
+  document.querySelectorAll(".add-sub-resource, .add-sub-channel").forEach((select) => {
+    enhanceSelectElement(select as HTMLSelectElement);
+  });
+}
+
+// ── Enhanced dropdown helper (replaces native <select> with custom dark-themed dropdown) ──
+
+function enhanceSelectElement(select: HTMLSelectElement): void {
+  if (!select || (select as any).dataset._enhanced) return;
+  (select as any).dataset._enhanced = "1";
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "custom-select";
+
+  function buildOptions(): void {
+    const selected = Array.from(select.options).find((o) => o.selected) || select.options[0];
+    wrapper.innerHTML = `
+      <div class="select-trigger">
+        <span class="select-trigger-text">${selected ? escapeHtml(selected.label) : ""}</span>
+        <span class="select-arrow">▾</span>
+      </div>
+      <div class="select-options">
+        ${Array.from(select.options)
+          .map(
+            (o) =>
+              `<div class="select-option${o.selected ? " selected" : ""}" data-value="${o.value}">${escapeHtml(o.label)}</div>`,
+          )
+          .join("")}
+      </div>
+    `;
+  }
+
+  buildOptions();
+
+  select.style.display = "none";
+  select.parentNode?.insertBefore(wrapper, select.nextSibling);
+
+  const trigger = wrapper.querySelector(".select-trigger") as HTMLElement;
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = wrapper.classList.contains("open");
+    document.querySelectorAll(".custom-select.open").forEach((c) => c.classList.remove("open"));
+    if (!isOpen) wrapper.classList.add("open");
+  });
+
+  wrapper.querySelector(".select-options")!.addEventListener("click", (e) => {
+    const opt = (e.target as HTMLElement).closest(".select-option") as HTMLElement;
+    if (!opt) return;
+    const value = opt.getAttribute("data-value");
+    if (value) {
+      select.value = value;
+      const textEl = wrapper.querySelector(".select-trigger-text") as HTMLElement;
+      if (textEl) textEl.textContent = opt.textContent;
+      wrapper.querySelectorAll(".select-option").forEach((o) => o.classList.remove("selected"));
+      opt.classList.add("selected");
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    wrapper.classList.remove("open");
+  });
+
+  document.addEventListener("click", () => wrapper.classList.remove("open"));
 }
 
 async function removeSubscription(platform: string, subId: string, btn: Element): Promise<void> {
