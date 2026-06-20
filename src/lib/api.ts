@@ -280,6 +280,75 @@ export interface SettingCategory {
   settings: SettingEntry[];
 }
 
+// ── Profile Types ──
+
+export interface ProfileChannel {
+  id: number;
+  name: string;
+  platform: string;
+  resource_identifier: string;
+}
+
+export interface ProfileData {
+  id: number;
+  name: string;
+  provider: string | null;
+  model: string | null;
+  base_url: string | null;
+  max_tokens: number | null;
+  temperature: number | null;
+  allowed_tools: string | null; // JSONB
+  created_at: string;
+  updated_at: string;
+  default_channels: ProfileChannel[];
+}
+
+// ── Channel Types ──
+
+export interface ChannelData {
+  id: number;
+  name: string;
+  platform: string | null;
+  resource_identifier: string | null;
+  closed: boolean;
+  current_profile: string | null;
+  current_provider: string | null;
+  current_model: string | null;
+  readonly: boolean;
+}
+
+// ── Platform Types ──
+
+export interface PlatformResourceId {
+  id: number;
+  channel_id: number;
+  channel_name: string;
+  resource_identifier: string | null;
+  closed: boolean;
+  profile: string | null;
+}
+
+export interface PlatformSubscriptionChannel {
+  id: number;
+  name: string;
+  platform: string;
+  resource_identifier: string;
+}
+
+export interface PlatformSubscription {
+  id: number;
+  subscriber_resource: string;
+  channels: PlatformSubscriptionChannel[];
+}
+
+export interface PlatformData {
+  name: string;
+  active: boolean;
+  resource_identifiers: PlatformResourceId[];
+  subscriptions: PlatformSubscription[];
+  all_channels: { id: number; name: string; platform: string; resource_identifier: string }[];
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {

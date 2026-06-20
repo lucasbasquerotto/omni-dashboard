@@ -6,6 +6,9 @@ import { renderSchedule, renderScheduleDetail } from "../pages/schedule";
 import { renderWiki } from "../pages/wiki";
 import { renderPrompt } from "../pages/prompt";
 import { renderSettings } from "../pages/settings";
+import { renderProfiles } from "../pages/profiles";
+import { renderChannels } from "../pages/channels";
+import { renderPlatforms } from "../pages/platforms";
 
 type PageRenderer = (container: HTMLElement) => void;
 type ParamPageRenderer = (container: HTMLElement, param: string) => void;
@@ -29,6 +32,9 @@ const routes: Route[] = [
   { name: "settings", handler: renderSettings },
   { name: "wiki", handler: renderWiki },
   { name: "prompt", handler: renderPrompt },
+  { name: "profiles", handler: renderProfiles },
+  { name: "channels", handler: renderChannels },
+  { name: "platforms", handler: renderPlatforms },
 ];
 
 const paramRoutes: ParamRoute[] = [

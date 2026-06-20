@@ -1,10 +1,17 @@
 import { apiGet, apiPut, type SettingCategory } from "../lib/api";
 
 export function renderSettings(container: HTMLElement): void {
+  const currentRoute = window.location.pathname.slice(1) || "settings";
   container.innerHTML = `
     <div class="page-header">
       <h1 class="page-title">Settings</h1>
-      <p class="page-subtitle">Application configuration and environment variables</p>
+      <p class="page-subtitle">Application configuration</p>
+    </div>
+    <div class="settings-tabs">
+      <a href="/settings" class="settings-tab ${currentRoute === "settings" ? "active" : ""}" data-route="settings">Environment</a>
+      <a href="/profiles" class="settings-tab ${currentRoute === "profiles" ? "active" : ""}" data-route="profiles">Profiles</a>
+      <a href="/channels" class="settings-tab ${currentRoute === "channels" ? "active" : ""}" data-route="channels">Channels</a>
+      <a href="/platforms" class="settings-tab ${currentRoute === "platforms" ? "active" : ""}" data-route="platforms">Platforms</a>
     </div>
     <div id="settings-content"><div class="loading" style="padding:3rem;text-align:center;">Loading settings...</div></div>
   `;
@@ -111,9 +118,10 @@ function renderSettingRow(setting: SettingCategory["settings"][0]): string {
         break;
       case "select": {
         const opts = (meta.options || [])
-          .map((o: { id: string; name: string }) => {
-            const optLabel = o.name || o.id;
-            return `<option value="${escapeHtml(o.id)}"${o.id === value ? " selected" : ""}>${escapeHtml(optLabel)}</option>`;
+          .map((o: any) => {
+            const optId = o.id || o.value;
+            const optLabel = (o as any).name || o.label || optId;
+            return `<option value="${escapeHtml(optId)}"${optId === value ? " selected" : ""}>${escapeHtml(optLabel)}</option>`;
           })
           .join("");
         inputHtml = `
