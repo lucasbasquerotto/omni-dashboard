@@ -22,6 +22,7 @@ export function renderPlatforms(container: HTMLElement): void {
 // ── State ──
 
 let pluginsData: PluginData[] = [];
+const savedConfigs: Map<string, Record<string, any>> = new Map();
 
 async function loadPlatforms(): Promise<void> {
   const content = document.getElementById("platforms-content")!;
@@ -269,6 +270,22 @@ function wirePlatforms(): void {
     });
   });
 
+  // ── Config dirty-state tracking ──
+  document.querySelectorAll(".plugin-config-form").forEach((formEl) => {
+    const card = formEl.closest(".card") as HTMLElement;
+    const pluginName = card?.getAttribute("data-plugin-name");
+    if (!pluginName) return;
+    // Store the currently-rendered values as the saved baseline
+    savedConfigs.set(pluginName, getCurrentConfig(formEl));
+    // Re-check dirty state on every input change
+    formEl.querySelectorAll(".plugin-config-input").forEach((input) => {
+      input.addEventListener("input", () => dirtyCheckSaveButton(formEl, pluginName));
+      input.addEventListener("change", () => dirtyCheckSaveButton(formEl, pluginName));
+    });
+    // Initial dirty check (should be grayed out)
+    dirtyCheckSaveButton(formEl, pluginName);
+  });
+
   // Save buttons
   document.querySelectorAll(".plugin-save-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -304,7 +321,10 @@ function wirePlatforms(): void {
       Object.assign(config, multiGroups);
 
       try {
-        await apiPost(`/plugins/${encodeURIComponent(pluginName)}/config`, config);
+        await apiPost(`/plugins/${encodeURIComponent(pluginName)}/config`, { config });
+        // Update saved baseline to current values, re-check dirty state
+        savedConfigs.set(pluginName, { ...config });
+        dirtyCheckSaveButton(formEl, pluginName);
         (window as any).showToast?.("Configuration saved", "success");
       } catch (e) {
         (window as any).showToast?.(
@@ -393,9 +413,6 @@ function showInstallModal(pluginType: "platform" | "mcp"): void {
   // Wire close buttons
   backdrop.querySelector(".modal-close-btn")?.addEventListener("click", () => backdrop.remove());
   backdrop.querySelector(".modal-cancel-btn")?.addEventListener("click", () => backdrop.remove());
-  backdrop.addEventListener("mousedown", (e) => {
-    if (e.target === backdrop) backdrop.remove();
-  });
 
   // Wire install
   const installBtn = backdrop.querySelector("#install-confirm-btn") as HTMLButtonElement;
@@ -464,6 +481,68 @@ function showStatus(el: HTMLElement, message: string, type: "success" | "error" 
     el.style.color = "#22d3ee";
     el.style.border = "1px solid rgba(6,182,212,0.3)";
   }
+}
+
+// ── Config dirty-state helpers ──
+
+/** Collect current form values from a plugin config form, matching save logic. */
+function getCurrentConfig(formEl: HTMLElement): Record<string, any> {
+  const config: Record<string, any> = {};
+  formEl.querySelectorAll(".plugin-config-input:not(.plugin-multi-select)").forEach((input) => {
+    const el = input as HTMLInputElement | HTMLSelectElement;
+    const key = el.getAttribute("data-key");
+    if (!key) return;
+    if (el.type === "checkbox") {
+      config[key] = el.checked;
+    } else if (el.type === "number") {
+      config[key] = el.value ? Number(el.value) : null;
+    } else {
+      config[key] = el.value;
+    }
+  });
+  const multiGroups: Record<string, string[]> = {};
+  formEl.querySelectorAll(".plugin-multi-select").forEach((input) => {
+    const el = input as HTMLInputElement;
+    const key = el.getAttribute("data-key");
+    if (!key) return;
+    if (!multiGroups[key]) multiGroups[key] = [];
+    if (el.checked) multiGroups[key].push(el.value);
+  });
+  Object.assign(config, multiGroups);
+  return config;
+}
+
+/** Compare current form values against saved baseline and toggle save button. */
+function dirtyCheckSaveButton(formEl: HTMLElement, pluginName: string): void {
+  const saveBtn = formEl.querySelector(".plugin-save-btn") as HTMLButtonElement | null;
+  if (!saveBtn) return;
+  const current = getCurrentConfig(formEl);
+  const saved = savedConfigs.get(pluginName);
+  if (!saved) {
+    saveBtn.disabled = false;
+    saveBtn.style.opacity = "1";
+    saveBtn.style.cursor = "pointer";
+    return;
+  }
+
+  const keys = new Set([...Object.keys(saved), ...Object.keys(current)]);
+  let changed = false;
+  for (const k of keys) {
+    const sv = saved[k];
+    const cv = current[k];
+    if (Array.isArray(sv) && Array.isArray(cv)) {
+      if (sv.length !== cv.length || sv.some((v, i) => v !== cv[i])) {
+        changed = true;
+        break;
+      }
+    } else if (sv !== cv) {
+      changed = true;
+      break;
+    }
+  }
+  saveBtn.disabled = !changed;
+  saveBtn.style.opacity = changed ? "1" : "0.4";
+  saveBtn.style.cursor = changed ? "pointer" : "not-allowed";
 }
 
 function escapeHtml(text: string): string {

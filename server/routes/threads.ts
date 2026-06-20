@@ -52,6 +52,7 @@ threadsRouter.get("/", (req: Request, res: Response) => {
           t.started_at,
           t.ended_at,
           COALESCE(c.name, 'unknown') as channel_name,
+          COALESCE(c.closed, false) as channel_closed,
           (SELECT COUNT(*) FROM messages m WHERE m.thread_id = t.id) as msg_count,
           LEFT(COALESCE(m_cause.content, ''), 200) as cause_content_preview
         FROM threads t
@@ -84,6 +85,7 @@ threadsRouter.get("/", (req: Request, res: Response) => {
         started_at: row.started_at,
         ended_at: row.ended_at,
         channel_name: row.channel_name,
+        channel_closed: !!row.channel_closed,
         msg_count: row.msg_count || 0,
         cause_content_preview: row.cause_content_preview,
       }));

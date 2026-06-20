@@ -21,7 +21,7 @@ kanbanRouter.get("/board", async (req: Request, res: Response) => {
     const showArchived = req.query.show_archived === "true";
 
     const tasks = await queryDb(
-      `SELECT id, title, body, assignee, channel_id, profile, status, priority,
+      `SELECT id, display_id, title, body, assignee, channel_id, profile, status, priority,
               COALESCE(position, 0) AS position,
               created_at, updated_at, archived
        FROM kanban_tasks
@@ -52,7 +52,7 @@ kanbanRouter.get("/tasks/:id", async (req: Request, res: Response) => {
     }
 
     const tasks = await queryDb(
-      `SELECT id, title, body, assignee, channel_id, profile, status, priority,
+      `SELECT id, display_id, title, body, assignee, channel_id, profile, status, priority,
               created_at, updated_at, archived
        FROM kanban_tasks WHERE id = $1`,
       [taskId],

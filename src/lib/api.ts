@@ -198,6 +198,7 @@ export interface KanbanBoardsResponse {
 
 export interface KanbanTask {
   id: string;
+  display_id?: number;
   title: string;
   body: string | null;
   assignee: string | null;

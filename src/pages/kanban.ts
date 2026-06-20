@@ -327,6 +327,7 @@ function renderTaskCard(task: KanbanTask): string {
     <div class="kanban-card" data-task-id="${task.id}">
       <div class="kanban-card-top">
         <span class="kanban-priority ${priorityClass}">${priorityLabel}</span>
+        <span class="kanban-task-id" style="font-size:0.7rem;color:var(--text-muted);font-family:monospace;">#${task.display_id || task.id}</span>
       </div>
       <div class="kanban-card-title">${escapeHtml(task.title)}</div>
       ${task.body ? `<div class="kanban-card-body">${escapeHtml(task.body).slice(0, 120)}${task.body.length > 120 ? "..." : ""}</div>` : ""}
@@ -483,7 +484,7 @@ async function loadTaskDetail(taskId: string): Promise<void> {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div>
           <div class="detail-label">ID</div>
-          <div><code>${escapeHtml(task.id)}</code></div>
+          <div><code>#${task.display_id || task.id}</code></div>
         </div>
         <div>
           <div class="detail-label">Status</div>
@@ -632,6 +633,7 @@ async function loadKanbanThreads(taskId: string): Promise<void> {
       .map(
         (t: any) => `
       <div style="display:flex;align-items:center;gap:0.5rem;padding:0.375rem 0;border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.08));font-size:0.8rem;">
+        <span class="badge" style="${taskStatusBadgeStyle(t.status)}">${escapeHtml(t.status)}</span>
         <a href="/messages?thread_id=${encodeURIComponent(t.id)}" class="kanban-thread-link" style="color:var(--accent-cyan);text-decoration:none;flex:1;"
            data-route="messages" data-thread-id="${t.id}">
           ${escapeHtml(t.title || `Thread #${t.id}`)}
@@ -719,6 +721,26 @@ function formatTaskDate(dateStr: string): string {
   }
 }
 
+/** Styled status badge for thread status in kanban task detail. */
+function taskStatusBadgeStyle(status: string): string {
+  const s = status.toLowerCase();
+  const color =
+    s === "completed"
+      ? "#10b981"
+      : s === "failed"
+        ? "#f43f5e"
+        : s === "processing"
+          ? "#f59e0b"
+          : s === "pending"
+            ? "#3b82f6"
+            : s === "skipped"
+              ? "#64748b"
+              : s === "interrupted"
+                ? "#8b5cf6"
+                : "#64748b";
+  return `--type-color:${color};background:${color}22;border-color:${color}44;color:${color}`;
+}
+
 // ── Channel / Profile population helpers ──
 
 async function populateCreateChannelSelect(): Promise<void> {
@@ -775,13 +797,14 @@ async function populateProfileSelect(selectId: string, currentProfile?: string):
   const select = document.getElementById(selectId) as HTMLSelectElement;
   if (!select) return;
   try {
-    const profiles = await apiGet<string[]>("/profiles");
+    const profiles = await apiGet<any[]>("/profiles");
     select.innerHTML = '<option value="">None</option>';
     for (const p of profiles) {
+      const name = typeof p === "string" ? p : p.name || "";
       const opt = document.createElement("option");
-      opt.value = p;
-      opt.textContent = p;
-      if (currentProfile && p === currentProfile) {
+      opt.value = name;
+      opt.textContent = name;
+      if (currentProfile && name === currentProfile) {
         opt.selected = true;
       }
       select.appendChild(opt);
