@@ -344,6 +344,44 @@ export interface PlatformData {
   all_channels: { id: number; name: string; platform: string; resource_identifier: string }[];
 }
 
+// ── Plugin Types ──
+
+export interface ConfigField {
+  key: string;
+  label: string;
+  type: "string" | "secret" | "boolean" | "integer" | "enum" | "multi_select";
+  required?: boolean;
+  description?: string;
+  default?: string | number | boolean;
+  allowed_values?: string[];
+  min?: number;
+  max?: number;
+  format?: string;
+}
+
+export interface PluginManifest {
+  name: string;
+  version?: string;
+  type: "platform" | "mcp";
+  description?: string;
+  entrypoint?: { command: string; transport: string };
+  capabilities?: { inbound?: boolean; outbound?: boolean };
+  config_schema?: ConfigField[];
+}
+
+export interface PluginData {
+  id?: string;
+  name: string;
+  plugin_type: "platform" | "mcp";
+  version?: string;
+  source: "built-in" | "installed" | "bundled";
+  status: "enabled" | "disabled" | "error";
+  manifest: PluginManifest;
+  config: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {

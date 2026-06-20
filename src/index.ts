@@ -210,7 +210,7 @@ function showUploadModal(files: File[], existingSet: Set<string>): void {
   });
 
   backdrop.querySelector("#upload-cancel")?.addEventListener("click", () => backdrop.remove());
-  backdrop.addEventListener("click", (e) => {
+  backdrop.addEventListener("mousedown", (e) => {
     if (e.target === backdrop) backdrop.remove();
   });
 }

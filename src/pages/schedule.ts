@@ -74,7 +74,7 @@ async function loadCronJobs(activeOnly: boolean): Promise<void> {
                 <td style="color:var(--text-primary);font-weight:500;">${escapeHtml(j.name || j.id)}</td>
                 <td><code style="background:var(--bg-card);padding:0.125rem 0.375rem;border-radius:3px;font-size:0.75rem;">${escapeHtml(j.schedule)}</code></td>
                 <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:0.8rem;">${j.mode === "direct" && j.direct_task_type ? `<span style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(j.direct_task_type)}</span>` : escapeHtml(j.prompt_preview || "")}</td>
-                <td style="font-size:0.8rem;color:var(--text-muted);">${j.channel_id ? `#${j.channel_id}` : "—"}</td>
+                <td style="font-size:0.8rem;color:var(--text-muted);">${j.channel_name ? escapeHtml(j.channel_name) : j.channel_id ? `#${j.channel_id}` : "—"}</td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${j.profile ? escapeHtml(j.profile) : "—"}</td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${formatDate(j.last_run)}</td>
                 <td>
@@ -85,7 +85,7 @@ async function loadCronJobs(activeOnly: boolean): Promise<void> {
                 <td style="text-align:right;white-space:nowrap;">
                   <button class="cron-edit-btn" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:var(--accent-purple);border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.75rem;">Edit</button>
                   <button class="cron-toggle-active" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.75rem;color:var(--text-secondary);">${j.active ? "Deactivate" : "Activate"}</button>
-                  <a href="/schedule/${encodeURIComponent(j.id)}" class="btn-view" style="color:var(--accent-cyan);font-size:0.75rem;margin-left:0.375rem;text-decoration:none;">Details</a>
+                  <button class="cron-details-btn" data-cron-id="${encodeURIComponent(j.id)}" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:var(--accent-purple);border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.75rem;">Details</button>
                 </td>
               </tr>
             `,
@@ -102,6 +102,17 @@ async function loadCronJobs(activeOnly: boolean): Promise<void> {
 }
 
 function wireCronButtons(): void {
+  // Details buttons
+  document.querySelectorAll(".cron-details-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const cronId = btn.getAttribute("data-cron-id");
+      if (!cronId) return;
+      history.pushState({}, "", "/schedule/" + cronId);
+      router.go("schedule", cronId);
+    });
+  });
+
   // Edit buttons
   document.querySelectorAll(".cron-edit-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
@@ -170,7 +181,7 @@ export async function renderScheduleDetail(container: HTMLElement, cronId: strin
       </div>
       <div style="display:flex;gap:0.5rem;">
         <button id="detail-edit-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;">Edit</button>
-        <a href="/schedule" class="back-link" id="back-to-schedule" style="color:var(--accent-cyan);font-size:0.85rem;padding:0.375rem 0;text-decoration:none;">← Back to Schedules</a>
+        <a href="/schedule" class="back-link" id="back-to-schedule" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:var(--accent-cyan);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.85rem;text-decoration:none;">← Back to Schedules</a>
       </div>
     </div>
     <div class="card">
@@ -207,6 +218,10 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
             <div style="color:var(--text-primary);font-weight:500;">${escapeHtml(job.name || job.id)}</div>
           </div>
           <div style="margin-bottom:0.75rem;">
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Display Name</div>
+            <div style="color:var(--text-primary);">${escapeHtml(job.display_name || job.name || job.id)}</div>
+          </div>
+          <div style="margin-bottom:0.75rem;">
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Schedule</div>
             <code style="background:var(--bg-card);padding:0.25rem 0.5rem;border-radius:4px;font-size:0.8rem;color:var(--accent-cyan);">${escapeHtml(job.schedule)}</code>
           </div>
@@ -223,7 +238,7 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
           </div>
           <div style="margin-bottom:0.75rem;">
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Channel</div>
-            <div style="color:var(--text-primary);">${job.channel_id ? `#${job.channel_id}` : "—"}</div>
+            <div style="color:var(--text-primary);">${job.channel_name ? escapeHtml(job.channel_name) : job.channel_id ? `#${job.channel_id}` : "—"}</div>
           </div>
         </div>
         <div>
@@ -296,7 +311,14 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
       </div>`
           : ""
       }
+
+      <div id="schedule-threads-section" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-primary);">
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;">Threads</div>
+        <div id="schedule-threads" style="font-size:0.85rem;color:var(--text-muted);">Loading threads...</div>
+      </div>
     `;
+    // Load threads
+    loadScheduleThreads(job.id);
     return job;
   } catch (e) {
     el.innerHTML = `<div class="error-state">Failed to load job details: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
@@ -348,8 +370,31 @@ async function showCronModal(job: any): Promise<void> {
           <input id="cron-display" type="text" class="filter-input" value="${isEdit ? escapeHtml(job.display_name || job.name || "") : ""}" style="width:100%;" />
         </div>
         <div style="margin-bottom:1rem;">
-          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Schedule (cron expression)</label>
+          <div style="display:flex;align-items:center;gap:0.375rem;margin-bottom:0.375rem;">
+            <label style="font-size:0.8rem;color:var(--text-muted);">Schedule (cron expression)</label>
+            <button id="cron-help-btn" type="button" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.85rem;padding:0;line-height:1;width:18px;height:18px;border-radius:50%;border:1px solid var(--text-muted);display:inline-flex;align-items:center;justify-content:center;" title="Cron format help">?</button>
+          </div>
           <input id="cron-schedule" type="text" class="filter-input" value="${isEdit ? escapeHtml(job.schedule) : "every 10m"}" style="width:100%;font-family:monospace;" />
+          <div id="cron-help-box" style="display:none;margin-top:0.5rem;padding:0.75rem;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;font-size:0.78rem;color:var(--text-secondary);line-height:1.6;">
+            <div style="margin-bottom:0.5rem;"><strong style="color:var(--text-primary);">6-field format:</strong> <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">sec min hour dom month dow</code></div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:0.125rem 0.5rem 0.125rem 0;vertical-align:top;white-space:nowrap;color:var(--accent-purple);">sec</td><td style="padding:0.125rem 0;color:var(--text-muted);">Seconds (0-59)</td></tr>
+              <tr><td style="padding:0.125rem 0.5rem 0.125rem 0;vertical-align:top;white-space:nowrap;color:var(--accent-purple);">min</td><td style="padding:0.125rem 0;color:var(--text-muted);">Minutes (0-59)</td></tr>
+              <tr><td style="padding:0.125rem 0.5rem 0.125rem 0;vertical-align:top;white-space:nowrap;color:var(--accent-purple);">hour</td><td style="padding:0.125rem 0;color:var(--text-muted);">Hours (0-23)</td></tr>
+              <tr><td style="padding:0.125rem 0.5rem 0.125rem 0;vertical-align:top;white-space:nowrap;color:var(--accent-purple);">dom</td><td style="padding:0.125rem 0;color:var(--text-muted);">Day of month (1-31)</td></tr>
+              <tr><td style="padding:0.125rem 0.5rem 0.125rem 0;vertical-align:top;white-space:nowrap;color:var(--accent-purple);">month</td><td style="padding:0.125rem 0;color:var(--text-muted);">Month (1-12 or JAN-DEC)</td></tr>
+              <tr><td style="padding:0.125rem 0.5rem 0.125rem 0;vertical-align:top;white-space:nowrap;color:var(--accent-purple);">dow</td><td style="padding:0.125rem 0;color:var(--text-muted);">Day of week (0-7 or SUN-SAT, 0=SUN)</td></tr>
+            </table>
+            <div style="margin-top:0.5rem;"><strong style="color:var(--text-primary);">Special:</strong> <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">*</code> = any, <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">*/N</code> = every N, <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">,</code> = list, <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">-</code> = range</div>
+            <div style="margin-top:0.5rem;"><strong style="color:var(--text-primary);">Examples:</strong></div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 * * * * *</code> — every minute at :00</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 */10 * * * *</code> — every 10 minutes</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 * * * *</code> — every hour at :00</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 0 * * *</code> — daily at midnight</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 30 6 * * *</code> — daily at 06:30:00</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 9 * * 1-5</code> — weekdays at 09:00</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 0 1 * *</code> — 1st of every month at midnight</div>
+          </div>
         </div>
         <div style="margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Channel</label>
@@ -413,6 +458,16 @@ async function showCronModal(job: any): Promise<void> {
 
   document.body.appendChild(modal);
 
+  // Wire cron help button
+  const helpBtn = document.getElementById("cron-help-btn");
+  const helpBox = document.getElementById("cron-help-box");
+  if (helpBtn && helpBox) {
+    helpBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      helpBox.style.display = helpBox.style.display === "none" ? "block" : "none";
+    });
+  }
+
   // Enhance selects with custom floating dropdown (matching other pages)
   enhanceSelectElement(document.getElementById("cron-channel") as HTMLSelectElement);
   enhanceSelectElement(document.getElementById("cron-profile") as HTMLSelectElement);
@@ -432,7 +487,8 @@ async function showCronModal(job: any): Promise<void> {
   // Close handlers
   modal.querySelector("#modal-close")?.addEventListener("click", () => modal.remove());
   modal.querySelector("#modal-cancel")?.addEventListener("click", () => modal.remove());
-  modal.addEventListener("click", (e) => {
+  // Close only on mousedown on backdrop (not click, to avoid drag-to-close)
+  modal.addEventListener("mousedown", (e) => {
     if (e.target === modal) modal.remove();
   });
 
@@ -453,13 +509,31 @@ async function showCronModal(job: any): Promise<void> {
       (window as any).showToast?.("Name is required", "error");
       return;
     }
+    // Sanitize name: lowercase, no spaces/special chars, only alphanumeric and hyphens
+    const sanitizedName = name
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+    if (name !== sanitizedName) {
+      (window as any).showToast?.("Name was sanitized (no spaces/special characters)", "warning");
+    }
     if (!schedule) {
       (window as any).showToast?.("Schedule is required", "error");
       return;
     }
 
     try {
-      const body: any = { name, display_name, schedule, prompt, active, channel_id, profile, mode };
+      const body: any = {
+        name: sanitizedName || name,
+        display_name,
+        schedule,
+        prompt,
+        active,
+        channel_id,
+        profile,
+        mode,
+      };
       if (mode === "direct") body.direct_task_type = direct_task_type || null;
 
       let res: Response;
@@ -485,6 +559,47 @@ async function showCronModal(job: any): Promise<void> {
       (window as any).showToast?.("Failed: " + (e instanceof Error ? e.message : "Unknown"), "error");
     }
   });
+}
+
+async function loadScheduleThreads(scheduleId: string): Promise<void> {
+  const el = document.getElementById("schedule-threads");
+  if (!el) return;
+  try {
+    const res = await fetch(`/api/schedule/${encodeURIComponent(scheduleId)}/threads`);
+    if (!res.ok) throw new Error("Failed to load threads");
+    const data = await res.json();
+    if (!data.rows || data.rows.length === 0) {
+      el.innerHTML =
+        '<div style="color:var(--text-muted);font-size:0.8rem;">No threads created by this task.</div>';
+      return;
+    }
+    const threadsHtml = data.rows
+      .map(
+        (t: any) => `
+      <div style="display:flex;align-items:center;gap:0.5rem;padding:0.375rem 0;border-bottom:1px solid var(--border-primary);font-size:0.8rem;">
+        <a href="/messages?thread_id=${encodeURIComponent(t.id)}" class="thread-link" style="color:var(--accent-cyan);text-decoration:none;flex:1;"
+           data-route="messages" data-thread-id="${t.id}">
+          ${escapeHtml(t.title || "Thread #" + t.id)}
+        </a>
+        <span style="color:var(--text-muted);font-size:0.75rem;">${t.message_count || 0} msgs</span>
+        <span style="color:var(--text-muted);font-size:0.75rem;">${formatDate(t.created_at)}</span>
+      </div>
+    `,
+      )
+      .join("");
+    el.innerHTML = threadsHtml;
+    // Wire thread links
+    el.querySelectorAll(".thread-link").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        const route = a.getAttribute("data-route") || "messages";
+        history.pushState({}, "", "/messages?thread_id=" + a.getAttribute("data-thread-id"));
+        router.go(route);
+      });
+    });
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Failed to load threads.</div>';
+  }
 }
 
 function formatDate(dateStr: string | null): string {

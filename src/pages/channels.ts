@@ -21,10 +21,17 @@ export function renderChannels(container: HTMLElement): void {
 
 let _showAllChannels = false;
 
+let _profiles: any[] = [];
+
 async function loadChannels(): Promise<void> {
   const content = document.getElementById("channels-content")!;
   try {
     const channels = await apiGet<ChannelData[]>("/channels");
+    try {
+      _profiles = await apiGet<any[]>("/profiles");
+    } catch {
+      _profiles = [];
+    }
     content.innerHTML = renderChannelsPage(channels);
     wireChannels(channels);
     wireChannelFilterToggle();
@@ -95,7 +102,7 @@ function renderChannelsPage(channels: ChannelData[]): string {
         <div class="setting-row">
           <div class="setting-controls">
             <div class="setting-name">Profile</div>
-            ${renderEditableField("profile", ch.current_profile || "default", ch.id)}
+            ${renderProfileSelect(ch.id, ch.current_profile || "default")}
           </div>
         </div>
         <div class="setting-row">
@@ -125,6 +132,29 @@ function renderStatusControl(ch: ChannelData): string {
       <span class="status-badge ${ch.closed ? "status-badge-error" : "status-badge-success"}">${ch.closed ? "Closed" : "Open"}</span>
       <button type="button" class="channel-action-btn channel-toggle-btn" data-channel-id="${ch.id}" data-closed="${nextClosed}">
         ${actionLabel}
+      </button>
+    </div>
+  `;
+}
+
+function renderProfileSelect(channelId: number, current: string): string {
+  const selectId = `ch-${channelId}-profile`;
+  return `
+    <div style="display:flex;align-items:center;gap:0.375rem;flex-wrap:wrap;">
+      <select id="${selectId}" class="filter-select channel-edit-input" style="min-width:140px;max-width:240px;"
+        data-channel-id="${channelId}" data-field="profile" data-original="${escapeHtml(current)}">
+        ${_profiles
+          .map(
+            (p: any) =>
+              `<option value="${escapeHtml(p.name)}" ${p.name === current ? "selected" : ""}>${escapeHtml(p.name)}</option>`,
+          )
+          .join("")}
+      </select>
+      <button type="button" class="channel-edit-confirm" data-channel-id="${channelId}" data-field="profile" style="display:none;width:24px;height:24px;border-radius:4px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.3);cursor:pointer;color:#10b981;padding:0;" title="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
+      <button type="button" class="channel-edit-cancel" data-channel-id="${channelId}" data-field="profile" style="display:none;width:24px;height:24px;border-radius:4px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.3);cursor:pointer;color:#f43f5e;padding:0;" title="Cancel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
   `;

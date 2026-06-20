@@ -16,6 +16,7 @@ import { channelsRouter } from "./routes/channels.js";
 import { settingsRouter } from "./routes/settings.js";
 import { profilesRouter } from "./routes/profiles.js";
 import { platformsRouter } from "./routes/platforms.js";
+import { pluginsRouter } from "./routes/plugins.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -40,6 +41,7 @@ app.use("/api/channels", channelsRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/profiles", profilesRouter);
 app.use("/api/platforms", platformsRouter);
+app.use("/api/plugins", pluginsRouter);
 
 // Proxy for prompt-preview — forward to OmniAgent HTTP API
 app.post("/api/prompt-preview/:channelName", async (req, res) => {

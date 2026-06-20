@@ -9,6 +9,7 @@ import { renderSettings } from "../pages/settings";
 import { renderProfiles } from "../pages/profiles";
 import { renderChannels } from "../pages/channels";
 import { renderPlatforms } from "../pages/platforms";
+import { renderTools } from "../pages/tools";
 
 type PageRenderer = (container: HTMLElement) => void;
 type ParamPageRenderer = (container: HTMLElement, param: string) => void;
@@ -35,6 +36,7 @@ const routes: Route[] = [
   { name: "profiles", handler: renderProfiles },
   { name: "channels", handler: renderChannels },
   { name: "platforms", handler: renderPlatforms },
+  { name: "tools", handler: renderTools },
 ];
 
 const paramRoutes: ParamRoute[] = [
