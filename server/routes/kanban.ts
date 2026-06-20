@@ -386,3 +386,33 @@ kanbanRouter.delete("/tasks/:id", async (req: Request, res: Response) => {
     res.status(500).json({ error: e.message || "Unknown error" });
   }
 });
+
+// ── GET /api/kanban/tasks/:taskId/threads — Threads for a kanban task ──
+kanbanRouter.get("/tasks/:taskId/threads", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.taskId;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
+
+    // Total count
+    const countResult = await queryDb(`SELECT COUNT(*) AS total FROM threads WHERE task_id = $1`, [taskId]);
+    const total = parseInt(countResult[0]?.total) || 0;
+
+    // Paginated rows with title (id as fallback) and message_count subquery
+    const rows = await queryDb(
+      `SELECT id, id::text AS title, status, created_at,
+              (SELECT COUNT(*) FROM messages WHERE thread_id = t.id)::int AS message_count
+       FROM threads t
+       WHERE task_id = $1
+       ORDER BY created_at DESC
+       OFFSET $2
+       LIMIT $3`,
+      [taskId, offset, limit],
+    );
+
+    res.json({ rows, total });
+  } catch (e: any) {
+    console.error("Kanban threads error:", e?.message || e);
+    res.status(500).json({ error: e.message || "Unknown error" });
+  }
+});

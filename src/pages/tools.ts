@@ -1,63 +1,89 @@
-import { apiGet, apiPost, apiDelete, type PluginData, type ConfigField } from "../lib/api";
+import { apiGet, apiPost, apiDelete, type PluginData } from "../lib/api";
 
-export function renderPlatforms(container: HTMLElement): void {
+export function renderTools(container: HTMLElement): void {
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Platforms</h1>
-        <p class="page-subtitle">Communication platforms — built-in and plugin-based</p>
+        <h1 class="page-title">Tools</h1>
+        <p class="page-subtitle">MCP tools and servers — built-in and plugin-based</p>
       </div>
-      <button id="add-platform-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Add</button>
+      <button id="add-tool-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Add</button>
     </div>
-    <div id="platforms-content">
-      <div class="loading" style="padding:3rem;text-align:center;">Loading platforms...</div>
+    <div id="tools-content">
+      <div class="loading" style="padding:3rem;text-align:center;">Loading tools...</div>
     </div>
   `;
 
-  document.getElementById("add-platform-btn")?.addEventListener("click", () => showInstallModal("platform"));
+  document.getElementById("add-tool-btn")?.addEventListener("click", () => showInstallModal("mcp"));
 
-  void loadPlatforms();
+  void loadTools();
 }
+
+// ── Built-in tools (hardcoded) ──
+
+const BUILT_IN_TOOLS = [
+  "filesystem",
+  "fetch",
+  "search",
+  "kanban",
+  "cron",
+  "memory",
+  "git",
+  "docker",
+  "query",
+  "skills",
+];
 
 // ── State ──
 
 let pluginsData: PluginData[] = [];
 
-async function loadPlatforms(): Promise<void> {
-  const content = document.getElementById("platforms-content")!;
+async function loadTools(): Promise<void> {
+  const content = document.getElementById("tools-content")!;
   try {
     const allPlugins = await apiGet<PluginData[]>("/plugins");
-    // Filter to platforms only, plus always include cli as built-in
-    const platforms = allPlugins.filter((p) => p.plugin_type === "platform");
-    // Ensure cli is always shown even if not returned by API
-    if (!platforms.find((p) => p.name === "cli")) {
-      platforms.unshift({
-        name: "cli",
-        plugin_type: "platform",
-        source: "built-in",
-        status: "enabled",
-        manifest: {
-          name: "cli",
-          type: "platform",
-          description: "Command-line interface platform",
-        },
-        config: {},
-      });
+    // Filter to MCP type plugins
+    const mcpPlugins = allPlugins.filter((p) => p.plugin_type === "mcp");
+
+    // Build final list: built-in + plugin tools
+    const allTools: PluginData[] = [];
+
+    // Add built-in tools
+    for (const name of BUILT_IN_TOOLS) {
+      // Don't add if a plugin with same name already exists
+      if (!mcpPlugins.find((p) => p.name === name)) {
+        allTools.push({
+          name,
+          plugin_type: "mcp",
+          source: "built-in",
+          status: "enabled",
+          manifest: {
+            name,
+            type: "mcp",
+            description: `Built-in ${name} tool`,
+          },
+          config: {},
+        });
+      }
     }
-    pluginsData = platforms;
-    content.innerHTML = renderPlatformsPage(platforms);
-    wirePlatforms();
+
+    // Add plugin-based tools
+    allTools.push(...mcpPlugins);
+
+    pluginsData = allTools;
+    content.innerHTML = renderToolsPage(allTools);
+    wireTools();
   } catch (e) {
-    content.innerHTML = `<div class="error-state" style="padding:3rem;text-align:center;">Failed to load platforms: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
+    content.innerHTML = `<div class="error-state" style="padding:3rem;text-align:center;">Failed to load tools: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
   }
 }
 
-function renderPlatformsPage(platforms: PluginData[]): string {
-  if (!platforms || platforms.length === 0) {
-    return '<div class="empty-state">No platforms found</div>';
+function renderToolsPage(tools: PluginData[]): string {
+  if (!tools || tools.length === 0) {
+    return '<div class="empty-state">No tools found</div>';
   }
 
-  return platforms
+  return tools
     .map(
       (p) => `
     <div class="card settings-card" data-plugin-name="${escapeHtml(p.name)}">
@@ -66,7 +92,7 @@ function renderPlatformsPage(platforms: PluginData[]): string {
           <span class="plugin-name" style="font-weight:600;">${escapeHtml(p.manifest?.label || p.name)}</span>
           <span class="badge ${getStatusBadgeClass(p.status)}" style="margin-left:0.5rem;">${p.status === "enabled" ? "● Enabled" : p.status === "disabled" ? "● Disabled" : "● Error"}</span>
           ${p.version ? `<span class="badge badge-info" style="margin-left:0.375rem;">v${escapeHtml(p.version)}</span>` : ""}
-          <span class="badge badge-neutral" style="margin-left:0.375rem;">source: ${escapeHtml(p.source)}</span>
+          <span class="badge badge-neutral" style="margin-left:0.375rem;">${p.source === "built-in" ? "built-in tool" : `source: ${escapeHtml(p.source)}`}</span>
         </span>
         <span style="display:flex;gap:0.25rem;align-items:center;">
           <button type="button" class="plugin-expand-btn" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0.25rem;font-size:1rem;" title="Toggle config">▶</button>
@@ -82,9 +108,9 @@ function renderPlatformsPage(platforms: PluginData[]): string {
 }
 
 function renderPluginConfig(p: PluginData): string {
-  // Built-in platforms with no config
+  // Built-in tools with no config
   if (p.source === "built-in") {
-    return `<p class="text-muted" style="font-size:0.85rem;color:var(--text-muted);padding:0.5rem 0;">Built-in platform, no configuration needed.</p>`;
+    return `<p class="text-muted" style="font-size:0.85rem;color:var(--text-muted);padding:0.5rem 0;">Built-in tool, no configuration needed.</p>`;
   }
 
   const schema = p.manifest?.config_schema;
@@ -113,7 +139,7 @@ function renderPluginConfig(p: PluginData): string {
   `;
 }
 
-function renderConfigField(field: ConfigField, value: any, pluginName: string): string {
+function renderConfigField(field: any, value: any, pluginName: string): string {
   const fieldId = `cfg-${escapeHtml(pluginName)}-${escapeHtml(field.key)}`;
   const requiredMark = field.required
     ? '<span style="color:var(--accent-rose);margin-left:0.125rem;">*</span>'
@@ -219,7 +245,7 @@ function getStatusBadgeClass(status: string): string {
   }
 }
 
-function wirePlatforms(): void {
+function wireTools(): void {
   // Expand/collapse cards
   document.querySelectorAll(".plugin-expand-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -237,7 +263,6 @@ function wirePlatforms(): void {
   // Card header click also toggles
   document.querySelectorAll(".card-header").forEach((header) => {
     header.addEventListener("click", (e) => {
-      // Don't toggle if clicking a button inside the header
       if ((e.target as HTMLElement).closest("button")) return;
       const btn = header.querySelector(".plugin-expand-btn") as HTMLElement;
       if (btn) btn.click();
@@ -277,7 +302,6 @@ function wirePlatforms(): void {
       if (!formEl) return;
 
       const config: Record<string, any> = {};
-      // Collect text/number/secret inputs
       formEl.querySelectorAll(".plugin-config-input:not(.plugin-multi-select)").forEach((input) => {
         const el = input as HTMLInputElement | HTMLSelectElement;
         const key = el.getAttribute("data-key");
@@ -290,7 +314,6 @@ function wirePlatforms(): void {
           config[key] = el.value;
         }
       });
-      // Collect multi-select checkboxes
       const multiGroups: Record<string, string[]> = {};
       formEl.querySelectorAll(".plugin-multi-select").forEach((input) => {
         const el = input as HTMLInputElement;
@@ -325,7 +348,7 @@ function wirePlatforms(): void {
       try {
         await apiPost(`/plugins/${encodeURIComponent(pluginName)}/${action}`, {});
         (window as any).showToast?.(isCurrentlyEnabled ? "Disabled" : "Enabled", "success");
-        void loadPlatforms();
+        void loadTools();
       } catch (e) {
         (window as any).showToast?.("Failed: " + (e instanceof Error ? e.message : "Unknown"), "error");
       }
@@ -343,7 +366,7 @@ function wirePlatforms(): void {
       try {
         await apiDelete(`/plugins/${encodeURIComponent(pluginName)}`);
         (window as any).showToast?.("Plugin removed", "success");
-        void loadPlatforms();
+        void loadTools();
       } catch (e) {
         (window as any).showToast?.(
           "Failed to remove: " + (e instanceof Error ? e.message : "Unknown"),
@@ -388,14 +411,12 @@ function showInstallModal(pluginType: "platform" | "mcp"): void {
 
   document.body.appendChild(backdrop);
 
-  // Wire close buttons
   backdrop.querySelector(".modal-close-btn")?.addEventListener("click", () => backdrop.remove());
   backdrop.querySelector(".modal-cancel-btn")?.addEventListener("click", () => backdrop.remove());
   backdrop.addEventListener("mousedown", (e) => {
     if (e.target === backdrop) backdrop.remove();
   });
 
-  // Wire install
   const installBtn = backdrop.querySelector("#install-confirm-btn") as HTMLButtonElement;
   const urlInput = backdrop.querySelector("#install-url-input") as HTMLInputElement;
   const nameInput = backdrop.querySelector("#install-name-input") as HTMLInputElement;
@@ -430,13 +451,9 @@ function showInstallModal(pluginType: "platform" | "mcp"): void {
       installBtn.textContent = "Done";
       setTimeout(() => {
         backdrop.remove();
-        if (pluginType === "platform") {
-          void loadPlatforms();
-        } else {
-          // Will be wired by tools page
-          const evt = new CustomEvent("plugins-reloaded");
-          window.dispatchEvent(evt);
-        }
+        const evt = new CustomEvent("plugins-reloaded");
+        window.dispatchEvent(evt);
+        void loadTools();
       }, 1000);
     } catch (e) {
       showStatus(statusEl, "Error: " + (e instanceof Error ? e.message : "Unknown error"), "error");

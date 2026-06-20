@@ -534,6 +534,11 @@ async function loadTaskDetail(taskId: string): Promise<void> {
             .join("")}
         </div>
       </div>
+
+      <div id="kanban-threads-section" style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--glass-border,rgba(255,255,255,0.08));">
+        <div class="detail-label" style="margin-bottom:0.5rem;">Threads</div>
+        <div id="kanban-threads" style="font-size:0.85rem;color:var(--text-muted);">Loading threads...</div>
+      </div>
     `;
 
     // Wire up detail move buttons
@@ -603,8 +608,52 @@ async function loadTaskDetail(taskId: string): Promise<void> {
         alert("Failed to update task: " + (e instanceof Error ? e.message : "Unknown error"));
       }
     });
+    // Load threads for this task
+    void loadKanbanThreads(taskId);
   } catch (e) {
     el.innerHTML = `<div class="error-state">Failed to load task: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
+  }
+}
+
+// ── Load threads for a kanban task ──
+async function loadKanbanThreads(taskId: string): Promise<void> {
+  const el = document.getElementById("kanban-threads");
+  if (!el) return;
+  try {
+    const res = await fetch(`/api/kanban/tasks/${encodeURIComponent(taskId)}/threads`);
+    if (!res.ok) throw new Error("Failed to load threads");
+    const data = await res.json();
+    if (!data.rows || data.rows.length === 0) {
+      el.innerHTML =
+        '<div style="color:var(--text-muted);font-size:0.8rem;">No threads created by this task.</div>';
+      return;
+    }
+    const threadsHtml = data.rows
+      .map(
+        (t: any) => `
+      <div style="display:flex;align-items:center;gap:0.5rem;padding:0.375rem 0;border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.08));font-size:0.8rem;">
+        <a href="/messages?thread_id=${encodeURIComponent(t.id)}" class="kanban-thread-link" style="color:var(--accent-cyan);text-decoration:none;flex:1;"
+           data-route="messages" data-thread-id="${t.id}">
+          ${escapeHtml(t.title || `Thread #${t.id}`)}
+        </a>
+        <span style="color:var(--text-muted);font-size:0.75rem;">${t.message_count || 0} msgs</span>
+        <span style="color:var(--text-muted);font-size:0.75rem;">${formatTaskDate(t.created_at)}</span>
+      </div>
+    `,
+      )
+      .join("");
+    el.innerHTML = threadsHtml;
+    // Wire thread links
+    el.querySelectorAll(".kanban-thread-link").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        const route = a.getAttribute("data-route") || "messages";
+        history.pushState({}, "", `/messages?thread_id=${a.getAttribute("data-thread-id")}`);
+        router.go(route);
+      });
+    });
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Failed to load threads.</div>';
   }
 }
 
@@ -654,6 +703,20 @@ function escapeHtml(text: string): string {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
+}
+
+function formatTaskDate(dateStr: string): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return dateStr;
+  }
 }
 
 // ── Channel / Profile population helpers ──

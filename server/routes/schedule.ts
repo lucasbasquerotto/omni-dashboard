@@ -37,19 +37,21 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
     let params: any[];
 
     if (activeOnly) {
-      sql = `SELECT DISTINCT ON (name) id, name, display_name, schedule, prompt, skills, enabled, active,
-              mode, direct_task_type, channel_id, profile,
-              last_run_at, next_run_at, created_at, script, no_agent, workdir, deliver, repeat
-       FROM cron_jobs
-       WHERE active = true
-       ORDER BY name, created_at DESC`;
+      sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
+              cj.mode, cj.direct_task_type, cj.channel_id, ch.name as channel_name, cj.profile,
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat
+       FROM cron_jobs cj
+       LEFT JOIN channels ch ON ch.id = cj.channel_id
+       WHERE cj.active = true
+       ORDER BY cj.name, cj.created_at DESC`;
       params = [];
     } else {
-      sql = `SELECT DISTINCT ON (name) id, name, display_name, schedule, prompt, skills, enabled, active,
-              mode, direct_task_type, channel_id, profile,
-              last_run_at, next_run_at, created_at, script, no_agent, workdir, deliver, repeat
-       FROM cron_jobs
-       ORDER BY name, created_at DESC`;
+      sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
+              cj.mode, cj.direct_task_type, cj.channel_id, ch.name as channel_name, cj.profile,
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat
+       FROM cron_jobs cj
+       LEFT JOIN channels ch ON ch.id = cj.channel_id
+       ORDER BY cj.name, cj.created_at DESC`;
       params = [];
     }
 
@@ -72,6 +74,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       mode: job.mode,
       direct_task_type: job.direct_task_type,
       channel_id: job.channel_id,
+      channel_name: job.channel_name || null,
       profile: job.profile,
       script: job.script || null,
       no_agent: !!job.no_agent,
@@ -103,11 +106,12 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
     }
 
     const jobs = await queryDb(
-      `SELECT id, name, display_name, schedule, prompt, skills, enabled, active,
-              mode, direct_task_type, channel_id, profile,
-              last_run_at, next_run_at, created_at, script, no_agent, workdir, deliver, repeat
-       FROM cron_jobs
-       WHERE id = $1`,
+      `SELECT cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
+              cj.mode, cj.direct_task_type, cj.channel_id, ch.name as channel_name, cj.profile,
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat
+       FROM cron_jobs cj
+       LEFT JOIN channels ch ON ch.id = cj.channel_id
+       WHERE cj.id = $1`,
       [jobId],
     );
 
@@ -134,6 +138,7 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
       mode: job.mode,
       direct_task_type: job.direct_task_type,
       channel_id: job.channel_id,
+      channel_name: job.channel_name || null,
       profile: job.profile,
       script: job.script || null,
       no_agent: !!job.no_agent,
@@ -314,6 +319,39 @@ scheduleRouter.patch("/:id/toggle", async (req: Request, res: Response) => {
     res.json({ success: true, active });
   } catch (e: any) {
     console.error("Schedule toggle error:", e?.message || e);
+    res.status(500).json({ error: e.message || "Unknown error" });
+  }
+});
+
+// ── GET /api/schedule/:id/threads — Threads for a schedule task ──
+scheduleRouter.get("/:id/threads", async (req: Request, res: Response) => {
+  try {
+    const scheduleTaskId = req.params.id;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
+
+    // Total count
+    const countResult = await queryDb(`SELECT COUNT(*) AS total FROM threads WHERE schedule_task_id = $1`, [
+      scheduleTaskId,
+    ]);
+    const total = parseInt(countResult[0]?.total) || 0;
+
+    // Paginated rows
+    const rows = await queryDb(
+      `SELECT id, status, cause, channel_id, profile, created_at,
+              input_tokens, output_tokens, duration_ms,
+              (SELECT COUNT(*) FROM messages WHERE thread_id = t.id)::int AS message_count
+       FROM threads t
+       WHERE schedule_task_id = $1
+       ORDER BY created_at DESC
+       OFFSET $2
+       LIMIT $3`,
+      [scheduleTaskId, offset, limit],
+    );
+
+    res.json({ rows, total });
+  } catch (e: any) {
+    console.error("Schedule threads error:", e?.message || e);
     res.status(500).json({ error: e.message || "Unknown error" });
   }
 });
