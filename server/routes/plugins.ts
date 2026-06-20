@@ -1,11 +1,12 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 
 export const pluginsRouter = Router();
 
 // Proxy /api/plugins/* to the OmniAgent backend
 const OMNIAGENT_URL = process.env.OMNIAGENT_URL || "http://omniagent-omniagent-1:8080";
 
-pluginsRouter.all("/*", async (req, res) => {
+// Use a middleware approach instead of all("*") which fails in Express 5
+pluginsRouter.use(async (req: Request, res: Response, _next: NextFunction) => {
   try {
     let path = req.path;
     // Strip trailing slash for root path to match omniagent backend routes
