@@ -3,11 +3,12 @@ import { queryDb } from "../db.js";
 
 export const channelsRouter = Router();
 
-// GET /api/channels — list all channels
+// GET /api/channels — list all channels with full details
 channelsRouter.get("/", async (_req, res) => {
   try {
     const rows = await queryDb(
-      "SELECT id, name, platform, current_profile, current_provider, current_model FROM channels ORDER BY name",
+      `SELECT id, name, platform, resource_identifier, closed, current_profile, current_provider, current_model, readonly
+       FROM channels ORDER BY name`,
     );
     res.json(rows);
   } catch (err) {
