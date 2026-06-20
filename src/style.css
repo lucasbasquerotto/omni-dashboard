@@ -536,6 +536,10 @@ tr:hover td {
   border-bottom: 1px solid var(--border-primary);
   vertical-align: middle;
 }
+.data-table .cell-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 a.thread-row {
   display: table-row;
   color: inherit;

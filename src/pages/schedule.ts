@@ -334,9 +334,10 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
 async function showCronModal(job: any): Promise<void> {
   const isEdit = job !== null;
 
-  // Fetch available channels, profiles, and direct task types
+  // Fetch available channels, profiles, existing jobs, and direct task types
   let channels: any[] = [];
   let profiles: any[] = [];
+  let existingJobs: any[] = [];
   let directTaskTypes: { value: string; label: string }[] = [];
   try {
     channels = await apiGet<any[]>("/channels");
@@ -349,7 +350,12 @@ async function showCronModal(job: any): Promise<void> {
     /* profiles may not be available */
   }
   try {
-    directTaskTypes = await apiGet<any[]>("../api/schedule/direct-task-types");
+    existingJobs = await apiGet<any[]>("/schedule?active=false");
+  } catch {
+    /* existing jobs may not be available */
+  }
+  try {
+    directTaskTypes = await apiGet<any[]>("/schedule/direct-task-types");
   } catch {
     /* direct task types may not be available */
   }
@@ -365,19 +371,16 @@ async function showCronModal(job: any): Promise<void> {
       </div>
       <div style="padding:1.25rem;">
         <div style="margin-bottom:1rem;">
-          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Name</label>
-          <input id="cron-name" type="text" class="filter-input" value="${isEdit ? escapeHtml(job.name || "") : ""}" style="width:100%;" ${isEdit ? "readonly" : ""} />
-        </div>
-        <div style="margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Display Name</label>
           <input id="cron-display" type="text" class="filter-input" value="${isEdit ? escapeHtml(job.display_name || job.name || "") : ""}" style="width:100%;" />
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">${isEdit ? "" : "The internal name is auto-generated from this value."}</div>
         </div>
         <div style="margin-bottom:1rem;">
           <div style="display:flex;align-items:center;gap:0.375rem;margin-bottom:0.375rem;">
             <label style="font-size:0.8rem;color:var(--text-muted);">Schedule (cron expression)</label>
-            <button id="cron-help-btn" type="button" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.85rem;padding:0;line-height:1;width:18px;height:18px;border-radius:50%;border:1px solid var(--text-muted);display:inline-flex;align-items:center;justify-content:center;" title="Cron format help">?</button>
+            <button id="cron-help-btn" type="button" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.7rem;padding:0;line-height:1;width:14px;height:14px;border-radius:50%;border:1px solid var(--text-muted);display:inline-flex;align-items:center;justify-content:center;" title="Cron format help">?</button>
           </div>
-          <input id="cron-schedule" type="text" class="filter-input" value="${isEdit ? escapeHtml(job.schedule) : "every 10m"}" style="width:100%;font-family:monospace;" />
+          <input id="cron-schedule" type="text" class="filter-input" value="${isEdit ? escapeHtml(job.schedule) : "0 0 0 * * *"}" style="width:100%;font-family:monospace;" />
           <div id="cron-help-box" style="display:none;margin-top:0.5rem;padding:0.75rem;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;font-size:0.78rem;color:var(--text-secondary);line-height:1.6;">
             <div style="margin-bottom:0.5rem;"><strong style="color:var(--text-primary);">6-field format:</strong> <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">sec min hour dom month dow</code></div>
             <table style="width:100%;border-collapse:collapse;">
@@ -402,7 +405,7 @@ async function showCronModal(job: any): Promise<void> {
         <div style="margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Channel</label>
           <select id="cron-channel" class="filter-select" style="width:100%;">
-            <option value="">Default cron channel</option>
+            <option value="">- (Default cron channel)</option>
             ${channels
               .map(
                 (ch: any) =>
@@ -414,7 +417,7 @@ async function showCronModal(job: any): Promise<void> {
         <div style="margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Profile</label>
           <select id="cron-profile" class="filter-select" style="width:100%;">
-            <option value="">Default</option>
+            <option value="">- (Default)</option>
             ${profiles
               .map(
                 (p: any) =>
@@ -490,14 +493,9 @@ async function showCronModal(job: any): Promise<void> {
   // Close handlers
   modal.querySelector("#modal-close")?.addEventListener("click", () => modal.remove());
   modal.querySelector("#modal-cancel")?.addEventListener("click", () => modal.remove());
-  // Close only on mousedown on backdrop (not click, to avoid drag-to-close)
-  modal.addEventListener("mousedown", (e) => {
-    if (e.target === modal) modal.remove();
-  });
 
   // Save handler
   modal.querySelector("#modal-save")?.addEventListener("click", async () => {
-    const name = (modal.querySelector("#cron-name") as HTMLInputElement).value.trim();
     const display_name = (modal.querySelector("#cron-display") as HTMLInputElement).value.trim();
     const schedule = (modal.querySelector("#cron-schedule") as HTMLInputElement).value.trim();
     const channelVal = (modal.querySelector("#cron-channel") as HTMLSelectElement).value;
@@ -508,18 +506,25 @@ async function showCronModal(job: any): Promise<void> {
     const active = (modal.querySelector("#cron-active") as HTMLInputElement).checked;
     const channel_id = channelVal ? parseInt(channelVal, 10) : null;
 
-    if (!name) {
-      (window as any).showToast?.("Name is required", "error");
+    if (!display_name) {
+      (window as any).showToast?.("Display Name is required", "error");
       return;
     }
     // Sanitize name: lowercase, no spaces/special chars, only alphanumeric and hyphens
-    const sanitizedName = name
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-    if (name !== sanitizedName) {
-      (window as any).showToast?.("Name was sanitized (no spaces/special characters)", "warning");
+    let name: string;
+    if (isEdit) {
+      name = job.name;
+    } else {
+      name = display_name
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+      if (!name) name = "unnamed";
+      // Check for collision with existing jobs
+      if (existingJobs.some((j: any) => j.id === name || j.name === name)) {
+        name = name + "-" + Date.now();
+      }
     }
     if (!schedule) {
       (window as any).showToast?.("Schedule is required", "error");
@@ -528,7 +533,7 @@ async function showCronModal(job: any): Promise<void> {
 
     try {
       const body: any = {
-        name: sanitizedName || name,
+        name: name,
         display_name,
         schedule,
         prompt,

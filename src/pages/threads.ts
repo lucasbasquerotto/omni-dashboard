@@ -17,6 +17,7 @@ interface ThreadRow {
   started_at: string | null;
   ended_at: string | null;
   channel_name: string;
+  channel_closed?: boolean;
   msg_count: number;
   cause_content_preview: string | null;
 }
@@ -58,6 +59,14 @@ function statusBadgeStyle(status: string): string {
                 ? "#8b5cf6"
                 : "#64748b";
   return `--type-color:${color};background:${color}22;border-color:${color}44;color:${color}`;
+}
+
+/** Channel badge style: open = golden border/color, closed = strikethrough + gray. */
+function channelStyle(closed: boolean | undefined): string {
+  if (closed) {
+    return "color:#94a3b8;opacity:0.5;text-decoration:line-through;border-color:rgba(148,163,184,0.2);background:rgba(148,163,184,0.05)";
+  }
+  return "--type-color:#fbbf24;color:#fbbf24;border-color:rgba(251,191,36,0.4);background:rgba(251,191,36,0.12)";
 }
 
 // ── Cause badge colors ──
@@ -277,7 +286,7 @@ function renderRow(row: ThreadRow): string {
       <div role="cell"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code></div>
       <div role="cell"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span></div>
       <div role="cell"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></div>
-      <div role="cell"><span class="badge badge-neutral">${escapeHtml(row.channel_name)}</span></div>
+      <div role="cell"><span class="badge" style="${channelStyle(row.channel_closed)}"${row.channel_closed ? ' title="Channel closed"' : ""}>${escapeHtml(row.channel_name)}</span></div>
       <div role="cell" class="cell-timestamp">${ts}</div>
       <div role="cell" class="cell-num">${row.msg_count}</div>
       <div role="cell" class="cell-preview">${preview}</div>

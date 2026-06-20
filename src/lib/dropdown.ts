@@ -57,7 +57,11 @@ export function enhanceSelectElement(select: HTMLSelectElement): void {
     e.stopPropagation();
     e.preventDefault();
 
-    closeFloatingDropdown();
+    // If this dropdown is already open, just close it
+    if (_openFloatingDropdown) {
+      closeFloatingDropdown();
+      return;
+    }
 
     const rect = trigger.getBoundingClientRect();
     const float = document.createElement("div");
