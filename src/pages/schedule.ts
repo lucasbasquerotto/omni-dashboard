@@ -85,7 +85,7 @@ async function loadCronJobs(activeOnly: boolean): Promise<void> {
                 <td style="text-align:right;white-space:nowrap;">
                   <button class="cron-edit-btn" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:var(--accent-purple);border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.75rem;">Edit</button>
                   <button class="cron-toggle-active" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.75rem;color:var(--text-secondary);">${j.active ? "Deactivate" : "Activate"}</button>
-                  <button class="cron-details-btn" data-cron-id="${encodeURIComponent(j.id)}" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:var(--accent-purple);border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.75rem;">Details</button>
+                  <a href="/schedule/${encodeURIComponent(j.id)}" class="cron-details-btn" data-cron-id="${encodeURIComponent(j.id)}" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);color:var(--accent-cyan);border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.75rem;text-decoration:none;display:inline-block;">Details</a>
                 </td>
               </tr>
             `,
@@ -102,14 +102,17 @@ async function loadCronJobs(activeOnly: boolean): Promise<void> {
 }
 
 function wireCronButtons(): void {
-  // Details buttons
+  // Details buttons — handle left-click for SPA navigation, middle-click opens in new tab via href
   document.querySelectorAll(".cron-details-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
-      e.stopPropagation();
       const cronId = btn.getAttribute("data-cron-id");
       if (!cronId) return;
+      // For middle-click (button === 1), let browser handle via href (opens in new tab)
+      if (e.button === 1) return;
+      e.preventDefault();
+      e.stopPropagation();
       history.pushState({}, "", "/schedule/" + cronId);
-      router.go("schedule", cronId);
+      router.go("schedule/" + cronId);
     });
   });
 

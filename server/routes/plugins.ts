@@ -7,7 +7,9 @@ const OMNIAGENT_URL = process.env.OMNIAGENT_URL || "http://omniagent-omniagent-1
 
 pluginsRouter.all("/*", async (req, res) => {
   try {
-    const path = req.path;
+    let path = req.path;
+    // Strip trailing slash for root path to match omniagent backend routes
+    if (path === "/") path = "";
     const queryString = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
     const targetUrl = `${OMNIAGENT_URL}/api/plugins${path}${queryString}`;
 

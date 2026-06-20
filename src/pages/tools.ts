@@ -41,9 +41,11 @@ let pluginsData: PluginData[] = [];
 async function loadTools(): Promise<void> {
   const content = document.getElementById("tools-content")!;
   try {
-    const allPlugins = await apiGet<PluginData[]>("/plugins");
+    const response = await apiGet<any>("/plugins");
+    // Backend wraps in { success, data } — extract data array
+    const allPlugins: PluginData[] = response.data || response;
     // Filter to MCP type plugins
-    const mcpPlugins = allPlugins.filter((p) => p.plugin_type === "mcp");
+    const mcpPlugins = allPlugins.filter((p: PluginData) => p.plugin_type === "mcp");
 
     // Build final list: built-in + plugin tools
     const allTools: PluginData[] = [];
