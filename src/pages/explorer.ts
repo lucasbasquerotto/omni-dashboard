@@ -135,7 +135,7 @@ let lastOpenedFile: string | null = null;
 
 // ── Main render ──
 
-export function renderWiki(container: HTMLElement): void {
+export function renderExplorer(container: HTMLElement): void {
   container.innerHTML = `
     <div class="search-page" id="search-page">
       <div class="explorer-panel" id="explorer-panel">
