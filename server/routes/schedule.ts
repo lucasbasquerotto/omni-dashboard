@@ -29,6 +29,19 @@ scheduleRouter.get("/direct-task-types", (_req: Request, res: Response) => {
   res.json(DIRECT_TASK_TYPES);
 });
 
+// ── GET /api/schedule/actions — Return available actions for schedule mode ──
+scheduleRouter.get("/actions", async (_req: Request, res: Response) => {
+  try {
+    const rows = await queryDb(
+      `SELECT id, name, tool_name, is_builtin FROM actions ORDER BY is_builtin DESC, name ASC`,
+    );
+    res.json(rows);
+  } catch (e: any) {
+    console.error("Schedule actions error:", e?.message || e);
+    res.status(500).json({ error: e.message || "Unknown error" });
+  }
+});
+
 // ── GET /api/schedule — List cron jobs (optionally filter by active) ──
 scheduleRouter.get("/", async (req: Request, res: Response) => {
   try {
@@ -38,7 +51,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
 
     if (activeOnly) {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
-              cj.mode, cj.direct_task_type, cj.channel_id, ch.name as channel_name, cj.profile,
+              cj.mode, cj.direct_task_type, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
               cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
@@ -47,7 +60,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       params = [];
     } else {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
-              cj.mode, cj.direct_task_type, cj.channel_id, ch.name as channel_name, cj.profile,
+              cj.mode, cj.direct_task_type, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
               cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
@@ -73,6 +86,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       active: job.active,
       mode: job.mode,
       direct_task_type: job.direct_task_type,
+      action_id: job.action_id || null,
       channel_id: job.channel_id,
       channel_name: job.channel_name || null,
       profile: job.profile,
@@ -107,7 +121,7 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
 
     const jobs = await queryDb(
       `SELECT cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
-              cj.mode, cj.direct_task_type, cj.channel_id, ch.name as channel_name, cj.profile,
+              cj.mode, cj.direct_task_type, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
               cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
@@ -137,6 +151,7 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
       active: job.active,
       mode: job.mode,
       direct_task_type: job.direct_task_type,
+      action_id: job.action_id || null,
       channel_id: job.channel_id,
       channel_name: job.channel_name || null,
       profile: job.profile,
@@ -171,6 +186,7 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
       profile,
       mode,
       direct_task_type,
+      action_id,
       enabled,
     } = req.body;
 
@@ -183,8 +199,8 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
     const displayName = display_name || name;
 
     await queryDb(
-      `INSERT INTO cron_jobs (id, name, display_name, schedule, prompt, active, channel_id, profile, mode, direct_task_type, enabled)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO cron_jobs (id, name, display_name, schedule, prompt, active, channel_id, profile, mode, direct_task_type, action_id, enabled)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          display_name = EXCLUDED.display_name,
@@ -195,6 +211,7 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
          profile = EXCLUDED.profile,
          mode = EXCLUDED.mode,
          direct_task_type = EXCLUDED.direct_task_type,
+         action_id = EXCLUDED.action_id,
          enabled = EXCLUDED.enabled,
          updated_at = NOW()`,
       [
@@ -208,6 +225,7 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
         profile || null,
         mode || "agentic",
         direct_task_type || null,
+        action_id || null,
         enabled !== false, // default true
       ],
     );
@@ -234,6 +252,7 @@ scheduleRouter.patch("/:id", async (req: Request, res: Response) => {
       profile,
       mode,
       direct_task_type,
+      action_id,
     } = req.body;
 
     // Check job exists
@@ -287,6 +306,10 @@ scheduleRouter.patch("/:id", async (req: Request, res: Response) => {
     if (direct_task_type !== undefined) {
       sets.push(`direct_task_type = $${paramIdx++}`);
       params.push(direct_task_type);
+    }
+    if (action_id !== undefined) {
+      sets.push(`action_id = $${paramIdx++}`);
+      params.push(action_id);
     }
 
     if (sets.length === 0) {
