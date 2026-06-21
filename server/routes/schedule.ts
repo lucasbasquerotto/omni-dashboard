@@ -33,7 +33,9 @@ scheduleRouter.get("/direct-task-types", (_req: Request, res: Response) => {
 scheduleRouter.get("/actions", async (_req: Request, res: Response) => {
   try {
     const rows = await queryDb(
-      `SELECT id, name, tool_name, is_builtin FROM actions ORDER BY is_builtin DESC, name ASC`,
+      `SELECT id, name, tool_name, is_builtin, 
+              CASE WHEN id ~ '^[0-9]+$' THEN '[' || id || '] ' || name ELSE name END AS display
+       FROM actions ORDER BY is_builtin DESC, name ASC`,
     );
     res.json(rows);
   } catch (e: any) {
@@ -52,18 +54,22 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
     if (activeOnly) {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.direct_task_type, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
-              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat,
+              a.name AS action_name
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
+       LEFT JOIN actions a ON a.id = cj.action_id
        WHERE cj.active = true
        ORDER BY cj.name, cj.created_at DESC`;
       params = [];
     } else {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.direct_task_type, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
-              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat,
+              a.name AS action_name
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
+       LEFT JOIN actions a ON a.id = cj.action_id
        ORDER BY cj.name, cj.created_at DESC`;
       params = [];
     }
@@ -87,6 +93,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       mode: job.mode,
       direct_task_type: job.direct_task_type,
       action_id: job.action_id || null,
+      action_name: job.action_name || null,
       channel_id: job.channel_id,
       channel_name: job.channel_name || null,
       profile: job.profile,
@@ -122,9 +129,11 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
     const jobs = await queryDb(
       `SELECT cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.direct_task_type, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
-              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat,
+              a.name AS action_name
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
+       LEFT JOIN actions a ON a.id = cj.action_id
        WHERE cj.id = $1`,
       [jobId],
     );
@@ -152,6 +161,7 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
       mode: job.mode,
       direct_task_type: job.direct_task_type,
       action_id: job.action_id || null,
+      action_name: job.action_name || null,
       channel_id: job.channel_id,
       channel_name: job.channel_name || null,
       profile: job.profile,
@@ -354,16 +364,16 @@ scheduleRouter.get("/:id/threads", async (req: Request, res: Response) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
 
     // Total count
-    const countResult = await queryDb(
-      `SELECT COUNT(*) AS total FROM threads WHERE schedule_task_id = $1`,
-      [scheduleTaskId],
-    );
+    const countResult = await queryDb(`SELECT COUNT(*) AS total FROM threads WHERE schedule_task_id = $1`, [
+      scheduleTaskId,
+    ]);
     const total = parseInt(countResult[0]?.total) || 0;
 
     // Paginated rows — last message per thread with all message fields
     const rows = await queryDb(
       `SELECT last_msg.*, t.status AS thread_status
-       FROM LATERAL (
+       FROM threads t
+       LEFT JOIN LATERAL (
          SELECT m.id, m.thread_id, m.role, m.content, m.msg_type AS type,
                 m.msg_subtype AS subtype, m.provider, m.model,
                 m.processing_time_ms, m.token_usage,
@@ -372,8 +382,7 @@ scheduleRouter.get("/:id/threads", async (req: Request, res: Response) => {
          WHERE m.thread_id = t.id
          ORDER BY m.id DESC
          LIMIT 1
-       ) last_msg
-       RIGHT JOIN threads t ON t.id = last_msg.thread_id
+       ) last_msg ON true
        WHERE t.schedule_task_id = $1
        ORDER BY last_msg.created_at DESC NULLS LAST
        OFFSET $2
