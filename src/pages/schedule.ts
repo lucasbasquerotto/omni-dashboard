@@ -73,7 +73,13 @@ async function loadCronJobs(activeOnly: boolean): Promise<void> {
               <tr data-cron-id="${escapeHtml(j.id)}">
                 <td style="color:var(--text-primary);font-weight:500;">${escapeHtml(j.name || j.id)}</td>
                 <td><code style="background:var(--bg-card);padding:0.125rem 0.375rem;border-radius:3px;font-size:0.75rem;">${escapeHtml(j.schedule)}</code></td>
-                <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:0.8rem;">${j.mode === "direct" && j.direct_task_type ? `<span style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(j.direct_task_type)}</span>` : escapeHtml(j.prompt_preview || "")}</td>
+                <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:0.8rem;">
+                  ${
+                    j.mode === "action" || j.mode === "direct"
+                      ? `<span style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(j.action_id ? j.direct_task_type || j.action_id : j.direct_task_type || "Action")}</span>`
+                      : escapeHtml(j.prompt_preview || "")
+                  }
+                </td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${j.channel_name ? escapeHtml(j.channel_name) : j.channel_id ? `#${j.channel_id}` : "—"}</td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${j.profile ? escapeHtml(j.profile) : "—"}</td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${formatDate(j.last_run)}</td>
@@ -258,11 +264,11 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
             <div style="color:var(--text-primary);">${formatDate(job.next_run)}</div>
           </div>
           ${
-            job.mode === "direct"
+            job.mode === "action" || job.mode === "direct"
               ? `
           <div style="margin-bottom:0.75rem;">
-            <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Direct Task Type</div>
-            <div style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.direct_task_type || "—")}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Action</div>
+            <div style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.direct_task_type || job.action_id || "—")}</div>
           </div>`
               : ""
           }
@@ -283,12 +289,12 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
           : ""
       }
       ${
-        job.mode === "direct" && job.direct_task_type
+        (job.mode === "action" || job.mode === "direct") && (job.direct_task_type || job.action_id)
           ? `
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-primary);">
-        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Direct Task</div>
-        <div style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:0.75rem;font-size:0.9rem;color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.direct_task_type)}</div>
-        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">This job runs without an agent — the scheduler executes the task type directly.</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Action</div>
+        <div style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:0.75rem;font-size:0.9rem;color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.direct_task_type || job.action_id || "")}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">This job runs without an agent — the scheduler executes the action directly.</div>
       </div>`
           : ""
       }
@@ -334,11 +340,11 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
 async function showCronModal(job: any): Promise<void> {
   const isEdit = job !== null;
 
-  // Fetch available channels, profiles, existing jobs, and direct task types
+  // Fetch available channels, profiles, existing jobs, and actions
   let channels: any[] = [];
   let profiles: any[] = [];
   let existingJobs: any[] = [];
-  let directTaskTypes: { value: string; label: string }[] = [];
+  let actions: { id: string; name: string; tool_name: string; is_builtin: boolean }[] = [];
   try {
     channels = await apiGet<any[]>("/channels");
   } catch {
@@ -355,9 +361,9 @@ async function showCronModal(job: any): Promise<void> {
     /* existing jobs may not be available */
   }
   try {
-    directTaskTypes = await apiGet<any[]>("/schedule/direct-task-types");
+    actions = await apiGet<any[]>("/schedule/actions");
   } catch {
-    /* direct task types may not be available */
+    /* actions may not be available */
   }
 
   const modal = document.createElement("div");
@@ -430,21 +436,21 @@ async function showCronModal(job: any): Promise<void> {
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Mode</label>
           <select id="cron-mode" class="filter-select" style="width:100%;">
             <option value="agentic" ${isEdit && job.mode === "agentic" ? "selected" : ""}>Agentic</option>
-            <option value="direct" ${isEdit && job.mode === "direct" ? "selected" : ""}>Direct</option>
+            <option value="action" ${isEdit && (job.mode === "action" || job.mode === "direct") ? "selected" : ""}>Action</option>
           </select>
         </div>
-        <div id="cron-direct-section" style="display:${isEdit ? (job.mode === "direct" ? "block" : "none") : "none"};margin-bottom:1rem;">
-          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Direct Task Type</label>
-          <select id="cron-task-type" class="filter-select" style="width:100%;">
-            <option value="">Select task type...</option>
-            ${directTaskTypes
+        <div id="cron-action-section" style="display:${isEdit && (job.mode === "action" || job.mode === "direct") ? "block" : "none"};margin-bottom:1rem;">
+          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Action</label>
+          <select id="cron-action" class="filter-select" style="width:100%;">
+            <option value="">Select action...</option>
+            ${actions
               .map(
-                (t: any) =>
-                  `<option value="${escapeHtml(t.value)}" ${isEdit && job.direct_task_type === t.value ? "selected" : ""}>${escapeHtml(t.label)}</option>`,
+                (a: any) =>
+                  `<option value="${escapeHtml(a.id)}" ${isEdit && (job.direct_task_type === a.name || job.action_id === a.id) ? "selected" : ""}>${escapeHtml(a.name)}${a.is_builtin ? " (built-in)" : ""}</option>`,
               )
               .join("")}
           </select>
-          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">Direct mode runs this task type without an agent — no prompt needed.</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">Action mode runs this action without an agent — no prompt needed.</div>
         </div>
         <div id="cron-agentic-section" style="display:${isEdit ? (job.mode === "agentic" ? "block" : "none") : "block"};margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Prompt</label>
@@ -478,16 +484,16 @@ async function showCronModal(job: any): Promise<void> {
   enhanceSelectElement(document.getElementById("cron-channel") as HTMLSelectElement);
   enhanceSelectElement(document.getElementById("cron-profile") as HTMLSelectElement);
   enhanceSelectElement(document.getElementById("cron-mode") as HTMLSelectElement);
-  enhanceSelectElement(document.getElementById("cron-task-type") as HTMLSelectElement);
+  enhanceSelectElement(document.getElementById("cron-action") as HTMLSelectElement);
 
-  // Wire mode selector to show/hide direct vs agentic sections
+  // Wire mode selector to show/hide action vs agentic sections
   const modeSelect = modal.querySelector("#cron-mode") as HTMLSelectElement;
-  const directSection = modal.querySelector("#cron-direct-section") as HTMLElement;
+  const actionSection = modal.querySelector("#cron-action-section") as HTMLElement;
   const agenticSection = modal.querySelector("#cron-agentic-section") as HTMLElement;
   modeSelect.addEventListener("change", () => {
-    const isDirect = modeSelect.value === "direct";
-    directSection.style.display = isDirect ? "block" : "none";
-    agenticSection.style.display = isDirect ? "none" : "block";
+    const isAction = modeSelect.value === "action";
+    actionSection.style.display = isAction ? "block" : "none";
+    agenticSection.style.display = isAction ? "none" : "block";
   });
 
   // Close handlers
@@ -501,7 +507,7 @@ async function showCronModal(job: any): Promise<void> {
     const channelVal = (modal.querySelector("#cron-channel") as HTMLSelectElement).value;
     const profile = (modal.querySelector("#cron-profile") as HTMLSelectElement).value;
     const mode = (modal.querySelector("#cron-mode") as HTMLSelectElement).value;
-    const direct_task_type = (modal.querySelector("#cron-task-type") as HTMLSelectElement).value;
+    const action_id = (modal.querySelector("#cron-action") as HTMLSelectElement).value;
     const prompt = (modal.querySelector("#cron-prompt") as HTMLTextAreaElement).value.trim();
     const active = (modal.querySelector("#cron-active") as HTMLInputElement).checked;
     const channel_id = channelVal ? parseInt(channelVal, 10) : null;
@@ -542,7 +548,7 @@ async function showCronModal(job: any): Promise<void> {
         profile,
         mode,
       };
-      if (mode === "direct") body.direct_task_type = direct_task_type || null;
+      if (mode === "action") body.action_id = action_id || null;
 
       let res: Response;
       if (isEdit) {
