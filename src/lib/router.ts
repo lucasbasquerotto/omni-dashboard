@@ -4,7 +4,7 @@ import { renderThreads } from "../pages/threads";
 import { renderMessages } from "../pages/messages";
 import { renderKanban, renderKanbanDetail } from "../pages/kanban";
 import { renderSchedule, renderScheduleDetail } from "../pages/schedule";
-import { renderWiki } from "../pages/wiki";
+import { renderExplorer } from "../pages/explorer";
 import { renderPrompt } from "../pages/prompt";
 import { renderSettings } from "../pages/settings";
 import { renderProfiles } from "../pages/profiles";
@@ -33,7 +33,7 @@ const routes: Route[] = [
   { name: "kanban", handler: renderKanban },
   { name: "schedule", handler: renderSchedule },
   { name: "settings", handler: renderSettings },
-  { name: "wiki", handler: renderWiki },
+  { name: "explorer", handler: renderExplorer },
   { name: "prompt", handler: renderPrompt },
   { name: "profiles", handler: renderProfiles },
   { name: "channels", handler: renderChannels },
