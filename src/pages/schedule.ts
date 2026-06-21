@@ -36,11 +36,15 @@ export function renderSchedule(container: HTMLElement): void {
   void loadCronJobs(true);
 }
 
-// ── Modal state ──
-
 // ── Load jobs ──
 
 let _activeOnly = true;
+
+function formatActionLabel(actionId: string | null, actionName: string | null, fallback: string): string {
+  if (!actionId) return actionName || fallback;
+  const name = actionName || fallback;
+  return `[${actionId}] ${name}`;
+}
 
 async function loadCronJobs(activeOnly: boolean): Promise<void> {
   _activeOnly = activeOnly;
@@ -77,7 +81,7 @@ async function loadCronJobs(activeOnly: boolean): Promise<void> {
                 <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:0.8rem;">
                   ${
                     j.mode === "action" || j.mode === "direct"
-                      ? `<span style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(j.action_id ? j.direct_task_type || j.action_id : j.direct_task_type || "Action")}</span>`
+                      ? `<span style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(j.action_id ? formatActionLabel(j.action_id, j.action_name || j.direct_task_type, "Action") : j.direct_task_type || "Action")}</span>`
                       : escapeHtml(j.prompt_preview || "")
                   }
                 </td>
@@ -269,7 +273,7 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
               ? `
           <div style="margin-bottom:0.75rem;">
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Action</div>
-            <div style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.direct_task_type || job.action_id || "—")}</div>
+            <div style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.action_id ? formatActionLabel(job.action_id, job.action_name || job.direct_task_type, "—") : job.direct_task_type || "—")}</div>
           </div>`
               : ""
           }
@@ -294,7 +298,7 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
           ? `
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-primary);">
         <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Action</div>
-        <div style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:0.75rem;font-size:0.9rem;color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.direct_task_type || job.action_id || "")}</div>
+        <div style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:0.75rem;font-size:0.9rem;color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.action_id ? formatActionLabel(job.action_id, job.action_name || job.direct_task_type, "") : job.direct_task_type || "")}</div>
         <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">This job runs without an agent — the scheduler executes the action directly.</div>
       </div>`
           : ""
@@ -447,7 +451,7 @@ async function showCronModal(job: any): Promise<void> {
             ${actions
               .map(
                 (a: any) =>
-                  `<option value="${escapeHtml(a.id)}" ${isEdit && (job.direct_task_type === a.name || job.action_id === a.id) ? "selected" : ""}>${escapeHtml(a.name)}${a.is_builtin ? " (built-in)" : ""}</option>`,
+                  `<option value="${escapeHtml(a.id)}" ${isEdit && (job.direct_task_type === a.name || job.action_id === a.id) ? "selected" : ""}>${escapeHtml(a.display || "[" + a.id + "] " + a.name)}${a.is_builtin ? " (built-in)" : ""}</option>`,
               )
               .join("")}
           </select>
