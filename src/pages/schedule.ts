@@ -481,6 +481,12 @@ async function showCronModal(job: any): Promise<void> {
           </select>
           <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">Action mode runs this action without an agent — no prompt needed.</div>
         </div>
+        <div id="cron-silent-section" style="display:${isEdit && job.mode === "action" ? "block" : "none"};margin-bottom:1rem;">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+            <input id="cron-silent" type="checkbox" ${isEdit && job.silent ? "checked" : ""} />
+            <span style="font-size:0.85rem;color:var(--text-primary);">Silent (only create thread on error)</span>
+          </label>
+        </div>
         <div id="cron-agentic-section" style="display:${isEdit ? (job.mode === "agentic" ? "block" : "none") : "block"};margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Prompt</label>
           <textarea id="cron-prompt" class="filter-input" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:0.8rem;">${isEdit && job.prompt ? escapeHtml(job.prompt) : ""}</textarea>
@@ -523,6 +529,8 @@ async function showCronModal(job: any): Promise<void> {
     const isAction = modeSelect.value === "action";
     actionSection.style.display = isAction ? "block" : "none";
     agenticSection.style.display = isAction ? "none" : "block";
+    const silentSection = document.getElementById("cron-silent-section");
+    if (silentSection) silentSection.style.display = isAction ? "block" : "none";
   });
 
   // Close handlers
@@ -539,6 +547,7 @@ async function showCronModal(job: any): Promise<void> {
     const action_id = (modal.querySelector("#cron-action") as HTMLSelectElement).value;
     const prompt = (modal.querySelector("#cron-prompt") as HTMLTextAreaElement).value.trim();
     const active = (modal.querySelector("#cron-active") as HTMLInputElement).checked;
+    const silent = (document.getElementById("cron-silent") as HTMLInputElement).checked;
     const channel_id = channelVal ? parseInt(channelVal, 10) : null;
 
     if (!display_name) {
@@ -576,6 +585,7 @@ async function showCronModal(job: any): Promise<void> {
         channel_id,
         profile,
         mode,
+        silent,
       };
       if (mode === "action") body.action_id = action_id || null;
 

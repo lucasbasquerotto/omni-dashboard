@@ -43,7 +43,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
     if (activeOnly) {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
-              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat,
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat, cj.silent,
               a.name AS action_name
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
@@ -54,7 +54,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
     } else {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
-              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat,
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat, cj.silent,
               a.name AS action_name
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
@@ -96,6 +96,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       next_run_at: job.next_run_at,
       created_at: job.created_at,
       status: job.enabled ? "active" : "paused",
+      silent: !!job.silent,
     }));
 
     res.json(mapped);
@@ -117,7 +118,7 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
     const jobs = await queryDb(
       `SELECT cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
-              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat,
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat, cj.silent,
               a.name AS action_name
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
@@ -163,6 +164,7 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
       next_run_at: job.next_run_at,
       created_at: job.created_at,
       status: job.enabled ? "active" : "paused",
+      silent: !!job.silent,
     });
   } catch (e: any) {
     console.error("Schedule detail error:", e?.message || e);
@@ -173,8 +175,19 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
 // ── POST /api/schedule — Create a new cron job ──
 scheduleRouter.post("/", async (req: Request, res: Response) => {
   try {
-    const { name, display_name, schedule, prompt, active, channel_id, profile, mode, action_id, enabled } =
-      req.body;
+    const {
+      name,
+      display_name,
+      schedule,
+      prompt,
+      active,
+      channel_id,
+      profile,
+      mode,
+      action_id,
+      enabled,
+      silent,
+    } = req.body;
 
     if (!name || !schedule) {
       res.status(400).json({ error: "Name and schedule are required" });
@@ -185,8 +198,8 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
     const displayName = display_name || name;
 
     await queryDb(
-      `INSERT INTO cron_jobs (id, name, display_name, schedule, prompt, active, channel_id, profile, mode, action_id, enabled)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO cron_jobs (id, name, display_name, schedule, prompt, active, channel_id, profile, mode, action_id, enabled, silent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          display_name = EXCLUDED.display_name,
@@ -198,6 +211,7 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
          mode = EXCLUDED.mode,
          action_id = EXCLUDED.action_id,
          enabled = EXCLUDED.enabled,
+         silent = EXCLUDED.silent,
          updated_at = NOW()`,
       [
         id,
@@ -211,6 +225,7 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
         mode || "agentic",
         action_id || null,
         enabled !== false, // default true
+        silent === true, // default false
       ],
     );
 
@@ -225,8 +240,19 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
 scheduleRouter.patch("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, display_name, schedule, prompt, active, enabled, channel_id, profile, mode, action_id } =
-      req.body;
+    const {
+      name,
+      display_name,
+      schedule,
+      prompt,
+      active,
+      enabled,
+      channel_id,
+      profile,
+      mode,
+      action_id,
+      silent,
+    } = req.body;
 
     // Check job exists
     const existing = await queryDb(`SELECT id FROM cron_jobs WHERE id = $1`, [id]);
@@ -279,6 +305,10 @@ scheduleRouter.patch("/:id", async (req: Request, res: Response) => {
     if (action_id !== undefined) {
       sets.push(`action_id = $${paramIdx++}`);
       params.push(action_id);
+    }
+    if (silent !== undefined) {
+      sets.push(`silent = $${paramIdx++}`);
+      params.push(silent);
     }
 
     if (sets.length === 0) {
