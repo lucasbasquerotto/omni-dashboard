@@ -80,8 +80,8 @@ async function loadCronJobs(activeOnly: boolean): Promise<void> {
                 <td><code style="background:var(--bg-card);padding:0.125rem 0.375rem;border-radius:3px;font-size:0.75rem;">${escapeHtml(j.schedule)}</code></td>
                 <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:0.8rem;">
                   ${
-                    j.mode === "action" || j.mode === "direct"
-                      ? `<span style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(j.action_id ? formatActionLabel(j.action_id, j.action_name || j.direct_task_type, "Action") : j.direct_task_type || "Action")}</span>`
+                    j.mode === "action"
+                      ? `<span style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(j.action_id ? formatActionLabel(j.action_id, j.action_name, "Action") : "Action")}</span>`
                       : escapeHtml(j.prompt_preview || "")
                   }
                 </td>
@@ -298,11 +298,11 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
             <div style="color:var(--text-primary);">${formatDate(job.next_run)}</div>
           </div>
           ${
-            job.mode === "action" || job.mode === "direct"
+            job.mode === "action"
               ? `
           <div style="margin-bottom:0.75rem;">
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Action</div>
-            <div style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.action_id ? formatActionLabel(job.action_id, job.action_name || job.direct_task_type, "—") : job.direct_task_type || "—")}</div>
+            <div style="color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.action_id ? formatActionLabel(job.action_id, job.action_name, "—") : "—")}</div>
           </div>`
               : ""
           }
@@ -323,11 +323,11 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
           : ""
       }
       ${
-        (job.mode === "action" || job.mode === "direct") && (job.direct_task_type || job.action_id)
+        job.mode === "action" && job.action_id
           ? `
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-primary);">
         <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Action</div>
-        <div style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:0.75rem;font-size:0.9rem;color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.action_id ? formatActionLabel(job.action_id, job.action_name || job.direct_task_type, "") : job.direct_task_type || "")}</div>
+        <div style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:0.75rem;font-size:0.9rem;color:var(--accent-cyan);font-weight:500;">${escapeHtml(job.action_id ? formatActionLabel(job.action_id, job.action_name, "") : "")}</div>
         <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">This job runs without an agent — the scheduler executes the action directly.</div>
       </div>`
           : ""
@@ -465,17 +465,17 @@ async function showCronModal(job: any): Promise<void> {
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Mode</label>
           <select id="cron-mode" class="filter-select" style="width:100%;">
             <option value="agentic" ${isEdit && job.mode === "agentic" ? "selected" : ""}>Agentic</option>
-            <option value="action" ${isEdit && (job.mode === "action" || job.mode === "direct") ? "selected" : ""}>Action</option>
+            <option value="action" ${isEdit && job.mode === "action" ? "selected" : ""}>Action</option>
           </select>
         </div>
-        <div id="cron-action-section" style="display:${isEdit && (job.mode === "action" || job.mode === "direct") ? "block" : "none"};margin-bottom:1rem;">
+        <div id="cron-action-section" style="display:${isEdit && job.mode === "action" ? "block" : "none"};margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Action</label>
           <select id="cron-action" class="filter-select" style="width:100%;">
             <option value="">Select action...</option>
             ${actions
               .map(
                 (a: any) =>
-                  `<option value="${escapeHtml(a.id)}" ${isEdit && (job.direct_task_type === a.name || job.action_id === a.id) ? "selected" : ""}>${escapeHtml(a.display || "[" + a.id + "] " + a.name)}${a.is_builtin ? " (built-in)" : ""}</option>`,
+                  `<option value="${escapeHtml(a.id)}" ${isEdit && job.action_id === a.id ? "selected" : ""}>${escapeHtml(a.display || "[" + a.id + "] " + a.name)}${a.is_builtin ? " (built-in)" : ""}</option>`,
               )
               .join("")}
           </select>
