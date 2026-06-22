@@ -12,7 +12,7 @@ export function renderProfiles(container: HTMLElement): void {
         <h1 class="page-title">Profiles</h1>
         <p class="page-subtitle">LLM profiles — provider, model, and tool configuration</p>
       </div>
-      <button id="create-profile-btn" class="btn btn-primary" style="white-space:nowrap;">+ Create Profile</button>
+      <button id="create-profile-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Create Profile</button>
     </div>
     <div id="profiles-content">
       <div class="loading" style="padding:3rem;text-align:center;">Loading profiles...</div>
