@@ -25,7 +25,7 @@ const TYPE_COLORS: Record<string, string> = {
   skill: "#06b6d4",
 };
 
-function typeColor(type: string): string {
+export function typeColor(type: string): string {
   return TYPE_COLORS[type.toLowerCase()] || "#64748b";
 }
 
