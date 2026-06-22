@@ -21,7 +21,7 @@ channelsRouter.get("/", async (_req, res) => {
 channelsRouter.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { current_profile, current_provider, current_model, closed } = req.body;
+    const { name, current_profile, current_provider, current_model, closed } = req.body;
 
     // Check if channel is readonly
     const existing = await queryDb(`SELECT readonly, closed FROM channels WHERE id = $1`, [id]);
@@ -40,7 +40,7 @@ channelsRouter.patch("/:id", async (req, res) => {
         current_profile !== undefined ||
         current_provider !== undefined ||
         current_model !== undefined;
-      if (!canEdit) {
+      if (!canEdit || name !== undefined) {
         res
           .status(403)
           .json({ error: "Permanent channels can only update status, profile, provider, and model" });
@@ -53,6 +53,10 @@ channelsRouter.patch("/:id", async (req, res) => {
     const params: any[] = [];
     let paramIdx = 1;
 
+    if (name !== undefined) {
+      sets.push(`name = $${paramIdx++}`);
+      params.push(name);
+    }
     if (current_profile !== undefined) {
       sets.push(`current_profile = $${paramIdx++}`);
       params.push(current_profile);
