@@ -221,9 +221,7 @@ function renderChannelsPage(channels: ChannelData[]): string {
         <div class="setting-row">
           <div class="setting-controls">
             <div class="setting-name">Name</div>
-            <div class="setting-readonly-value">
-              <code class="setting-readonly-code">${escapeHtml(ch.name)}</code>
-            </div>
+            ${renderNameInput(ch.id, ch.name, ch.readonly)}
           </div>
         </div>
         <div class="setting-row">
@@ -267,6 +265,30 @@ function renderChannelsPage(channels: ChannelData[]): string {
   `,
     )
     .join("");
+}
+
+function renderNameInput(channelId: number, currentName: string, readonly: boolean): string {
+  if (readonly) {
+    return `
+      <div class="channel-field-group">
+        <code class="setting-readonly-code">${escapeHtml(currentName)}</code>
+      </div>
+    `;
+  }
+  const inputId = `ch-${channelId}-name-input`;
+  return `
+    <div class="channel-field-group">
+      <input type="text" id="${inputId}" class="filter-input channel-edit-input"
+        data-channel-id="${channelId}" data-field="name" data-original="${escapeHtml(currentName)}"
+        value="${escapeHtml(currentName)}" style="width:280px;" />
+      <button type="button" class="channel-edit-btn save" data-channel-id="${channelId}" data-field="name" style="display:none;" title="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
+      <button type="button" class="channel-edit-btn cancel" data-channel-id="${channelId}" data-field="name" style="display:none;" title="Cancel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `;
 }
 
 function renderStatusControl(ch: ChannelData): string {
