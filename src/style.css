@@ -2104,7 +2104,7 @@ a.thread-row {
 .events-scroll {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.2rem;
 }
 
 /* ── Agent Events ── */
@@ -2495,7 +2495,7 @@ a.thread-row {
 .events-scroll {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.2rem;
 }
 
 /* Event row */
