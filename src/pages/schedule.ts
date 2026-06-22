@@ -10,7 +10,8 @@ export function renderSchedule(container: HTMLElement): void {
         <h1 class="page-title">Schedule</h1>
         <p class="page-subtitle">Scheduled tasks and cron jobs</p>
       </div>
-      <div style="display:flex;align-items:center;gap:0.5rem;">
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <span id="schedule-count" style="font-size:0.85rem;color:var(--text-muted);"></span>
         <button id="toggle-all-filter" class="btn-filter" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;color:var(--text-secondary);">Show All</button>
         <button id="create-cron-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Create Schedule</button>
       </div>
@@ -23,6 +24,17 @@ export function renderSchedule(container: HTMLElement): void {
     </div>
   `;
 
+  // Restore filter state from URL
+  const showAllFromUrl = new URLSearchParams(window.location.search).get("show_all") === "true";
+  _activeOnly = !showAllFromUrl;
+  const initialBtn = document.getElementById("toggle-all-filter") as HTMLElement;
+  if (initialBtn) {
+    initialBtn.textContent = showAllFromUrl ? "Active Only" : "Show All";
+  }
+  if (showAllFromUrl) {
+    document.getElementById("schedule-title")!.textContent = "All Jobs";
+  }
+
   // Wire create button
   document.getElementById("create-cron-btn")?.addEventListener("click", () => showCronModal(null));
   document.getElementById("toggle-all-filter")?.addEventListener("click", () => {
@@ -33,12 +45,24 @@ export function renderSchedule(container: HTMLElement): void {
     void loadCronJobs(showingAll);
   });
 
-  void loadCronJobs(true);
+  void loadCronJobs(_activeOnly);
 }
 
 // ── Load jobs ──
 
 let _activeOnly = true;
+
+function updateScheduleUrl(): void {
+  const params = new URLSearchParams(window.location.search);
+  if (!_activeOnly) {
+    params.set("show_all", "true");
+  } else {
+    params.delete("show_all");
+  }
+  const qs = params.toString();
+  const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+  history.replaceState(null, "", newUrl);
+}
 
 function formatActionLabel(actionId: string | null, actionName: string | null, fallback: string): string {
   if (!actionId) return actionName || fallback;
@@ -48,10 +72,13 @@ function formatActionLabel(actionId: string | null, actionName: string | null, f
 
 async function loadCronJobs(activeOnly: boolean): Promise<void> {
   _activeOnly = activeOnly;
+  updateScheduleUrl();
   const el = document.getElementById("cron-table")!;
+  const countEl = document.getElementById("schedule-count")!;
   try {
     const query = activeOnly ? "" : "?active=false";
     const jobs = await apiGet<any[]>("/schedule" + query);
+    countEl.textContent = `${jobs.length} job${jobs.length !== 1 ? "s" : ""}`;
     if (jobs.length === 0) {
       el.innerHTML = `<div class="empty-state">${activeOnly ? "No active jobs" : "No scheduled jobs"}</div>`;
       return;
