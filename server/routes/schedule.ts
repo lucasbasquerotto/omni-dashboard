@@ -16,18 +16,7 @@ function parseJsonArray(val: any): any[] {
   return [];
 }
 
-// Central list of known direct-mode task types (keep in sync with omniagent/src/scheduler.rs)
-const DIRECT_TASK_TYPES = [
-  { value: "kanban_dispatcher", label: "Kanban Dispatcher" },
-  { value: "relevance_indexer", label: "Relevance Indexer" },
-];
-
 export const scheduleRouter = Router();
-
-// ── GET /api/schedule/direct-task-types — Return known direct task types ──
-scheduleRouter.get("/direct-task-types", (_req: Request, res: Response) => {
-  res.json(DIRECT_TASK_TYPES);
-});
 
 // ── GET /api/schedule/actions — Return available actions for schedule mode ──
 scheduleRouter.get("/actions", async (_req: Request, res: Response) => {
@@ -53,7 +42,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
 
     if (activeOnly) {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
-              cj.mode, cj.direct_task_type, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
+              cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
               cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat,
               a.name AS action_name
        FROM cron_jobs cj
@@ -64,7 +53,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       params = [];
     } else {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
-              cj.mode, cj.direct_task_type, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
+              cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
               cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat,
               a.name AS action_name
        FROM cron_jobs cj
@@ -91,7 +80,6 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       enabled: job.enabled,
       active: job.active,
       mode: job.mode,
-      direct_task_type: job.direct_task_type,
       action_id: job.action_id || null,
       action_name: job.action_name || null,
       channel_id: job.channel_id,
@@ -128,7 +116,7 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
 
     const jobs = await queryDb(
       `SELECT cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
-              cj.mode, cj.direct_task_type, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
+              cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
               cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat,
               a.name AS action_name
        FROM cron_jobs cj
@@ -159,7 +147,6 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
       enabled: job.enabled,
       active: job.active,
       mode: job.mode,
-      direct_task_type: job.direct_task_type,
       action_id: job.action_id || null,
       action_name: job.action_name || null,
       channel_id: job.channel_id,
@@ -186,19 +173,8 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
 // ── POST /api/schedule — Create a new cron job ──
 scheduleRouter.post("/", async (req: Request, res: Response) => {
   try {
-    const {
-      name,
-      display_name,
-      schedule,
-      prompt,
-      active,
-      channel_id,
-      profile,
-      mode,
-      direct_task_type,
-      action_id,
-      enabled,
-    } = req.body;
+    const { name, display_name, schedule, prompt, active, channel_id, profile, mode, action_id, enabled } =
+      req.body;
 
     if (!name || !schedule) {
       res.status(400).json({ error: "Name and schedule are required" });
@@ -209,8 +185,8 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
     const displayName = display_name || name;
 
     await queryDb(
-      `INSERT INTO cron_jobs (id, name, display_name, schedule, prompt, active, channel_id, profile, mode, direct_task_type, action_id, enabled)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO cron_jobs (id, name, display_name, schedule, prompt, active, channel_id, profile, mode, action_id, enabled)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          display_name = EXCLUDED.display_name,
@@ -220,7 +196,6 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
          channel_id = EXCLUDED.channel_id,
          profile = EXCLUDED.profile,
          mode = EXCLUDED.mode,
-         direct_task_type = EXCLUDED.direct_task_type,
          action_id = EXCLUDED.action_id,
          enabled = EXCLUDED.enabled,
          updated_at = NOW()`,
@@ -234,7 +209,6 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
         channel_id || null,
         profile || null,
         mode || "agentic",
-        direct_task_type || null,
         action_id || null,
         enabled !== false, // default true
       ],
@@ -251,19 +225,8 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
 scheduleRouter.patch("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const {
-      name,
-      display_name,
-      schedule,
-      prompt,
-      active,
-      enabled,
-      channel_id,
-      profile,
-      mode,
-      direct_task_type,
-      action_id,
-    } = req.body;
+    const { name, display_name, schedule, prompt, active, enabled, channel_id, profile, mode, action_id } =
+      req.body;
 
     // Check job exists
     const existing = await queryDb(`SELECT id FROM cron_jobs WHERE id = $1`, [id]);
@@ -312,10 +275,6 @@ scheduleRouter.patch("/:id", async (req: Request, res: Response) => {
     if (mode !== undefined) {
       sets.push(`mode = $${paramIdx++}`);
       params.push(mode);
-    }
-    if (direct_task_type !== undefined) {
-      sets.push(`direct_task_type = $${paramIdx++}`);
-      params.push(direct_task_type);
     }
     if (action_id !== undefined) {
       sets.push(`action_id = $${paramIdx++}`);
