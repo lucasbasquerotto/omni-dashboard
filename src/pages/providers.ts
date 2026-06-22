@@ -8,11 +8,14 @@ export function renderProviders(container: HTMLElement): void {
         <h1 class="page-title">Providers</h1>
         <p class="page-subtitle">LLM providers — built-in and plugin-based</p>
       </div>
+      <button id="add-provider-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Add</button>
     </div>
     <div id="providers-content">
       <div class="loading" style="padding:3rem;text-align:center;">Loading providers...</div>
     </div>
   `;
+
+  document.getElementById("add-provider-btn")?.addEventListener("click", () => showInstallModal("provider"));
 
   void loadProviders();
 }
@@ -441,4 +444,100 @@ function escapeHtml(str: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// ── Install from URL Modal ──
+
+function showInstallModal(pluginType: "platform" | "mcp" | "provider"): void {
+  const backdrop = document.createElement("div");
+  backdrop.style.cssText =
+    "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding-top:15vh;";
+
+  const typeLabel = pluginType === "platform" ? "Platform" : pluginType === "provider" ? "Provider" : "Tool";
+
+  backdrop.innerHTML = `
+    <div style="background:var(--bg-secondary);border:1px solid var(--glass-border);border-radius:12px;width:480px;max-width:90vw;box-shadow:0 12px 48px rgba(0,0,0,0.5);">
+      <div style="padding:1.25rem;border-bottom:1px solid var(--border-primary);display:flex;align-items:center;justify-content:space-between;">
+        <h2 style="font-size:1.1rem;margin:0;color:var(--text-primary);">Install ${typeLabel} Plugin</h2>
+        <button class="modal-close-btn" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.2rem;padding:0.25rem;">✕</button>
+      </div>
+      <div style="padding:1.25rem;">
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Plugin URL <span style="color:var(--accent-rose);">*</span></label>
+          <input id="install-url-input" type="url" class="filter-input" placeholder="https://example.com/plugin.tar.gz" style="width:100%;" />
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">URL to a plugin archive (.tar.gz) or a git repository URL</div>
+        </div>
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Name Override <span style="font-size:0.75rem;color:var(--text-muted);">(optional)</span></label>
+          <input id="install-name-input" type="text" class="filter-input" placeholder="Leave empty to extract from manifest" style="width:100%;" />
+        </div>
+        <div id="install-status" style="display:none;padding:0.5rem;margin-bottom:0.75rem;border-radius:6px;font-size:0.85rem;"></div>
+      </div>
+      <div style="padding:1rem 1.25rem;border-top:1px solid var(--border-primary);display:flex;justify-content:flex-end;gap:0.5rem;">
+        <button class="modal-cancel-btn" style="background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.85rem;">Cancel</button>
+        <button id="install-confirm-btn" style="background:var(--accent-purple);border:none;color:white;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.85rem;font-weight:500;">Install</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+
+  // Wire close buttons
+  backdrop.querySelector(".modal-close-btn")?.addEventListener("click", () => backdrop.remove());
+  backdrop.querySelector(".modal-cancel-btn")?.addEventListener("click", () => backdrop.remove());
+
+  // Wire install
+  const installBtn = backdrop.querySelector("#install-confirm-btn") as HTMLButtonElement;
+  const urlInput = backdrop.querySelector("#install-url-input") as HTMLInputElement;
+  const nameInput = backdrop.querySelector("#install-name-input") as HTMLInputElement;
+  const statusEl = backdrop.querySelector("#install-status") as HTMLElement;
+
+  function showStatus(el: HTMLElement, msg: string, type: "info" | "error" | "success") {
+    el.style.display = "block";
+    el.textContent = msg;
+    const colors: Record<string, string> = {
+      info: "background:rgba(59,130,246,0.15);color:#60a5fa;",
+      error: "background:rgba(244,63,94,0.15);color:#fb7185;",
+      success: "background:rgba(16,185,129,0.15);color:#34d399;",
+    };
+    el.style.cssText += colors[type] || "";
+  }
+
+  installBtn.addEventListener("click", async () => {
+    const url = urlInput.value.trim();
+    if (!url) {
+      showStatus(statusEl, "Please enter a plugin URL", "error");
+      return;
+    }
+
+    const body: Record<string, string> = { url };
+    const nameOverride = nameInput.value.trim();
+    if (nameOverride) body.name = nameOverride;
+
+    installBtn.disabled = true;
+    installBtn.textContent = "Installing...";
+    showStatus(statusEl, "Installing plugin...", "info");
+
+    try {
+      const res = await fetch("/api/plugins/install-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "Install failed");
+        throw new Error(errText);
+      }
+      showStatus(statusEl, "Plugin installed successfully!", "success");
+      installBtn.textContent = "Done";
+      setTimeout(() => {
+        backdrop.remove();
+        void loadProviders();
+      }, 1500);
+    } catch (e) {
+      showStatus(statusEl, "Install failed: " + (e instanceof Error ? e.message : "Unknown error"), "error");
+      installBtn.disabled = false;
+      installBtn.textContent = "Install";
+    }
+  });
 }
