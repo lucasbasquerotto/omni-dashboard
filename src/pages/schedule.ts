@@ -219,6 +219,14 @@ export async function renderScheduleDetail(container: HTMLElement, cronId: strin
       <div class="card-body" id="schedule-threads">
         <div class="loading">Loading activity...</div>
       </div>
+      <div class="card-footer" id="threads-bottom-nav" style="padding:0.75rem 1.25rem;border-top:1px solid var(--border-primary);display:flex;align-items:center;justify-content:space-between;">
+        <span class="events-count" id="schedule-threads-count"></span>
+        <span class="events-nav">
+          <button class="nav-btn" id="threads-prev-page-bottom" disabled>← Prev</button>
+          <span id="threads-page-info-bottom">Page 1</span>
+          <button class="nav-btn" id="threads-next-page-bottom" disabled>Next →</button>
+        </span>
+      </div>
     </div>
   `;
 
@@ -659,6 +667,38 @@ async function loadScheduleThreads(scheduleId: string): Promise<void> {
     if (nextBtn && nextBtn.parentNode) {
       nextBtn.parentNode.replaceChild(nextClone, nextBtn);
       nextClone.addEventListener("click", () => {
+        threadsOffset += threadsLimit;
+        void loadScheduleThreads(scheduleId);
+      });
+    }
+
+    // Update bottom pagination
+    const prevBottom = document.getElementById("threads-prev-page-bottom") as HTMLButtonElement;
+    const nextBottom = document.getElementById("threads-next-page-bottom") as HTMLButtonElement;
+    const pageInfoBottom = document.getElementById("threads-page-info-bottom");
+    const countEl = document.getElementById("schedule-threads-count");
+    if (countEl) {
+      const start = total > 0 ? threadsOffset + 1 : 0;
+      const end = Math.min(threadsOffset + rows.length, total);
+      countEl.textContent = total > 0 ? `Showing ${start}–${end} of ${total}` : "No activity found";
+    }
+    if (pageInfoBottom) pageInfoBottom.textContent = `Page ${currentPage} (${total} total)`;
+    if (prevBottom) prevBottom.disabled = threadsOffset <= 0;
+    if (nextBottom) nextBottom.disabled = threadsOffset + threadsLimit >= total;
+
+    // Wire bottom pagination buttons (remove old listeners first)
+    const prevBottomClone = prevBottom?.cloneNode(true) as HTMLButtonElement;
+    const nextBottomClone = nextBottom?.cloneNode(true) as HTMLButtonElement;
+    if (prevBottom && prevBottom.parentNode) {
+      prevBottom.parentNode.replaceChild(prevBottomClone, prevBottom);
+      prevBottomClone.addEventListener("click", () => {
+        threadsOffset = Math.max(0, threadsOffset - threadsLimit);
+        void loadScheduleThreads(scheduleId);
+      });
+    }
+    if (nextBottom && nextBottom.parentNode) {
+      nextBottom.parentNode.replaceChild(nextBottomClone, nextBottom);
+      nextBottomClone.addEventListener("click", () => {
         threadsOffset += threadsLimit;
         void loadScheduleThreads(scheduleId);
       });
