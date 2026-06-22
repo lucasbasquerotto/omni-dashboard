@@ -1,4 +1,5 @@
 import { apiGet } from "../lib/api";
+import { enhanceSelect } from "../lib/dropdown";
 
 // ── Types ──
 interface ThreadRow {
@@ -170,6 +171,10 @@ function populateFilterControls(filters: ThreadFilters): void {
   for (const c of filters.causes) {
     causeSel.innerHTML += `<option value="${escapeHtml(c)}">${escapeHtml(c.charAt(0).toUpperCase() + c.slice(1))}</option>`;
   }
+
+  // Enhance filter selects with custom dropdowns
+  enhanceSelect("filter-status");
+  enhanceSelect("filter-cause");
 
   wireFilterEvents();
 }

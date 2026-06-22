@@ -48,7 +48,6 @@ async function loadPlatforms(): Promise<void> {
         config: {},
       });
     }
-    pluginsData = platforms;
     content.innerHTML = renderPlatformsPage(platforms);
     wirePlatforms();
   } catch (e) {

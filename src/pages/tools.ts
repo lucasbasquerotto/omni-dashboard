@@ -73,7 +73,6 @@ async function loadTools(): Promise<void> {
     // Add plugin-based tools
     allTools.push(...mcpPlugins);
 
-    pluginsData = allTools;
     content.innerHTML = renderToolsPage(allTools);
     wireTools();
   } catch (e) {

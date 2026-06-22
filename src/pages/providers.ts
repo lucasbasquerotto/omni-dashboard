@@ -27,7 +27,6 @@ async function loadProviders(): Promise<void> {
     const response = await apiGet<any>("/plugins");
     const allPlugins: PluginData[] = response.data || response;
     const providers = allPlugins.filter((p: PluginData) => p.plugin_type === "provider");
-    pluginsData = providers;
     content.innerHTML = renderProvidersPage(providers);
     wireProviders();
   } catch (e) {
@@ -69,7 +68,9 @@ function renderPluginConfig(p: PluginData): string {
     return `<p class="text-muted" style="font-size:0.85rem;color:var(--text-muted);padding:0.5rem 0;">Built-in provider, no configuration needed.</p>`;
   }
 
-  const schema = p.manifest?.config_schema;
+  // Use root config_schema (has enriched allowed_values from DYNAMIC_ENUM_CACHE)
+  // falling back to manifest.config_schema for static field definitions
+  const schema = p.config_schema && p.config_schema.length > 0 ? p.config_schema : p.manifest?.config_schema;
   if (!schema || schema.length === 0) {
     return `<p class="text-muted" style="font-size:0.85rem;color:var(--text-muted);padding:0.5rem 0;">No config fields declared.</p>`;
   }
@@ -197,8 +198,9 @@ function renderConfigField(field: ConfigField, value: any, pluginName: string, e
 
 /** Check if a plugin has any config field with a refresh_url. */
 function hasRefreshUrl(p: PluginData): boolean {
-  const schema = p.manifest?.config_schema || [];
-  return schema.some((f) => f.refresh_url);
+  const rootSchema = (p.config_schema || []) as any[];
+  const manifestSchema = (p.manifest?.config_schema || []) as any[];
+  return [...rootSchema, ...manifestSchema].some((f: any) => f.refresh_url);
 }
 
 function getStatusBadgeClass(status: string): string {
