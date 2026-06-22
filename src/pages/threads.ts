@@ -42,6 +42,30 @@ let currentStatus = "all";
 let currentCause = "all";
 let currentThreadId = "";
 
+// ── URL search param sync ──
+function syncFiltersToUrl(): void {
+  const params = new URLSearchParams();
+  if (currentStatus !== "all") params.set("status", currentStatus);
+  if (currentCause !== "all") params.set("cause", currentCause);
+  if (currentThreadId) params.set("thread_id", currentThreadId);
+  if (currentOffset > 0) params.set("offset", String(currentOffset));
+  const qs = params.toString();
+  const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+  history.replaceState(null, "", newUrl);
+}
+
+function applyFiltersFromUrl(): void {
+  const p = new URLSearchParams(window.location.search);
+  const status = p.get("status");
+  if (status) currentStatus = status;
+  const cause = p.get("cause");
+  if (cause) currentCause = cause;
+  const threadId = p.get("thread_id");
+  if (threadId) currentThreadId = threadId;
+  const offset = p.get("offset");
+  if (offset) currentOffset = parseInt(offset, 10) || 0;
+}
+
 // ── Status badge colors ──
 function statusBadgeStyle(status: string): string {
   const s = status.toLowerCase();
@@ -134,15 +158,12 @@ export function renderThreads(container: HTMLElement): void {
   currentOffset = 0;
   currentStatus = "all";
   currentCause = "all";
+  currentThreadId = "";
 
-  // Read thread_id from URL search params
-  const urlParams = new URLSearchParams(window.location.search);
-  const threadIdFromUrl = urlParams.get("thread_id");
-  if (threadIdFromUrl) {
-    currentThreadId = threadIdFromUrl;
-    const threadInput = document.getElementById("filter-thread-id") as HTMLInputElement | null;
-    if (threadInput) threadInput.value = threadIdFromUrl;
-  }
+  applyFiltersFromUrl();
+
+  const threadInput = document.getElementById("filter-thread-id") as HTMLInputElement | null;
+  if (threadInput) threadInput.value = currentThreadId;
 
   void loadFilters();
 }
@@ -175,6 +196,10 @@ function populateFilterControls(filters: ThreadFilters): void {
   // Enhance filter selects with custom dropdowns
   enhanceSelect("filter-status");
   enhanceSelect("filter-cause");
+
+  // Restore filter values from URL-restored state
+  statusSel.value = currentStatus;
+  causeSel.value = currentCause;
 
   wireFilterEvents();
 }
@@ -277,6 +302,8 @@ async function loadThreads(): Promise<void> {
         </div>
       </div>
     `;
+    // Sync current filters to URL search params
+    syncFiltersToUrl();
   } catch (e) {
     listEl.innerHTML = `<div class="error-state">Failed to load threads: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
   }
