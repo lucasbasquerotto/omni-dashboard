@@ -415,59 +415,8 @@ async function loadChannelContext(): Promise<void> {
   el.textContent = "Loading context...";
 
   try {
-    const res = await fetch(`${API_BASE}/prompt-preview/${encodeURIComponent(channelName)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: "[memory page context preview]", plan: false }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-
-    if (data.messages && data.messages.length > 0) {
-      // Filter out our injected prompt
-      const contextMessages = data.messages.filter(
-        (m: any) => !(m.role === "user" && m.content === "[memory page context preview]"),
-      );
-
-      if (contextMessages.length === 0) {
-        el.textContent = "(system context empty)";
-        return;
-      }
-
-      // Build the preview: show only the "context" part of the system prompt
-      // (stripping identity, MEMORY, and SOUL sections)
-      const parts: string[] = [];
-
-      for (const msg of contextMessages) {
-        if (msg.role === "system") {
-          // Extract the volatile tail: find "RELEVANT WIKI PAGES" or "Host:"
-          // in the content and show everything from there
-          const content: string = msg.content || "";
-          const wikiIdx = content.indexOf("RELEVANT WIKI PAGES");
-          const hostIdx = content.indexOf("\nHost:");
-          const tsIdx = content.indexOf("Conversation started:");
-
-          if (wikiIdx >= 0) {
-            parts.push(content.slice(wikiIdx));
-          } else if (hostIdx >= 0) {
-            parts.push(content.slice(hostIdx + 1));
-          } else if (tsIdx >= 0) {
-            parts.push(content.slice(tsIdx));
-          }
-          // If none found, the system prompt has no context section — skip it
-        } else if (msg.role === "context" || msg.msg_type === "context") {
-          parts.push(msg.content || "");
-        } else {
-          // Include other non-system messages (e.g., recent conversations msg)
-          parts.push(msg.content || "");
-        }
-      }
-
-      const text = parts.filter(Boolean).join("\n\n---\n\n");
-      el.textContent = text || "(no context content)";
-    } else {
-      el.textContent = "(no context returned)";
-    }
+    const data = await apiGet<{ context: string }>(`/memory/context/${encodeURIComponent(channelName)}`);
+    el.textContent = data.context;
   } catch (e) {
     el.textContent = `Failed to load context: ${e instanceof Error ? e.message : "Unknown error"}`;
   }
