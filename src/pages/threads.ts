@@ -152,6 +152,11 @@ export function renderThreads(container: HTMLElement): void {
       <div class="card-body" id="threads-list">
         <div class="loading">Loading threads</div>
       </div>
+      <div class="card-footer" style="display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.75rem 1rem;border-top:1px solid var(--glass-border,rgba(255,255,255,0.08));">
+        <button class="nav-btn" id="prev-page-bottom" disabled>← Prev</button>
+        <span id="page-info-bottom">Page 1</span>
+        <button class="nav-btn" id="next-page-bottom" disabled>Next →</button>
+      </div>
     </div>
   `;
 
@@ -248,6 +253,16 @@ function wireFilterEvents(): void {
     currentOffset += currentLimit;
     void loadThreads();
   });
+  document.getElementById("prev-page-bottom")?.addEventListener("click", () => {
+    if (currentOffset > 0) {
+      currentOffset = Math.max(0, currentOffset - currentLimit);
+      void loadThreads();
+    }
+  });
+  document.getElementById("next-page-bottom")?.addEventListener("click", () => {
+    currentOffset += currentLimit;
+    void loadThreads();
+  });
 }
 
 // ── Load threads ──
@@ -257,6 +272,9 @@ async function loadThreads(): Promise<void> {
   const prevBtn = document.getElementById("prev-page") as HTMLButtonElement;
   const nextBtn = document.getElementById("next-page") as HTMLButtonElement;
   const pageInfo = document.getElementById("page-info")!;
+  const prevBottom = document.getElementById("prev-page-bottom") as HTMLButtonElement;
+  const nextBottom = document.getElementById("next-page-bottom") as HTMLButtonElement;
+  const pageInfoBottom = document.getElementById("page-info-bottom")!;
 
   listEl.innerHTML = '<div class="loading">Loading threads</div>';
 
@@ -274,12 +292,15 @@ async function loadThreads(): Promise<void> {
     const currentPage = Math.floor(currentOffset / currentLimit) + 1;
     prevBtn.disabled = currentOffset <= 0;
     nextBtn.disabled = currentOffset + currentLimit >= data.total;
+    prevBottom.disabled = prevBtn.disabled;
+    nextBottom.disabled = nextBtn.disabled;
 
     const start = data.total > 0 ? currentOffset + 1 : 0;
     const end = Math.min(currentOffset + data.threads.length, data.total);
     countEl.textContent =
       data.total > 0 ? `Showing ${start}–${end} of ${data.total} threads` : "No threads found";
     pageInfo.textContent = data.total > 0 ? `Page ${currentPage} of ${totalPages}` : "";
+    pageInfoBottom.textContent = pageInfo.textContent;
 
     if (data.threads.length === 0) {
       listEl.innerHTML = '<div class="empty-state">No threads match the current filters</div>';

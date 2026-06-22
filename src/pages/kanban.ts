@@ -4,6 +4,11 @@ import { router } from "../lib/router";
 let showArchived = false;
 
 export function renderKanban(container: HTMLElement): void {
+  // Restore showArchived from URL on page load
+  const p = new URLSearchParams(window.location.search);
+  if (p.get("show_archived") === "true") {
+    showArchived = true;
+  }
   container.innerHTML = `
     <div class="page-header">
       <div>
@@ -11,8 +16,8 @@ export function renderKanban(container: HTMLElement): void {
         <p class="page-subtitle">Task board</p>
       </div>
       <div class="kanban-summary" id="kanban-summary" style="display:flex;align-items:center;gap:0.75rem;">
+        <span id="kanban-count" style="font-size:0.85rem;color:var(--text-muted);margin-right:auto;"></span>
         <button id="toggle-archived-btn">Show archived</button>
-        <span id="kanban-count" style="font-size:0.85rem;color:var(--text-muted);"></span>
         <button id="create-task-btn" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Create Task</button>
       </div>
     </div>
@@ -115,9 +120,10 @@ export function renderKanban(container: HTMLElement): void {
   enhanceSelect("task-create-priority");
   enhanceSelect("task-create-status");
 
-  // Toggle archived button
+  // Toggle archived button — also syncs URL search param
   document.getElementById("toggle-archived-btn")!.addEventListener("click", () => {
     showArchived = !showArchived;
+    updateKanbanUrl();
     const btn = document.getElementById("toggle-archived-btn")!;
     if (showArchived) {
       btn.textContent = "Showing archived";
@@ -128,8 +134,22 @@ export function renderKanban(container: HTMLElement): void {
     }
     void loadBoard();
   });
+  // Apply initial URL state to button
+  updateKanbanUrl();
 
   void loadBoard();
+}
+
+function updateKanbanUrl(): void {
+  const params = new URLSearchParams(window.location.search);
+  if (showArchived) {
+    params.set("show_archived", "true");
+  } else {
+    params.delete("show_archived");
+  }
+  const qs = params.toString();
+  const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+  history.replaceState(null, "", newUrl);
 }
 
 function closeCreateModal(): void {

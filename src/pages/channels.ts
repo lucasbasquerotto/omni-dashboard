@@ -1,5 +1,5 @@
 import { apiGet, type ChannelData, type PluginData } from "../lib/api";
-import { enhanceSelect, unenhanceSelect } from "../lib/dropdown";
+import { enhanceSelect, syncSelectDisplay, unenhanceSelect } from "../lib/dropdown";
 
 export function renderChannels(container: HTMLElement): void {
   container.innerHTML = `
@@ -133,12 +133,16 @@ async function loadChannels(): Promise<void> {
         platformSel.innerHTML += '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + "</option>";
       }
       platformSel.value = _channelFilters.platform;
+      syncSelectDisplay("filter-platform");
     }
     // Restore filter inputs
     const chIdInput = document.getElementById("filter-channel-id") as HTMLInputElement | null;
     if (chIdInput) chIdInput.value = _channelFilters.channelId;
     const statusSel = document.getElementById("filter-channel-status") as HTMLSelectElement | null;
-    if (statusSel) statusSel.value = _channelFilters.status;
+    if (statusSel) {
+      statusSel.value = _channelFilters.status;
+      syncSelectDisplay("filter-channel-status");
+    }
 
     // Enhance filter selects with custom dropdowns
     enhanceSelect("filter-platform");
