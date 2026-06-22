@@ -12,6 +12,7 @@ services:
       - /opt/workspace/omniagent/data/:/opt/data/:ro
       - /opt/workspace/omniagent/data/user/:/opt/data/user:rw
       - ./dist:/app/dist:ro
+      - ./server-dist:/app/server:ro
 
     networks:
       - omniagent_default
