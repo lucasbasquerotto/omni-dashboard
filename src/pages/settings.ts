@@ -1,13 +1,13 @@
 import { apiGet, apiPut, type SettingCategory } from "../lib/api";
+import { enhanceSelect } from "../lib/dropdown";
 
 export function renderSettings(container: HTMLElement): void {
-  const currentRoute = window.location.pathname.slice(1) || "settings";
   container.innerHTML = `
-    <div class="settings-tabs">
-      <a href="/settings" class="settings-tab ${currentRoute === "settings" ? "active" : ""}" data-route="settings">Settings</a>
-      <a href="/profiles" class="settings-tab ${currentRoute === "profiles" ? "active" : ""}" data-route="profiles">Profiles</a>
-      <a href="/channels" class="settings-tab ${currentRoute === "channels" ? "active" : ""}" data-route="channels">Channels</a>
-      <a href="/platforms" class="settings-tab ${currentRoute === "platforms" ? "active" : ""}" data-route="platforms">Platforms</a>
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">System configuration and environment variables</p>
+      </div>
     </div>
     <div id="settings-content"><div class="loading" style="padding:3rem;text-align:center;">Loading settings...</div></div>
   `;
@@ -32,6 +32,12 @@ async function loadSettings(): Promise<void> {
 
     content.innerHTML = renderSettingsPage(data.categories);
     wireSettings();
+    // Enhance setting selects (boolean, select types)
+    document.querySelectorAll(".setting-input[data-name]").forEach((el) => {
+      if (el.tagName === "SELECT") {
+        enhanceSelect(el.id);
+      }
+    });
   } catch (e) {
     content.innerHTML = `<div class="error-state" style="padding:3rem;text-align:center;">Failed to load settings: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
   }

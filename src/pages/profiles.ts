@@ -1,13 +1,17 @@
 import { apiGet } from "../lib/api";
+import { enhanceSelect, unenhanceSelect } from "../lib/dropdown";
+
+// ── Cached provider/model data ──
+let _providers: string[] = [];
+let _providerModels: Record<string, string[]> = {};
 
 export function renderProfiles(container: HTMLElement): void {
-  const currentRoute = window.location.pathname.slice(1) || "settings";
   container.innerHTML = `
-    <div class="settings-tabs">
-      <a href="/settings" class="settings-tab ${currentRoute === "settings" ? "active" : ""}" data-route="settings">Settings</a>
-      <a href="/profiles" class="settings-tab ${currentRoute === "profiles" ? "active" : ""}" data-route="profiles">Profiles</a>
-      <a href="/channels" class="settings-tab ${currentRoute === "channels" ? "active" : ""}" data-route="channels">Channels</a>
-      <a href="/platforms" class="settings-tab ${currentRoute === "platforms" ? "active" : ""}" data-route="platforms">Platforms</a>
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Profiles</h1>
+        <p class="page-subtitle">LLM profiles — provider, model, and tool configuration</p>
+      </div>
     </div>
     <div id="profiles-content">
       <div class="loading" style="padding:3rem;text-align:center;">Loading profiles...</div>
@@ -16,16 +20,56 @@ export function renderProfiles(container: HTMLElement): void {
   void loadProfiles();
 }
 
-function loadProfiles(): Promise<void> {
+async function loadProfiles(): Promise<void> {
   const content = document.getElementById("profiles-content")!;
-  return apiGet<any[]>("/profiles")
-    .then((profiles) => {
-      content.innerHTML = renderProfilesPage(profiles);
-      wireProfiles();
-    })
-    .catch((e) => {
-      content.innerHTML = `<div class="error-state" style="padding:3rem;text-align:center;">Failed to load profiles: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
+  try {
+    const profiles = await apiGet<any[]>("/profiles");
+    // Load provider names and their model lists (same pattern as channels)
+    try {
+      const pluginResp = await apiGet<any>("/plugins");
+      const allPlugins: any[] = pluginResp.data || pluginResp;
+      const providers = allPlugins.filter((p: any) => p.plugin_type === "provider");
+      _providers = providers.map((p: any) => p.name).sort();
+      const modelMap: Record<string, string[]> = {};
+      for (const p of providers) {
+        try {
+          const detailResp = await apiGet<any>(`/plugins/${p.name}`);
+          const detail = detailResp.data || detailResp;
+          const schema = [
+            ...((detail.config_schema || []) as any[]),
+            ...((detail.manifest?.config_schema || []) as any[]),
+          ];
+          const modelField = schema.find((f: any) => f.key === "default_model");
+          if (modelField && modelField.allowed_values && modelField.allowed_values.length > 0) {
+            modelMap[p.name] = modelField.allowed_values as string[];
+          } else if (modelField && modelField.default) {
+            modelMap[p.name] = [modelField.default as string];
+          } else {
+            modelMap[p.name] = [];
+          }
+        } catch {
+          modelMap[p.name] = [];
+        }
+      }
+      _providerModels = modelMap;
+    } catch {
+      _providers = [];
+      _providerModels = {};
+    }
+
+    content.innerHTML = renderProfilesPage(profiles);
+    wireProfiles();
+    // Enhance provider and model selects
+    document.querySelectorAll("#profiles-content select").forEach((el) => {
+      enhanceSelect(el.id);
     });
+  } catch (e) {
+    content.innerHTML = `<div class="error-state" style="padding:3rem;text-align:center;">Failed to load profiles: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
+  }
+}
+
+function getModelsForProvider(provider: string): string[] {
+  return _providerModels[provider] || [];
 }
 
 function renderProfilesPage(profiles: any[]): string {
@@ -50,13 +94,13 @@ function renderProfilesPage(profiles: any[]): string {
         <div class="setting-row">
           <div class="setting-controls">
             <div class="setting-name">Provider</div>
-            ${renderEditableField("provider", p.provider || "", p.name)}
+            ${renderProviderSelect(p.name, p.provider || "")}
           </div>
         </div>
         <div class="setting-row">
           <div class="setting-controls">
             <div class="setting-name">Model</div>
-            ${renderEditableField("model", p.model || "", p.name)}
+            ${renderModelSelect(p.name, p.provider || "", p.model || "")}
           </div>
         </div>
         <div class="setting-row">
@@ -83,6 +127,61 @@ function renderProfilesPage(profiles: any[]): string {
     .join("");
 }
 
+function renderProviderSelect(profileName: string, currentProvider: string): string {
+  const selectId = `prof-provider-${escapeHtml(profileName)}`;
+  const options =
+    _providers.length > 0
+      ? _providers
+          .map(
+            (p) =>
+              `<option value="${escapeHtml(p)}" ${p === currentProvider ? "selected" : ""}>${escapeHtml(p)}</option>`,
+          )
+          .join("")
+      : `<option value="${escapeHtml(currentProvider)}" selected>${escapeHtml(currentProvider || "—")}</option>`;
+  return `
+    <div style="display:flex;align-items:center;gap:0.375rem;">
+      <select id="${selectId}" class="profile-provider-select"
+        data-profile-name="${escapeHtml(profileName)}" data-field="provider" data-original="${escapeHtml(currentProvider)}">
+        ${options}
+      </select>
+      <button type="button" class="profile-edit-confirm" data-profile-name="${escapeHtml(profileName)}" data-field="provider" style="display:none;width:24px;height:24px;border-radius:4px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.3);cursor:pointer;color:#10b981;padding:0;" title="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
+      <button type="button" class="profile-edit-cancel" data-profile-name="${escapeHtml(profileName)}" data-field="provider" style="display:none;width:24px;height:24px;border-radius:4px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.3);cursor:pointer;color:#f43f5e;padding:0;" title="Cancel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `;
+}
+
+function renderModelSelect(profileName: string, currentProvider: string, currentModel: string): string {
+  const selectId = `prof-model-${escapeHtml(profileName)}`;
+  const models = getModelsForProvider(currentProvider);
+  const options =
+    models.length > 0
+      ? models
+          .map(
+            (m) =>
+              `<option value="${escapeHtml(m)}" ${m === currentModel ? "selected" : ""}>${escapeHtml(m)}</option>`,
+          )
+          .join("")
+      : `<option value="${escapeHtml(currentModel)}" selected>${escapeHtml(currentModel || "—")}</option>`;
+  return `
+    <div style="display:flex;align-items:center;gap:0.375rem;">
+      <select id="${selectId}" class="profile-model-select"
+        data-profile-name="${escapeHtml(profileName)}" data-field="model" data-original="${escapeHtml(currentModel)}">
+        ${options}
+      </select>
+      <button type="button" class="profile-edit-confirm" data-profile-name="${escapeHtml(profileName)}" data-field="model" style="display:none;width:24px;height:24px;border-radius:4px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.3);cursor:pointer;color:#10b981;padding:0;" title="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
+      <button type="button" class="profile-edit-cancel" data-profile-name="${escapeHtml(profileName)}" data-field="model" style="display:none;width:24px;height:24px;border-radius:4px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.3);cursor:pointer;color:#f43f5e;padding:0;" title="Cancel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `;
+}
+
 function renderSkillsList(skills: string[]): string {
   if (!skills || skills.length === 0) {
     return '<span class="text-muted" style="font-size:0.85rem;">No skills found on filesystem</span>';
@@ -90,23 +189,6 @@ function renderSkillsList(skills: string[]): string {
   return `<div class="channel-tag-list">${skills
     .map((s) => `<span class="channel-tag">${escapeHtml(s)}</span>`)
     .join("")}</div>`;
-}
-
-function renderEditableField(field: string, value: string, profileName: string): string {
-  const inputId = `prof-${field}-${escapeHtml(profileName)}`;
-  return `
-    <div style="display:flex;align-items:center;gap:0.375rem;flex-wrap:wrap;">
-      <input type="text" id="${inputId}" class="filter-input profile-edit-input"
-        value="${escapeHtml(value)}" style="min-width:140px;max-width:240px;"
-        data-profile-name="${escapeHtml(profileName)}" data-field="${field}" data-original="${escapeHtml(value)}" />
-      <button type="button" class="profile-edit-confirm" data-profile-name="${escapeHtml(profileName)}" data-field="${field}" style="display:none;width:24px;height:24px;border-radius:4px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.3);cursor:pointer;color:#10b981;padding:0;" title="Save">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-      </button>
-      <button type="button" class="profile-edit-cancel" data-profile-name="${escapeHtml(profileName)}" data-field="${field}" style="display:none;width:24px;height:24px;border-radius:4px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.3);cursor:pointer;color:#f43f5e;padding:0;" title="Cancel">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-  `;
 }
 
 function renderToolSelect(profileName: string, selected: string[], allTools: string[]): string {
@@ -138,34 +220,69 @@ function renderToolSelect(profileName: string, selected: string[], allTools: str
 }
 
 function wireProfiles(): void {
-  // ── Text field edits ──
-  document.querySelectorAll(".profile-edit-input").forEach((el) => {
-    const input = el as HTMLInputElement;
-    input.addEventListener("input", () => {
-      const profileName = input.getAttribute("data-profile-name");
-      const field = input.getAttribute("data-field");
-      const original = input.getAttribute("data-original") || "";
+  // ── Select edits (profile-provider-select, profile-model-select) ──
+  document.querySelectorAll(".profile-provider-select, .profile-model-select").forEach((el) => {
+    const select = el as HTMLSelectElement;
+    select.addEventListener("change", () => {
+      const profileName = select.getAttribute("data-profile-name");
+      const field = select.getAttribute("data-field");
+      const original = select.getAttribute("data-original") || "";
       const confirmBtn = document.querySelector(
         `.profile-edit-confirm[data-profile-name="${profileName}"][data-field="${field}"]`,
       ) as HTMLElement | null;
       const cancelBtn = document.querySelector(
         `.profile-edit-cancel[data-profile-name="${profileName}"][data-field="${field}"]`,
       ) as HTMLElement | null;
-      const changed = input.value !== original;
+      const changed = select.value !== original;
       if (confirmBtn) confirmBtn.style.display = changed ? "inline-flex" : "none";
       if (cancelBtn) cancelBtn.style.display = changed ? "inline-flex" : "none";
     });
   });
 
-  // Confirm text edits
+  // Provider change → update model dropdown in the same profile card
+  document.querySelectorAll(".profile-provider-select").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      const select = sel as HTMLSelectElement;
+      const profileName = select.getAttribute("data-profile-name");
+      if (!profileName) return;
+      const newProvider = select.value;
+      const models = getModelsForProvider(newProvider);
+      const modelSelect = document.getElementById(
+        `prof-model-${escapeHtml(profileName)}`,
+      ) as HTMLSelectElement | null;
+      if (!modelSelect) return;
+      modelSelect.innerHTML =
+        models.length > 0
+          ? models.map((m: string) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("")
+          : '<option value="">—</option>';
+      const firstModel = models.length > 0 ? models[0] : "";
+      modelSelect.value = firstModel;
+      modelSelect.setAttribute("data-original", firstModel);
+      // Re-enhance model select after updating options
+      unenhanceSelect(modelSelect.id);
+      enhanceSelect(modelSelect.id);
+      // Hide confirm/cancel for model
+      const modelConfirmBtn = document.querySelector(
+        `.profile-edit-confirm[data-profile-name="${profileName}"][data-field="model"]`,
+      ) as HTMLElement | null;
+      const modelCancelBtn = document.querySelector(
+        `.profile-edit-cancel[data-profile-name="${profileName}"][data-field="model"]`,
+      ) as HTMLElement | null;
+      if (modelConfirmBtn) modelConfirmBtn.style.display = "none";
+      if (modelCancelBtn) modelCancelBtn.style.display = "none";
+    });
+  });
+
+  // Confirm edits
   document.querySelectorAll(".profile-edit-confirm").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const profileName = btn.getAttribute("data-profile-name");
       const field = btn.getAttribute("data-field");
       if (!profileName || !field) return;
-      const input = document.querySelector(
-        `.profile-edit-input[data-profile-name="${profileName}"][data-field="${field}"]`,
-      ) as HTMLInputElement | null;
+      const input = document.querySelector(`[data-profile-name="${profileName}"][data-field="${field}"]`) as
+        | HTMLSelectElement
+        | HTMLInputElement
+        | null;
       if (!input) return;
       const value = input.value;
       const body: Record<string, string> = {};
@@ -193,15 +310,16 @@ function wireProfiles(): void {
     });
   });
 
-  // Cancel text edits
+  // Cancel edits
   document.querySelectorAll(".profile-edit-cancel").forEach((btn) => {
     btn.addEventListener("click", () => {
       const profileName = btn.getAttribute("data-profile-name");
       const field = btn.getAttribute("data-field");
       if (!profileName || !field) return;
-      const input = document.querySelector(
-        `.profile-edit-input[data-profile-name="${profileName}"][data-field="${field}"]`,
-      ) as HTMLInputElement | null;
+      const input = document.querySelector(`[data-profile-name="${profileName}"][data-field="${field}"]`) as
+        | HTMLSelectElement
+        | HTMLInputElement
+        | null;
       if (!input) return;
       input.value = input.getAttribute("data-original") || "";
       (btn as HTMLElement).style.display = "none";
@@ -236,7 +354,6 @@ function wireProfiles(): void {
           const text = await res.text();
           throw new Error(text);
         }
-        // Update origins
         updateToolOrigins(profileName, selected);
         hideToolButtons(profileName);
         (window as any).showToast?.("Tools updated", "success");
@@ -261,7 +378,6 @@ function wireProfiles(): void {
           const text = await res.text();
           throw new Error(text);
         }
-        // Reload page to reflect defaults
         await loadProfiles();
         (window as any).showToast?.("Tools reset to defaults", "success");
       } catch (e) {
@@ -281,7 +397,6 @@ function toggleToolChip(profileName: string | null): void {
     const cb = chip.querySelector(".tool-chip-cb") as HTMLInputElement;
     chip.classList.toggle("tool-chip-active", cb.checked);
   });
-  // Show save/reset buttons when any checkbox changes
   const changed = hasToolChanges(profileName);
   const saveBtn = document.querySelector(
     `.profile-tools-save[data-profile-name="${profileName}"]`,
@@ -304,7 +419,6 @@ function getSelectedTools(profileName: string): string[] {
 }
 
 function hasToolChanges(profileName: string): boolean {
-  // Compare current selection to the original active state
   const group = document.querySelector(`.tool-chip-group[data-profile-name="${profileName}"]`);
   if (!group) return false;
   let changed = false;

@@ -22,6 +22,22 @@ export function enhanceSelect(selectId: string): void {
   if (el) enhanceSelectElement(el);
 }
 
+/**
+ * Remove an existing enhanced dropdown wrapper for a select, so it can be re-enhanced
+ * after its options have changed. Returns the native select element.
+ */
+export function unenhanceSelect(selectId: string): HTMLSelectElement | null {
+  const el = document.getElementById(selectId) as HTMLSelectElement | null;
+  if (!el) return null;
+  const wrapper = el.nextElementSibling;
+  if (wrapper && wrapper.classList.contains("custom-select")) {
+    wrapper.remove();
+  }
+  el.style.display = "";
+  delete (el as any).dataset._enhanced;
+  return el;
+}
+
 function escapeHtml(text: string): string {
   const div = document.createElement("div");
   div.textContent = text;
