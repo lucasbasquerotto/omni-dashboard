@@ -1,5 +1,5 @@
 import { apiGet, type MessagesResponse, type MessagesFilters } from "../lib/api";
-import { renderMessageCard, wireMessageCardToggles } from "../lib/message-card";
+import { renderMessageCard, wireMessageCardToggles, typeColor } from "../lib/message-card";
 
 // ── State ──
 interface FilterState {
