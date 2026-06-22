@@ -37,7 +37,6 @@ const BUILT_IN_TOOLS = [
 
 // ── State ──
 
-let pluginsData: PluginData[] = [];
 const savedConfigs: Map<string, Record<string, any>> = new Map();
 
 async function loadTools(): Promise<void> {

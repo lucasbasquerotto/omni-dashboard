@@ -340,19 +340,6 @@ function hideToolButtons(profileName: string): void {
   if (resetBtn) resetBtn.style.display = "none";
 }
 
-let _lastLoadProfiles: (() => Promise<void>) | null = null;
-// Re-export loadProfiles so buttons can call it
-async function reloadProfiles(): Promise<void> {
-  const content = document.getElementById("profiles-content")!;
-  try {
-    const profiles = await apiGet<any[]>("/profiles");
-    content.innerHTML = renderProfilesPage(profiles);
-    wireProfiles();
-  } catch (e) {
-    content.innerHTML = `<div class="error-state" style="padding:3rem;text-align:center;">Failed to load profiles: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
-  }
-}
-
 function escapeHtml(text: string): string {
   const div = document.createElement("div");
   div.textContent = text;

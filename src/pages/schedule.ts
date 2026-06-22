@@ -135,7 +135,7 @@ function wireCronButtons(): void {
       const cronId = row?.getAttribute("data-cron-id");
       if (!cronId) return;
       const job = await apiGet<any>("/schedule/" + encodeURIComponent(cronId));
-      showCronModal(job);
+      void showCronModal(job);
     });
   });
 
@@ -332,7 +332,7 @@ async function loadScheduleDetail(cronId: string): Promise<any> {
       </div>
     `;
     // Load threads
-    loadScheduleThreads(job.id);
+    void loadScheduleThreads(job.id);
     return job;
   } catch (e) {
     el.innerHTML = `<div class="error-state">Failed to load job details: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
@@ -610,7 +610,7 @@ async function loadScheduleThreads(scheduleId: string): Promise<void> {
         router.go("threads");
       });
     });
-  } catch (e) {
+  } catch {
     el.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Failed to load activity.</div>';
   }
 }
