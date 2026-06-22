@@ -654,7 +654,7 @@ async function loadKanbanThreads(taskId: string): Promise<void> {
         router.go(route);
       });
     });
-  } catch (e) {
+  } catch {
     el.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Failed to load threads.</div>';
   }
 }

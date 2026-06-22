@@ -22,7 +22,7 @@ export function renderPlatforms(container: HTMLElement): void {
 
 // ── State ──
 
-let pluginsData: PluginData[] = [];
+// savedConfigs and pending changes map
 const savedConfigs: Map<string, Record<string, any>> = new Map();
 
 async function loadPlatforms(): Promise<void> {

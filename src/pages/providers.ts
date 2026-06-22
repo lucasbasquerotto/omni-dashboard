@@ -19,7 +19,6 @@ export function renderProviders(container: HTMLElement): void {
 
 // ── State ──
 
-let pluginsData: PluginData[] = [];
 const savedConfigs: Map<string, Record<string, any>> = new Map();
 
 async function loadProviders(): Promise<void> {

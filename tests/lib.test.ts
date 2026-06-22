@@ -128,7 +128,7 @@ describe("src/lib/router.ts", () => {
 
   it("defines all expected page routes", () => {
     const content = readFileSync(new URL("../src/lib/router.ts", import.meta.url), "utf-8");
-    const expectedRoutes = ["overview", "messages", "kanban", "schedule", "wiki"];
+    const expectedRoutes = ["overview", "messages", "kanban", "schedule", "settings"];
     for (const route of expectedRoutes) {
       assert.ok(content.includes(`name: "${route}"`), `should define route: ${route}`);
     }
@@ -165,7 +165,7 @@ describe("src/lib/router.ts", () => {
       content.includes("import { renderSchedule, renderScheduleDetail }"),
       "should import renderSchedule and renderScheduleDetail",
     );
-    assert.ok(content.includes("import { renderWiki }"), "should import renderWiki");
+    assert.ok(content.includes("import { renderProviders }"), "should import renderProviders");
   });
 
   it("router.go iterates param routes before exact routes", () => {
