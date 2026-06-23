@@ -70,11 +70,6 @@ export function renderKanban(container: HTMLElement): void {
               <option value="">None</option>
             </select>
           </div>
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Template</label>
-            <input type="text" id="task-create-template" placeholder="e.g. code-improvement" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;" />
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Name of a .md template in profiles/&lt;name&gt;/templates/</div>
-          </div>
         </div>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
           <button id="task-create-cancel" style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
@@ -112,11 +107,9 @@ export function renderKanban(container: HTMLElement): void {
       (document.getElementById("task-create-channel") as HTMLSelectElement)?.value || undefined;
     const profile = (document.getElementById("task-create-profile") as HTMLSelectElement)?.value || undefined;
     const status = (document.getElementById("task-create-status") as HTMLSelectElement)?.value || "backlog";
-    const template =
-      (document.getElementById("task-create-template") as HTMLInputElement)?.value.trim() || undefined;
 
     try {
-      await apiPost<any>("/kanban/tasks", { title, body, priority, channel_id, profile, status, template });
+      await apiPost<any>("/kanban/tasks", { title, body, priority, channel_id, profile, status });
       closeCreateModal();
       void loadBoard();
     } catch (e) {
@@ -176,8 +169,6 @@ function closeCreateModal(): void {
   const profile = document.getElementById("task-create-profile") as HTMLSelectElement;
   if (profile) profile.value = "";
   syncSelectDisplay("task-create-profile");
-  const template = document.getElementById("task-create-template") as HTMLInputElement;
-  if (template) template.value = "";
 }
 
 async function loadBoard(): Promise<void> {
@@ -436,11 +427,6 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
               <option value="">None</option>
             </select>
           </div>
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Template</label>
-            <input type="text" id="task-edit-template" placeholder="e.g. code-improvement" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;" />
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Name of a .md template in profiles/&lt;name&gt;/templates/</div>
-          </div>
         </div>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
           <button id="task-edit-cancel" style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
@@ -535,10 +521,6 @@ async function loadTaskDetail(taskId: string): Promise<void> {
         <div>
           <div class="detail-label">Profile</div>
           <div>${task.profile ? escapeHtml(task.profile) : "<em>None</em>"}</div>
-        </div>
-        <div>
-          <div class="detail-label">Template</div>
-          <div>${task.template ? escapeHtml(task.template) : "<em>None</em>"}</div>
         </div>
         <div>
           <div class="detail-label">Created</div>
