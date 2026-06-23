@@ -2,6 +2,7 @@ import { apiGet } from "../lib/api";
 import { enhanceSelectElement } from "../lib/dropdown";
 import { router } from "../lib/router";
 import { renderMessageCard, wireMessageCardToggles } from "../lib/message-card";
+import { escapeHtml } from "../lib/helpers";
 
 export function renderSchedule(container: HTMLElement): void {
   container.innerHTML = `
@@ -869,9 +870,3 @@ function formatDate(dateStr: string | null): string {
 }
 
 // Floating dropdown helpers imported from src/lib/dropdown.ts
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}

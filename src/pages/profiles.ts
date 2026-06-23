@@ -1,5 +1,6 @@
 import { apiGet, apiPost } from "../lib/api";
 import { enhanceSelect, unenhanceSelect } from "../lib/dropdown";
+import { escapeHtml } from "../lib/helpers";
 
 // ── Cached provider/model data ──
 let _providers: string[] = [];
@@ -566,10 +567,4 @@ function hideToolButtons(profileName: string): void {
   ) as HTMLElement | null;
   if (saveBtn) saveBtn.style.display = "none";
   if (resetBtn) resetBtn.style.display = "none";
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
 }

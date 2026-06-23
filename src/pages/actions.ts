@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/api";
 import { enhanceSelectElement } from "../lib/dropdown";
+import { escapeHtml } from "../lib/helpers";
 
 // ── Types ──
 interface Action {
@@ -384,11 +385,6 @@ function showResultModal(name: string, message: string, isError: boolean): void 
 }
 
 // ── Utilities ──
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 function formatDate(dateStr: string): string {
   try {

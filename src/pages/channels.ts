@@ -1,5 +1,6 @@
 import { apiGet, type ChannelData, type PluginData } from "../lib/api";
 import { enhanceSelect, syncSelectDisplay, unenhanceSelect } from "../lib/dropdown";
+import { escapeHtml } from "../lib/helpers";
 
 export function renderChannels(container: HTMLElement): void {
   container.innerHTML = `
@@ -657,10 +658,4 @@ function wireChannels(): void {
       }
     });
   });
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
 }

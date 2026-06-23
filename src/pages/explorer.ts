@@ -2,6 +2,7 @@ import { apiGet, apiPost, type SearchResult, type FsEntry, type FsReadResponse }
 import { marked, Renderer } from "marked";
 import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
+import { escapeHtml } from "../lib/helpers";
 
 // Functions exposed by the global upload feature (defined in index.ts — same bundle)
 declare function checkExistingFiles(files: File[]): Promise<Set<string>>;
@@ -27,12 +28,6 @@ marked.use(
     },
   }),
 );
-
-function escapeHtml(text: string): string {
-  const d = document.createElement("div");
-  d.textContent = text;
-  return d.innerHTML;
-}
 
 function renderMarkdown(md: string): string {
   // Strip YAML frontmatter (---...---) — marked confuses closing --- as setext heading delimiter

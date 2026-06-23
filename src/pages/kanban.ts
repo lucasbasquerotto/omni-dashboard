@@ -819,12 +819,6 @@ function formatRelativeTime(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 function formatTaskDate(dateStr: string): string {
   if (!dateStr) return "—";
   try {
@@ -971,6 +965,7 @@ function refreshEnhancedSelect(selectId: string): void {
 
 // ── Enhanced dropdown helpers (replaces native <select>) ──
 import { enhanceSelect } from "../lib/dropdown";
+import { escapeHtml } from "../lib/helpers";
 // enhanceSelect imported from src/lib/dropdown.ts
 
 function syncSelectDisplay(selectId: string): void {

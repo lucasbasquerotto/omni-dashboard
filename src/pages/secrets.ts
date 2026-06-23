@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/api";
 import { enhanceSelectElement } from "../lib/dropdown";
+import { escapeHtml } from "../lib/helpers";
 
 export function renderSecrets(container: HTMLElement): void {
   container.innerHTML = `
@@ -488,10 +489,4 @@ function showStatus(el: HTMLElement, message: string, type: "success" | "error" 
     info: "background:rgba(6,182,212,0.15);color:#22d3ee;border:1px solid rgba(6,182,212,0.3);",
   };
   el.style.cssText += colors[type] || colors.info;
-}
-
-function escapeHtml(str: string): string {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
 }

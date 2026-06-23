@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiDelete, type PluginData, type ConfigField } from "../lib/api";
 import { enhanceSelectElement } from "../lib/dropdown";
+import { escapeHtml } from "../lib/helpers";
 
 export function renderPlatforms(container: HTMLElement): void {
   container.innerHTML = `
@@ -556,10 +557,4 @@ function dirtyCheckSaveButton(formEl: HTMLElement, pluginName: string): void {
   saveBtn.disabled = !changed;
   saveBtn.style.opacity = changed ? "1" : "0.4";
   saveBtn.style.cursor = changed ? "pointer" : "not-allowed";
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
 }
