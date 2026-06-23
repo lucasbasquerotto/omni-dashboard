@@ -109,6 +109,20 @@ function causeColor(cause: string): string {
   }
 }
 
+/** Planning mode badge colors: styled like Cause — 3 colors. */
+function planningModeColor(mode: string): string {
+  switch (mode) {
+    case "prompt_only":
+      return "#64748b"; // gray — no plan
+    case "auto_plan":
+      return "#f59e0b"; // amber — simple plan
+    case "auto_subtasks":
+      return "#8b5cf6"; // purple — deep plan
+    default:
+      return "#64748b";
+  }
+}
+
 // ── Main render ──
 export function renderThreads(container: HTMLElement): void {
   container.innerHTML = `
@@ -318,8 +332,8 @@ async function loadThreads(): Promise<void> {
               <div role="columnheader">Cause</div>
               <div role="columnheader">Channel</div>
               <div role="columnheader">Created</div>
-              <div role="columnheader" style="text-align:right">Msgs</div>
               <div role="columnheader">Plan Mode</div>
+              <div role="columnheader" style="text-align:right">Msgs</div>
               <div role="columnheader" class="col-preview">Preview</div>
               <div role="columnheader" style="text-align:right">Time (ms)</div>
               <div role="columnheader" style="text-align:right">Tokens</div>
@@ -347,7 +361,7 @@ function planningModeLabel(mode: string): string {
     case "auto_subtasks":
       return "Plan with Subtasks";
     default:
-      return "- (Default)";
+      return "No Plan";
   }
 }
 
@@ -362,6 +376,7 @@ function renderRow(row: ThreadRow): string {
   );
   const tokens = (row.input_tokens || 0) + (row.output_tokens || 0);
   const causeCol = causeColor(row.cause);
+  const pmCol = planningModeColor(row.planning_mode);
 
   const url = `/messages?thread_id=${escapeHtml(row.id)}`;
 
@@ -372,8 +387,8 @@ function renderRow(row: ThreadRow): string {
       <div role="cell"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></div>
       <div role="cell"><span class="badge" style="${channelStyle(row.channel_closed)}"${row.channel_closed ? ' title="Channel closed"' : ""}>${escapeHtml(row.channel_name)}</span></div>
       <div role="cell" class="cell-timestamp">${ts}</div>
+      <div role="cell"><span class="badge" style="--type-color:${pmCol};background:${pmCol}22;border-color:${pmCol}44;color:${pmCol}">${planningModeLabel(row.planning_mode)}</span></div>
       <div role="cell" class="cell-num">${row.msg_count}</div>
-      <div role="cell" style="font-size:0.78rem;color:var(--text-secondary);">${planningModeLabel(row.planning_mode)}</div>
       <div role="cell" class="cell-preview">${preview}</div>
       <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "—"}</div>
       <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "—"}</div>
