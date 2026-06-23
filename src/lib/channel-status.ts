@@ -12,6 +12,7 @@ import {
   renderProviderSelect,
   renderModelSelect,
   renderPlanningModeSelect,
+  planningModeLabel,
 } from "./channel-config";
 
 // ── Filter state ──
