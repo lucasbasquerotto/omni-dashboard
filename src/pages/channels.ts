@@ -253,6 +253,7 @@ function renderChannelsPage(channels: ChannelData[]): string {
       <div class="card-header">
         <span class="card-title">${escapeHtml(ch.name)}</span>
         ${ch.readonly ? '<span style="flex:1;text-align:center;"><span class="channel-status-badge badge-neutral">Permanent</span></span>' : '<span style="flex:1;"></span>'}
+        <span class="channel-status-badge" style="--type-color:#8b5cf6;background:rgba(139,92,246,0.12);border-color:rgba(139,92,246,0.3);color:#8b5cf6;font-size:0.7rem;padding:0.125rem 0.5rem;">${planningModeLabel(ch.planning_mode)}</span>
         <span class="channel-status-badge ${ch.closed ? "badge-error" : "badge-success"}">${ch.closed ? "Closed" : "Open"}</span>
       </div>
       <div class="card-body">
@@ -296,6 +297,12 @@ function renderChannelsPage(channels: ChannelData[]): string {
           <div class="setting-controls">
             <div class="setting-name">Model</div>
             ${renderModelSelect(ch.id, ch.current_provider || "default", ch.current_model || "")}
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-controls">
+            <div class="setting-name">Planning Mode</div>
+            ${renderPlanningModeSelect(ch.id, ch.planning_mode || "")}
           </div>
         </div>
       </div>
@@ -422,6 +429,48 @@ function renderModelSelect(channelId: number, currentProvider: string, currentMo
   `;
 }
 
+function renderPlanningModeSelect(channelId: number, current: string): string {
+  const selectId = `ch-${channelId}-planning-mode`;
+  const options = [
+    { value: "", label: "- (Default)" },
+    { value: "prompt_only", label: "No Plan" },
+    { value: "auto_plan", label: "Simple Plan" },
+    { value: "auto_subtasks", label: "Plan with Subtasks" },
+  ];
+  return `
+    <div class="channel-field-group">
+      <select id="${selectId}" class="filter-select"
+        data-channel-id="${channelId}" data-field="planning_mode" data-original="${escapeHtml(current)}">
+        ${options
+          .map(
+            (opt) =>
+              `<option value="${escapeHtml(opt.value)}" ${opt.value === current ? "selected" : ""}>${escapeHtml(opt.label)}</option>`,
+          )
+          .join("")}
+      </select>
+      <button type="button" class="channel-edit-btn save" data-channel-id="${channelId}" data-field="planning_mode" style="display:none;" title="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
+      <button type="button" class="channel-edit-btn cancel" data-channel-id="${channelId}" data-field="planning_mode" style="display:none;" title="Cancel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `;
+}
+
+function planningModeLabel(mode: string | null): string {
+  switch (mode) {
+    case "prompt_only":
+      return "No Plan";
+    case "auto_plan":
+      return "Simple Plan";
+    case "auto_subtasks":
+      return "Plan with Subtasks";
+    default:
+      return "Default";
+  }
+}
+
 function wireChannels(): void {
   // Edit input change detection
   document.querySelectorAll(".channel-edit-input").forEach((el) => {
@@ -540,7 +589,8 @@ function wireChannels(): void {
       if (!input) return;
       const value = input.value;
       const body: Record<string, string> = {};
-      const key = field === "name" ? "name" : `current_${field}`;
+      const key =
+        field === "name" ? "name" : field === "planning_mode" ? "planning_mode" : `current_${field}`;
       body[key] = value;
       try {
         const res = await fetch(`/api/channels/${channelId}`, {

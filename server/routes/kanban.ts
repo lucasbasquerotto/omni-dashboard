@@ -23,7 +23,7 @@ kanbanRouter.get("/board", async (req: Request, res: Response) => {
     const tasks = await queryDb(
       `SELECT id, display_id, title, body, assignee, channel_id, profile, status, priority,
               COALESCE(position, 0) AS position,
-              created_at, updated_at, archived
+              created_at, updated_at, archived, template
        FROM kanban_tasks
        WHERE archived = ${showArchived}
        ORDER BY position ASC, created_at DESC`,
@@ -53,7 +53,7 @@ kanbanRouter.get("/tasks/:id", async (req: Request, res: Response) => {
 
     const tasks = await queryDb(
       `SELECT id, display_id, title, body, assignee, channel_id, profile, status, priority,
-              created_at, updated_at, archived
+              created_at, updated_at, archived, template
        FROM kanban_tasks WHERE id = $1`,
       [taskId],
     );
@@ -73,7 +73,7 @@ kanbanRouter.get("/tasks/:id", async (req: Request, res: Response) => {
 // ── POST /api/kanban/tasks — Create task ──
 kanbanRouter.post("/tasks", async (req: Request, res: Response) => {
   try {
-    const { title, body, channel_id, profile, priority, status, board_id } = req.body;
+    const { title, body, channel_id, profile, priority, status, board_id, template } = req.body;
     if (!title || typeof title !== "string" || title.trim().length === 0) {
       res.status(400).json({ error: "Title is required" });
       return;
@@ -94,8 +94,8 @@ kanbanRouter.post("/tasks", async (req: Request, res: Response) => {
     const nextPos = posResult.length > 0 ? posResult[0].next_pos : 0;
 
     await queryDb(
-      `INSERT INTO kanban_tasks (id, title, body, status, priority, channel_id, profile, board_id, position)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      `INSERT INTO kanban_tasks (id, title, body, status, priority, channel_id, profile, board_id, position, template)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         id,
         title.trim(),
@@ -106,6 +106,7 @@ kanbanRouter.post("/tasks", async (req: Request, res: Response) => {
         taskProfile,
         taskBoardId,
         nextPos,
+        template || null,
       ],
     );
 
@@ -300,7 +301,7 @@ kanbanRouter.patch("/tasks/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    const { title, body, channel_id, profile, priority, status, board_id, archived } = req.body;
+    const { title, body, channel_id, profile, priority, status, board_id, archived, template } = req.body;
     const setClauses: string[] = [];
     const params: any[] = [];
     let paramIdx = 2;
@@ -346,6 +347,10 @@ kanbanRouter.patch("/tasks/:id", async (req: Request, res: Response) => {
     if (archived !== undefined) {
       setClauses.push(`archived = $${paramIdx++}`);
       params.push(archived);
+    }
+    if (template !== undefined) {
+      setClauses.push(`template = $${paramIdx++}`);
+      params.push(template);
     }
 
     if (setClauses.length === 0) {

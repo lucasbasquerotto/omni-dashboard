@@ -466,11 +466,12 @@ function scheduleSubtaskBadgeStyle(status: string): string {
 async function showCronModal(job: any): Promise<void> {
   const isEdit = job !== null;
 
-  // Fetch available channels, profiles, existing jobs, and actions
+  // Fetch available channels, profiles, existing jobs, actions, and templates
   let channels: any[] = [];
   let profiles: any[] = [];
   let existingJobs: any[] = [];
   let actions: { id: string; name: string; tool_name: string; is_builtin: boolean }[] = [];
+  let templates: { profile: string; name: string; label: string }[] = [];
   try {
     channels = await apiGet<any[]>("/channels");
   } catch {
@@ -490,6 +491,11 @@ async function showCronModal(job: any): Promise<void> {
     actions = await apiGet<any[]>("/schedule/actions");
   } catch {
     /* actions may not be available */
+  }
+  try {
+    templates = await apiGet<any[]>("/templates");
+  } catch {
+    /* templates may not be available */
   }
 
   const modal = document.createElement("div");
@@ -559,6 +565,27 @@ async function showCronModal(job: any): Promise<void> {
           </select>
         </div>
         <div style="margin-bottom:1rem;">
+          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Planning Mode</label>
+          <select id="cron-planning-mode" class="filter-select" style="width:100%;">
+            <option value="">- (Default)</option>
+            <option value="no_plan" ${isEdit && job.planning_mode === "no_plan" ? "selected" : ""}>No Plan</option>
+            <option value="max_plan" ${isEdit && job.planning_mode === "max_plan" ? "selected" : ""}>Max Plan</option>
+          </select>
+        </div>
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Instruction File</label>
+          <select id="cron-instruction-file" class="filter-select" style="width:100%;">
+            <option value="">- (None)</option>
+            ${templates
+              .map(
+                (t: any) =>
+                  `<option value="${escapeHtml(t.name)}" ${isEdit && job.instruction_file === t.name ? "selected" : ""}>${escapeHtml(t.label)} (${escapeHtml(t.profile)})</option>`,
+              )
+              .join("")}
+          </select>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">Template file to inject into the agent's prompt when this job runs. Create .md files in profiles/&lt;name&gt;/templates/</div>
+        </div>
+        <div style="margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Mode</label>
           <select id="cron-mode" class="filter-select" style="width:100%;">
             <option value="agentic" ${isEdit && job.mode === "agentic" ? "selected" : ""}>Agentic</option>
@@ -615,6 +642,8 @@ async function showCronModal(job: any): Promise<void> {
   // Enhance selects with custom floating dropdown (matching other pages)
   enhanceSelectElement(document.getElementById("cron-channel") as HTMLSelectElement);
   enhanceSelectElement(document.getElementById("cron-profile") as HTMLSelectElement);
+  enhanceSelectElement(document.getElementById("cron-planning-mode") as HTMLSelectElement);
+  enhanceSelectElement(document.getElementById("cron-instruction-file") as HTMLSelectElement);
   enhanceSelectElement(document.getElementById("cron-mode") as HTMLSelectElement);
   enhanceSelectElement(document.getElementById("cron-action") as HTMLSelectElement);
 
@@ -640,11 +669,13 @@ async function showCronModal(job: any): Promise<void> {
     const schedule = (modal.querySelector("#cron-schedule") as HTMLInputElement).value.trim();
     const channelVal = (modal.querySelector("#cron-channel") as HTMLSelectElement).value;
     const profile = (modal.querySelector("#cron-profile") as HTMLSelectElement).value;
+    const planningMode = (modal.querySelector("#cron-planning-mode") as HTMLSelectElement).value;
     const mode = (modal.querySelector("#cron-mode") as HTMLSelectElement).value;
     const action_id = (modal.querySelector("#cron-action") as HTMLSelectElement).value;
     const prompt = (modal.querySelector("#cron-prompt") as HTMLTextAreaElement).value.trim();
     const active = (modal.querySelector("#cron-active") as HTMLInputElement).checked;
     const silent = (document.getElementById("cron-silent") as HTMLInputElement).checked;
+    const instruction_file = (modal.querySelector("#cron-instruction-file") as HTMLSelectElement).value;
     const channel_id = channelVal ? parseInt(channelVal, 10) : null;
 
     if (!display_name) {
@@ -683,6 +714,8 @@ async function showCronModal(job: any): Promise<void> {
         profile,
         mode,
         silent,
+        planning_mode: planningMode || "",
+        instruction_file: instruction_file || null,
       };
       if (mode === "action") body.action_id = action_id || null;
 

@@ -44,6 +44,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
               cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat, cj.silent,
+              cj.instruction_file, cj.planning_mode,
               a.name AS action_name
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
@@ -55,6 +56,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
               cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat, cj.silent,
+              cj.instruction_file, cj.planning_mode,
               a.name AS action_name
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
@@ -97,6 +99,8 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       created_at: job.created_at,
       status: job.enabled ? "active" : "paused",
       silent: !!job.silent,
+      instruction_file: job.instruction_file || null,
+      planning_mode: job.planning_mode || "",
     }));
 
     res.json(mapped);
@@ -119,6 +123,7 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
       `SELECT cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
               cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat, cj.silent,
+              cj.instruction_file, cj.planning_mode,
               a.name AS action_name
        FROM cron_jobs cj
        LEFT JOIN channels ch ON ch.id = cj.channel_id
@@ -165,6 +170,8 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
       created_at: job.created_at,
       status: job.enabled ? "active" : "paused",
       silent: !!job.silent,
+      instruction_file: job.instruction_file || null,
+      planning_mode: job.planning_mode || "",
     });
   } catch (e: any) {
     console.error("Schedule detail error:", e?.message || e);
@@ -187,6 +194,8 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
       action_id,
       enabled,
       silent,
+      instruction_file,
+      planning_mode,
     } = req.body;
 
     if (!name || !schedule) {
@@ -198,8 +207,8 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
     const displayName = display_name || name;
 
     await queryDb(
-      `INSERT INTO cron_jobs (id, name, display_name, schedule, prompt, active, channel_id, profile, mode, action_id, enabled, silent)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO cron_jobs (id, name, display_name, schedule, prompt, active, channel_id, profile, mode, action_id, enabled, silent, instruction_file, planning_mode)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          display_name = EXCLUDED.display_name,
@@ -212,6 +221,8 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
          action_id = EXCLUDED.action_id,
          enabled = EXCLUDED.enabled,
          silent = EXCLUDED.silent,
+         instruction_file = EXCLUDED.instruction_file,
+         planning_mode = EXCLUDED.planning_mode,
          updated_at = NOW()`,
       [
         id,
@@ -226,6 +237,8 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
         action_id || null,
         enabled !== false, // default true
         silent === true, // default false
+        instruction_file || null,
+        planning_mode || "",
       ],
     );
 
@@ -252,6 +265,8 @@ scheduleRouter.patch("/:id", async (req: Request, res: Response) => {
       mode,
       action_id,
       silent,
+      instruction_file,
+      planning_mode,
     } = req.body;
 
     // Check job exists
@@ -309,6 +324,14 @@ scheduleRouter.patch("/:id", async (req: Request, res: Response) => {
     if (silent !== undefined) {
       sets.push(`silent = $${paramIdx++}`);
       params.push(silent);
+    }
+    if (instruction_file !== undefined) {
+      sets.push(`instruction_file = $${paramIdx++}`);
+      params.push(instruction_file);
+    }
+    if (planning_mode !== undefined) {
+      sets.push(`planning_mode = $${paramIdx++}`);
+      params.push(planning_mode);
     }
 
     if (sets.length === 0) {

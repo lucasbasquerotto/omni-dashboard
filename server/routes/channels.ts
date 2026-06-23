@@ -7,7 +7,7 @@ export const channelsRouter = Router();
 channelsRouter.get("/", async (_req, res) => {
   try {
     const rows = await queryDb(
-      `SELECT id, name, platform, resource_identifier, closed, current_profile, current_provider, current_model, readonly
+      `SELECT id, name, platform, resource_identifier, closed, current_profile, current_provider, current_model, readonly, planning_mode
        FROM channels ORDER BY name`,
     );
     res.json(rows);
@@ -21,7 +21,7 @@ channelsRouter.get("/", async (_req, res) => {
 channelsRouter.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, current_profile, current_provider, current_model, closed } = req.body;
+    const { name, current_profile, current_provider, current_model, closed, planning_mode } = req.body;
 
     // Check if channel is readonly
     const existing = await queryDb(`SELECT readonly, closed FROM channels WHERE id = $1`, [id]);
@@ -72,6 +72,10 @@ channelsRouter.patch("/:id", async (req, res) => {
     if (closed !== undefined) {
       sets.push(`closed = $${paramIdx++}`);
       params.push(closed);
+    }
+    if (planning_mode !== undefined) {
+      sets.push(`planning_mode = $${paramIdx++}`);
+      params.push(planning_mode);
     }
 
     if (sets.length === 0) {
