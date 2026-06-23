@@ -1,5 +1,6 @@
 import { apiGet } from "../lib/api";
 import { enhanceSelect, syncSelectDisplay } from "../lib/dropdown";
+import { escapeHtml } from "../lib/helpers";
 
 // ── Types ──
 interface ThreadRow {
@@ -397,11 +398,6 @@ function renderRow(row: ThreadRow): string {
 }
 
 // ── Utilities ──
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 function formatRelativeTime(date: Date): string {
   const now = new Date();

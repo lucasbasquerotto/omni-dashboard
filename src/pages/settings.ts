@@ -1,5 +1,6 @@
 import { apiGet, apiPut, type SettingCategory } from "../lib/api";
 import { enhanceSelect, syncSelectDisplay } from "../lib/dropdown";
+import { escapeHtml } from "../lib/helpers";
 
 export function renderSettings(container: HTMLElement): void {
   container.innerHTML = `
@@ -296,9 +297,3 @@ async function saveSetting(name: string, value: string): Promise<void> {
 }
 
 // ── Helpers ──
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}

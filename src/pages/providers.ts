@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiDelete, type PluginData, type ConfigField } from "../lib/api";
 import { enhanceSelectElement } from "../lib/dropdown";
+import { escapeHtml } from "../lib/helpers";
 
 export function renderProviders(container: HTMLElement): void {
   container.innerHTML = `
@@ -435,15 +436,6 @@ function dirtyCheckSaveButton(formEl: HTMLElement, pluginName: string): void {
   const isDirty = JSON.stringify(current) !== JSON.stringify(saved);
   saveBtn.style.opacity = isDirty ? "1" : "0.4";
   saveBtn.style.pointerEvents = isDirty ? "auto" : "none";
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 // ── Install from URL Modal ──

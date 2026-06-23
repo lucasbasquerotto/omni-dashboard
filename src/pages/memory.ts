@@ -2,8 +2,8 @@ import { apiGet, apiPost, type SearchResult } from "../lib/api";
 import { enhanceSelect, syncSelectDisplay } from "../lib/dropdown";
 import { renderMessageCard, wireMessageCardToggles } from "../lib/message-card";
 import { router } from "../lib/router";
-
-const API_BASE = "/api";
+import { escapeHtml } from "../lib/helpers";
+import { API_BASE } from "../lib/api";
 
 // ── Block state ──
 let _currentProfile = "default";
@@ -493,9 +493,3 @@ async function searchWiki(query: string): Promise<void> {
 }
 
 // ── Helpers ──
-
-function escapeHtml(text: string): string {
-  const d = document.createElement("div");
-  d.textContent = text;
-  return d.innerHTML;
-}

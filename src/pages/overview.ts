@@ -9,6 +9,7 @@ import {
   type ToolUsage,
   type KanbanBoardResponse,
 } from "../lib/api";
+import { escapeHtml } from "../lib/helpers";
 
 export function renderOverview(container: HTMLElement): void {
   container.innerHTML = `
@@ -316,7 +317,7 @@ function renderLineChart(tokenTrend: DailyTokens[]): string {
     const val = Math.round(i * yStep);
     const y = padding.top + chartH - (val / maxVal) * chartH;
     return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="${COLORS.border}" stroke-width="1"/>
-      <text x="${padding.left - 6}" y="${y + 4}" text-anchor="end" fill="${COLORS.textSecondary}" font-size="9">${formatCompact(val)}</text>`;
+      <text x="${padding.left - 6}" y="${y + 4}" text-anchor="end" fill="${COLORS.textSecondary}" font-size="9">${formatTokens(val)}</text>`;
   }).join("");
 
   // Points and polyline
@@ -330,7 +331,7 @@ function renderLineChart(tokenTrend: DailyTokens[]): string {
       ${yGrid}
       <circle cx="${x}" cy="${y}" r="4" fill="${COLORS.cyan}" opacity="0.9"/>
       <text x="${x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="9">${formatDate(tokenTrend[0].day)}</text>
-      <text x="${x}" y="${y - 10}" text-anchor="middle" fill="${COLORS.cyan}" font-size="10">${formatCompact(val)}</text>
+      <text x="${x}" y="${y - 10}" text-anchor="middle" fill="${COLORS.cyan}" font-size="10">${formatTokens(val)}</text>
     </svg>`;
   }
 
@@ -347,7 +348,7 @@ function renderLineChart(tokenTrend: DailyTokens[]): string {
       // Show dots only every ~3 points or last
       if (i % 3 !== 0 && i !== points.length - 1) return "";
       return `<circle cx="${p.x}" cy="${p.y}" r="3" fill="${COLORS.cyan}" opacity="0.9">
-      <title>${p.label}: ${formatCompact(p.val)}</title>
+      <title>${p.label}: ${formatTokens(p.val)}</title>
     </circle>`;
     })
     .join("");
@@ -356,7 +357,7 @@ function renderLineChart(tokenTrend: DailyTokens[]): string {
   const labels = points
     .map((p, i) => {
       if (i % 3 !== 0 && i !== points.length - 1) return "";
-      return `<text x="${p.x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="9">${shortDate(p.label)}</text>`;
+      return `<text x="${p.x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="9">${formatDate(p.label)}</text>`;
     })
     .join(" ");
 
@@ -494,18 +495,7 @@ function formatTokens(n: number): string {
   return (n / 1_000_000).toFixed(1) + "M";
 }
 
-function formatCompact(n: number): string {
-  if (n < 1000) return n.toString();
-  if (n < 1_000_000) return (n / 1000).toFixed(1) + "K";
-  return (n / 1_000_000).toFixed(1) + "M";
-}
-
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + (dateStr.length === 10 ? "T00:00:00Z" : ""));
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function shortDate(dateStr: string): string {
   const d = new Date(dateStr + (dateStr.length === 10 ? "T00:00:00Z" : ""));
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
@@ -538,12 +528,6 @@ function formatTimeAgo(dateStr: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 function kanbanBadgeClass(statusId: string): string {

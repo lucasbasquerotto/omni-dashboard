@@ -1,7 +1,6 @@
 // ── Prompt Preview Page ──
-// Write a prompt in a textarea, select a channel, optionally plan, see the raw prompt
-
-const API_BASE = "/api";
+import { escapeHtml } from "../lib/helpers";
+import { API_BASE } from "../lib/api";
 
 export async function renderPrompt(container: HTMLElement): Promise<void> {
   container.innerHTML = `
@@ -85,7 +84,6 @@ async function loadChannels(): Promise<void> {
 
 // ── Enhanced dropdown with floating options (appended to document.body to escape backdrop-filter) ──
 import { enhanceSelect } from "../lib/dropdown";
-// enhanceSelect imported from src/lib/dropdown.ts
 
 async function submitPreview(): Promise<void> {
   const channel = (document.getElementById("channel-select") as HTMLSelectElement).value;
@@ -149,10 +147,4 @@ async function submitPreview(): Promise<void> {
   } finally {
     loadingEl.style.display = "none";
   }
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
 }

@@ -48,11 +48,6 @@ function statusBadgeStyle(status: string | null): string {
 }
 
 // ── Utilities ──
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 function truncateMiddle(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
