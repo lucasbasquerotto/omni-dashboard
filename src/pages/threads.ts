@@ -21,6 +21,7 @@ interface ThreadRow {
   channel_closed?: boolean;
   msg_count: number;
   cause_content_preview: string | null;
+  planning_mode: string;
 }
 
 interface ThreadsResponse {
@@ -318,6 +319,7 @@ async function loadThreads(): Promise<void> {
               <div role="columnheader">Channel</div>
               <div role="columnheader">Created</div>
               <div role="columnheader" style="text-align:right">Msgs</div>
+              <div role="columnheader">Plan Mode</div>
               <div role="columnheader" class="col-preview">Preview</div>
               <div role="columnheader" style="text-align:right">Time (ms)</div>
               <div role="columnheader" style="text-align:right">Tokens</div>
@@ -333,6 +335,19 @@ async function loadThreads(): Promise<void> {
     syncFiltersToUrl();
   } catch (e) {
     listEl.innerHTML = `<div class="error-state">Failed to load threads: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
+  }
+}
+
+function planningModeLabel(mode: string): string {
+  switch (mode) {
+    case "prompt_only":
+      return "No Plan";
+    case "auto_plan":
+      return "Simple Plan";
+    case "auto_subtasks":
+      return "Plan with Subtasks";
+    default:
+      return "- (Default)";
   }
 }
 
@@ -358,6 +373,7 @@ function renderRow(row: ThreadRow): string {
       <div role="cell"><span class="badge" style="${channelStyle(row.channel_closed)}"${row.channel_closed ? ' title="Channel closed"' : ""}>${escapeHtml(row.channel_name)}</span></div>
       <div role="cell" class="cell-timestamp">${ts}</div>
       <div role="cell" class="cell-num">${row.msg_count}</div>
+      <div role="cell" style="font-size:0.78rem;color:var(--text-secondary);">${planningModeLabel(row.planning_mode)}</div>
       <div role="cell" class="cell-preview">${preview}</div>
       <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "—"}</div>
       <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "—"}</div>

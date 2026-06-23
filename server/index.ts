@@ -1,6 +1,6 @@
 import express from "express";
-import { existsSync } from "fs";
-import { join, dirname } from "path";
+import { existsSync, readdirSync, readFileSync } from "fs";
+import { join, dirname, basename } from "path";
 import { fileURLToPath } from "url";
 
 import { healthRouter } from "./routes/health.js";
@@ -95,6 +95,43 @@ async function omniagentProxy(req: express.Request, res: express.Response): Prom
 app.get("/api/mcp/tools", omniagentProxy);
 // Proxy ANY method for /api/actions and sub-paths — use middleware pattern for Express 5 compat
 app.all(/^\/api\/actions(?:\/.*)?$/, omniagentProxy);
+
+// GET /api/templates — List available template files across all profiles
+app.get("/api/templates", (_req, res) => {
+  try {
+    const dataDir = process.env.OMNI_DATA_DIR || "/opt/data";
+    const profilesDir = join(dataDir, "profiles");
+    const templates: { profile: string; name: string; label: string }[] = [];
+
+    if (existsSync(profilesDir)) {
+      const profiles = readdirSync(profilesDir, { withFileTypes: true }).filter((d) => d.isDirectory());
+      for (const profile of profiles) {
+        const templatesDir = join(profilesDir, profile.name, "templates");
+        if (!existsSync(templatesDir)) continue;
+        const files = readdirSync(templatesDir).filter((f) => f.endsWith(".md"));
+        for (const file of files) {
+          const name = basename(file, ".md");
+          let label = name;
+          try {
+            const content = readFileSync(join(templatesDir, file), "utf-8");
+            const firstLine = content.split("\n")[0]?.trim();
+            if (firstLine && firstLine.startsWith("# ")) {
+              label = firstLine.replace(/^#\s*/, "").trim();
+            }
+          } catch {
+            /* use name as fallback */
+          }
+          templates.push({ profile: profile.name, name, label });
+        }
+      }
+    }
+
+    res.json(templates);
+  } catch (e: any) {
+    console.error("[templates] Error listing templates:", e?.message || e);
+    res.status(500).json({ error: e.message || "Unknown error" });
+  }
+});
 
 // Serve static files from ../dist (built frontend)
 const distPath = join(__dirname, "..", "dist");

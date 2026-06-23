@@ -70,6 +70,13 @@ export function renderKanban(container: HTMLElement): void {
               <option value="">None</option>
             </select>
           </div>
+          <div>
+            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Template</label>
+            <select id="task-create-template" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
+              <option value="">None</option>
+            </select>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Structured guidance injected into the agent's prompt. Create .md files in profiles/&lt;name&gt;/templates/</div>
+          </div>
         </div>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
           <button id="task-create-cancel" style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
@@ -85,6 +92,7 @@ export function renderKanban(container: HTMLElement): void {
     if (!modal) return;
     await populateCreateChannelSelect();
     await populateProfileSelect("task-create-profile");
+    await populateTemplatesSelect("task-create-template");
     modal.style.display = "flex";
   });
 
@@ -107,9 +115,11 @@ export function renderKanban(container: HTMLElement): void {
       (document.getElementById("task-create-channel") as HTMLSelectElement)?.value || undefined;
     const profile = (document.getElementById("task-create-profile") as HTMLSelectElement)?.value || undefined;
     const status = (document.getElementById("task-create-status") as HTMLSelectElement)?.value || "backlog";
+    const template =
+      (document.getElementById("task-create-template") as HTMLSelectElement)?.value || undefined;
 
     try {
-      await apiPost<any>("/kanban/tasks", { title, body, priority, channel_id, profile, status });
+      await apiPost<any>("/kanban/tasks", { title, body, priority, channel_id, profile, status, template });
       closeCreateModal();
       void loadBoard();
     } catch (e) {
@@ -169,6 +179,11 @@ function closeCreateModal(): void {
   const profile = document.getElementById("task-create-profile") as HTMLSelectElement;
   if (profile) profile.value = "";
   syncSelectDisplay("task-create-profile");
+  const template = document.getElementById("task-create-template") as HTMLSelectElement;
+  if (template) {
+    template.value = "";
+    syncSelectDisplay("task-create-template");
+  }
 }
 
 async function loadBoard(): Promise<void> {
@@ -427,6 +442,13 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
               <option value="">None</option>
             </select>
           </div>
+          <div>
+            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Template</label>
+            <select id="task-edit-template" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
+              <option value="">None</option>
+            </select>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Structured guidance injected into the agent's prompt when this task runs.</div>
+          </div>
         </div>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
           <button id="task-edit-cancel" style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
@@ -593,8 +615,7 @@ async function loadTaskDetail(taskId: string): Promise<void> {
         await populateProfileSelect("task-edit-profile", task.profile || "");
 
         // Populate template field
-        const tplInput = document.getElementById("task-edit-template") as HTMLInputElement;
-        if (tplInput) tplInput.value = task.template || "";
+        await populateTemplatesSelect("task-edit-template", task.template || "");
 
         const modal = document.getElementById("edit-task-modal");
         if (modal) modal.style.display = "flex";
@@ -621,7 +642,7 @@ async function loadTaskDetail(taskId: string): Promise<void> {
         (document.getElementById("task-edit-channel") as HTMLSelectElement)?.value || undefined;
       const profile = (document.getElementById("task-edit-profile") as HTMLSelectElement)?.value || undefined;
       const template =
-        (document.getElementById("task-edit-template") as HTMLInputElement)?.value.trim() || undefined;
+        (document.getElementById("task-edit-template") as HTMLSelectElement)?.value || undefined;
 
       try {
         const res = await fetch("/api/kanban/tasks/" + encodeURIComponent(taskId), {
@@ -910,6 +931,28 @@ async function populateProfileSelect(selectId: string, currentProfile?: string):
   } catch (e) {
     console.error("Failed to load profiles:", e);
     select.innerHTML = '<option value="">Error loading profiles</option>';
+  }
+}
+
+async function populateTemplatesSelect(selectId: string, currentTemplate?: string): Promise<void> {
+  const select = document.getElementById(selectId) as HTMLSelectElement;
+  if (!select) return;
+  try {
+    const templates = await apiGet<{ profile: string; name: string; label: string }[]>("/templates");
+    select.innerHTML = '<option value="">None</option>';
+    for (const t of templates) {
+      const opt = document.createElement("option");
+      opt.value = t.name;
+      opt.textContent = `${t.label} (${t.profile})`;
+      if (currentTemplate && t.name === currentTemplate) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    }
+    refreshEnhancedSelect(selectId);
+  } catch (e) {
+    console.error("Failed to load templates:", e);
+    select.innerHTML = '<option value="">Error loading templates</option>';
   }
 }
 
