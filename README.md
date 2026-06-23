@@ -35,6 +35,15 @@ Detailed message viewer with extensive filtering:
 - Custom enhanced `<select>` dropdowns for theme consistency.
 - Pagination with both top and bottom nav bars.
 
+### Memory (`/memory`)
+Memory management interface for the agent's persistent memory stores:
+
+- **Memory/MEMORY.md panel**: View and edit the agent's operational memory (system-level persistent notes).
+- **User/USER.md panel**: View and edit the user profile (personal preferences, habits, environment facts).
+- **Hindsight Memory section**: Shows summaries and retention stats for the Hindsight vector memory system.
+- **Context Preview**: Shows the assembled context section [3] that gets injected into the agent's system prompt — displays retrieved wiki, memory, and recent thread context built from Qdrant and the database.
+- Each memory file is loaded from `profiles/<name>/memories/` on the server and saved back via the Settings API.
+
 ### Kanban (`/kanban`)
 Kanban board with drag-and-drop cards across 7 columns:
 
@@ -53,24 +62,89 @@ Cron job list with mode indicators:
 - **Detail View** (`/schedule/:id`): Full job detail with mode selector toggle, active/inactive switch, channel_id field.
 - JSONB fields (skills, context_from, enabled_toolsets) parsed via `parseJsonArray` helper.
 
+### Secrets (`/secrets`)
+Vault secrets manager for API keys and credentials:
+
+- Lists all secrets from HashiCorp Vault at the configured path (typically `kv/data/hermes`).
+- Each secret shows key name with obfuscated value (••••••••).
+- **Eye toggle** to reveal/hide individual secret values — only shown on password-type fields.
+- **Add Secret** modal: key-value form with custom enhanced `<select>` for secret type.
+- **Delete** action with confirmation.
+- Secrets are fetched and stored via the OmniAgent Secrets API (`/api/secrets`).
+
+### Profiles (`/profiles`)
+Agent profile management:
+
+- Lists all profiles from the `profiles` DB table, plus a synthetic "default" profile.
+- Each profile displays: provider, model, base_url, max_tokens, temperature, allowed_tools (JSONB).
+- **Read-only display** of channels currently using this profile.
+- Profiles define the LLM configuration and tool access for threads created under them.
+
+### Channels (`/channels`)
+Channel management for all connected platforms:
+
+- Lists all channels with: name, platform, resource identifier, open/closed status badge.
+- **Open/Close toggle**: Close a channel to stop processing; open to resume.
+- **Status badge**: Permanent (readonly) channels shown with neutral badge.
+- **Planning Mode badge**: Shows the channel's planning mode configuration.
+- Displays current profile, provider, and model for each channel.
+- Filter controls: channel ID, platform, status.
+
+### Platforms (`/platforms`)
+Platform management and subscription control:
+
+- Platforms grouped by name with active/inactive status.
+- Active status determined by whether any channel for that platform is not closed.
+- Resource identifiers linked to their channels.
+- **Subscription Management**: Add/remove which channels a platform listens to via the `channel_subscriptions` table.
+- Subscribe: POST to `/api/platforms/:platform/subscribe` with `subscriber_resource` and `channel_id`.
+- Unsubscribe: DELETE to `/api/platforms/:platform/subscribe/:subId`.
+
+### Tools (`/tools`)
+MCP tool registry viewer:
+
+- Lists all registered MCP tools from the OmniAgent MCP registry.
+- Each tool shows: name, description, input schema (JSON).
+- Tools are grouped by source: built-in, external MCP servers, and plugin-provided.
+- Read-only view — tool configuration is managed through Platforms and plugin settings.
+
+### Providers (`/providers`)
+LLM provider configuration:
+
+- Lists all configured LLM providers with their settings.
+- Each provider shows: name, base URL, model list (from `config_schema` enriched with provider manifest data), API mode.
+- Providers can be enabled/disabled individually.
+- Models are rendered via the shared `plugin-config.ts` rendering system (same as Tools and Platforms).
+- Configuration is stored in OmniAgent's provider config and read from the root `config_schema`.
+
+### Actions (`/actions`)
+Saved action management:
+
+- Lists all saved actions from the `actions` table.
+- Each action has: name, tool name, JSON parameters.
+- **Create action**: name + tool + optional params.
+- **Run action**: executes the action's MCP tool call in real-time and shows the result.
+- **Edit/Delete**: update action parameters or remove.
+- Built-in actions (e.g., kanban_dispatcher, relevance_indexer, hindsight_populator) are marked and cannot be deleted.
+
 ### Prompt (`/prompt`)
 Prompt preview tool for testing assembled system prompts:
 
 - Channel selector (populated from API), prompt textarea, optional planning step toggle.
 - Posts to `/api/prompt-preview/:channelName` which proxies to OmniAgent HTTP API.
-- Shows assembled system prompt + messages response.
+- Shows assembled system prompt + messages response, including recent seq-0 context and available skills.
 
-### Wiki Search (`/wiki`)
-Wiki file explorer and search interface:
+### Explorer (`/explorer`)
+Filesystem browser for agent workspace:
 
-- **File Tree** (left panel): Tree-view of `/opt/data` filesystem. Directories are expandable/collapsible with lazy-loaded children. Root shows top-level directories only (files filtered out).
+- **File Tree** (left panel): Tree-view of the filesystem. Directories are expandable/collapsible with lazy-loaded children.
 - **File Viewer** (right panel): Markdown rendering with `marked` + `marked-highlight` + `highlight.js`. Syntax highlighting for code blocks. Copy-button on each code block. YAML frontmatter stripped before rendering. Tables wrapped in scrollable containers.
-- **Search**: Debounced (300ms) search against Qdrant vector DB (`wiki` collection). Scrolls all points and performs case-insensitive substring matching on title and path. Results sorted by relevance score.
-- **File Upload**: Drag-drop overlay with confirmation modal. Checks for existing files before upload. Uploads to `/tmp/data/user/uploads/`.
+- **Search**: Debounced (300ms) search against Qdrant vector DB. Results sorted by relevance score.
+- **File Upload**: Drag-drop overlay with confirmation modal. Checks for existing files before upload.
 - **File Delete**: Confirmation modal before deletion.
 - Explorer collapse/expand toggle persisted in localStorage.
 
-### Settings / Environment (`/settings`)
+### Settings (`/settings`)
 Environment variable editor:
 
 - Settings fetched from OmniAgent API (`GET /api/settings`), organized by category.
@@ -78,27 +152,7 @@ Environment variable editor:
 - **Read-only** values shown with lock icon and muted styling.
 - **Secret** fields with eye toggle to show/hide password values.
 - Field types: number, boolean, select, text, textarea, secret.
-- Settings tabs for: Environment, Profiles, Channels, Platforms.
-
-### Settings / Profiles (`/profiles`)
-Profiles list with:
-
-- Provider, model, base_url, max_tokens, temperature, tools (JSONB).
-- Read-only default-channels display (channels using this profile).
-
-### Settings / Channels (`/channels`)
-Channels list with:
-
-- Platform, resource_identifier, open/closed status badge, current profile/provider/model, readonly flag.
-
-### Settings / Platforms (`/platforms`)
-Platforms grouped by name:
-
-- Active/inactive status (determined by whether any channel is not closed).
-- Resource identifiers linked to channels.
-- **Subscription Management**: Add/remove which channels a platform listens to via `channel_subscriptions` table.
-- Subscribe: POST to `/api/platforms/:platform/subscribe` with `subscriber_resource` and `channel_id`.
-- Unsubscribe: DELETE to `/api/platforms/:platform/subscribe/:subId`.
+- Settings tabs for: Environment, Profiles, Channels, Platforms, Tools, Actions.
 
 ---
 
@@ -139,7 +193,7 @@ Platforms grouped by name:
 
 ## Directory Structure
 
-```
+```text
 repo/
 ├── index.html                     # Entry HTML with sidebar + mobile nav
 ├── package.json                   # Dependencies and scripts
@@ -153,19 +207,35 @@ repo/
 │   ├── style.css                  # All styles (dark SaaS theme, ~4200 lines)
 │   ├── lib/
 │   │   ├── router.ts              # SPA routing — maps route names to page renderers
-│   │   └── api.ts                 # API client + all TypeScript type definitions
+│   │   ├── api.ts                 # API client + all TypeScript type definitions
+│   │   ├── helpers.ts             # Shared utilities (escapeHtml, formatCompact, shortDate, parseJsonArray)
+│   │   ├── dropdown.ts            # Custom enhanced <select> dropdowns (dark theme consistent styling)
+│   │   ├── message-card.ts        # Message card rendering (color-coded badges, expandable content, timestamps)
+│   │   ├── channel-config.ts      # Channel config form fields (name, profile, provider, model, planning mode selects)
+│   │   ├── channel-status.ts      # Channel status controls (open/close toggles, filter bar, status badges)
+│   │   ├── plugin-config.ts       # Shared plugin config rendering (used by Tools, Providers, Platforms)
+│   │   ├── kanban-board.ts        # Kanban board rendering (drag-drop columns, card rendering)
+│   │   ├── kanban-detail.ts       # Kanban task detail view (edit modal, archive, delete, status move)
+│   │   ├── kanban-subtasks.ts     # Kanban subtask rendering within task detail
+│   │   ├── schedule-list.ts       # Schedule list rendering (cron job rows, status indicators)
+│   │   └── schedule-detail.ts     # Schedule detail view (mode toggle, active/inactive, channel field)
 │   └── pages/
 │       ├── overview.ts            # Overview dashboard (4-row layout, SVG charts, formatTimeAgo, escapeHtml)
 │       ├── threads.ts             # Threads list (filter by status/cause/ID, real <a> rows, pagination)
 │       ├── messages.ts            # Message viewer (8 filters, URL sync, custom selects, expandable content)
+│       ├── memory.ts              # Memory management (MEMORY.md/USER.md editors, Hindsight stats, context preview)
 │       ├── kanban.ts              # Kanban board (7 columns, drag-drop, create/edit/detail modals, archive)
 │       ├── schedule.ts            # Schedule page (cron job list + detail view)
-│       ├── prompt.ts              # Prompt preview tool
-│       ├── wiki.ts                # Wiki explorer (file tree, markdown viewer, search, upload/delete)
-│       ├── settings.ts            # Settings editor (env vars, per-row confirm/cancel, secret toggle)
-│       ├── profiles.ts            # Profiles tab
-│       ├── channels.ts            # Channels tab
-│       └── platforms.ts           # Platforms tab with subscription management
+│       ├── secrets.ts             # Vault secrets manager (key-value viewer, eye toggle, add/delete)
+│       ├── profiles.ts            # Profiles management (provider/model config, tool access, channel usage)
+│       ├── channels.ts            # Channels management (open/close, status badges, filter controls)
+│       ├── platforms.ts           # Platforms with subscription management (subscribe/unsubscribe channels)
+│       ├── tools.ts               # MCP tool registry viewer (name, description, input schema per tool)
+│       ├── providers.ts           # LLM provider configuration (base URL, models, API mode, enable/disable)
+│       ├── actions.ts             # Saved action manager (create, run, edit, delete MCP tool actions)
+│       ├── prompt.ts              # Prompt preview tool (channel selector, prompt textarea, plan toggle)
+│       ├── explorer.ts            # Filesystem browser (file tree, markdown viewer, search, upload/delete)
+│       └── settings.ts            # Settings editor (env vars, per-row confirm/cancel, secret toggle)
 └── server/
     ├── index.ts                   # Express setup, static file serving, SPA fallback
     ├── db.ts                      # PostgreSQL connection pool + queryDb helper with retry
@@ -174,12 +244,14 @@ repo/
         ├── overview.ts            # Dashboard data (multi-CTE query) + recent threads list
         ├── threads.ts             # Thread list with pagination + filters endpoint
         ├── messages.ts            # Message events + filters (channels, roles, types, providers, models)
+        ├── memory.ts              # Memory read/write endpoints (MEMORY.md, USER.md, context preview)
         ├── kanban.ts              # Kanban CRUD (board, tasks CRUD, status/position updates)
         ├── schedule.ts            # Cron job list + detail
         ├── settings.ts            # Settings proxy to OmniAgent API
         ├── channels.ts            # Channels list from DB
         ├── profiles.ts            # Profiles list from DB
         ├── platforms.ts           # Platforms + subscription management from DB
+        ├── plugins.ts             # Plugin management endpoints (list, get, enable, disable, config)
         ├── wiki-search.ts         # Wiki search via Qdrant vector DB
         ├── uploads.ts             # File upload/delete/check with multer
         └── fs.ts                  # Filesystem browse/read/download
