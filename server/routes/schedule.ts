@@ -203,6 +203,15 @@ scheduleRouter.post("/", async (req: Request, res: Response) => {
       return;
     }
 
+    // Validate 5-field cron format
+    const cronFields = schedule.trim().split(/\s+/);
+    if (cronFields.length !== 5) {
+      res.status(400).json({
+        error: `Invalid cron expression: expected 5 fields (min hour dom month dow), got ${cronFields.length}. Use 5-field Linux format, e.g. '0 9 * * 1-5' for weekdays at 9am.`,
+      });
+      return;
+    }
+
     const id = name.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
     const displayName = display_name || name;
 
@@ -290,6 +299,14 @@ scheduleRouter.patch("/:id", async (req: Request, res: Response) => {
       params.push(display_name);
     }
     if (schedule !== undefined) {
+      // Validate 5-field cron format
+      const cronFields = schedule.trim().split(/\s+/);
+      if (cronFields.length !== 5) {
+        res.status(400).json({
+          error: `Invalid cron expression: expected 5 fields (min hour dom month dow), got ${cronFields.length}. Use 5-field Linux format, e.g. '0 9 * * 1-5' for weekdays at 9am.`,
+        });
+        return;
+      }
       sets.push(`schedule = $${paramIdx++}`);
       params.push(schedule);
     }
@@ -426,6 +443,33 @@ scheduleRouter.get("/:id/subtasks", async (req: Request, res: Response) => {
     res.json({ subtasks: rows });
   } catch (e: any) {
     console.error("Schedule subtasks error:", e?.message || e);
+    res.status(500).json({ error: e.message || "Unknown error" });
+  }
+});
+
+// ── POST /api/schedule/:id/run — Manually trigger a cron job via omniagent backend ──
+scheduleRouter.post("/:id/run", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { force } = req.body;
+
+    // Proxy to the omniagent backend's run-cron endpoint,
+    // which uses the same scheduler logic as the scheduled tick.
+    const omniagentUrl = process.env.OMNIAGENT_URL || "http://omniagent-omniagent-1:8080";
+    const jobId = String(id);
+    const url = `${omniagentUrl}/run-cron/${jobId}${force ? "?force=true" : ""}`;
+    const response = await fetch(url, { method: "POST" });
+
+    if (!response.ok) {
+      const errData = await response.text();
+      res.status(response.status).json({ error: `Run cron failed: ${errData}` });
+      return;
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (e: any) {
+    console.error("Schedule run error:", e?.message || e);
     res.status(500).json({ error: e.message || "Unknown error" });
   }
 });

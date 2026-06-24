@@ -70,7 +70,7 @@ export function renderProfileSelect(channelId: number, current: string): string 
   const selectId = `ch-${channelId}-profile`;
   return `
     <div class="channel-field-group">
-      <select id="${selectId}" class="filter-select"
+      <select id="${selectId}" class="filter-select channel-edit-input"
         data-channel-id="${channelId}" data-field="profile" data-original="${escapeHtml(current)}">
         ${_profiles
           .map(
@@ -93,7 +93,7 @@ export function renderProviderSelect(channelId: number, currentProvider: string)
   const selectId = `ch-${channelId}-provider`;
   return `
     <div class="channel-field-group">
-      <select id="${selectId}" class="filter-select channel-provider-select"
+      <select id="${selectId}" class="filter-select channel-provider-select channel-edit-input"
         data-channel-id="${channelId}" data-field="provider" data-original="${escapeHtml(currentProvider)}">
         ${_providers
           .map(
@@ -118,7 +118,7 @@ export function renderModelSelect(channelId: number, currentProvider: string, cu
   const models = getModelsForProvider(currentProvider);
   return `
     <div class="channel-field-group">
-      <select id="${selectId}" class="filter-select"
+      <select id="${selectId}" class="filter-select channel-edit-input"
         data-channel-id="${channelId}" data-field="model" data-original="${escapeHtml(currentModel)}">
         ${
           models.length > 0
@@ -152,7 +152,7 @@ export function renderPlanningModeSelect(channelId: number, current: string): st
   ];
   return `
     <div class="channel-field-group">
-      <select id="${selectId}" class="filter-select"
+      <select id="${selectId}" class="filter-select channel-edit-input"
         data-channel-id="${channelId}" data-field="planning_mode" data-original="${escapeHtml(current)}">
         ${options
           .map(
