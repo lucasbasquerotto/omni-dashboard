@@ -290,37 +290,22 @@ async function loadStats(): Promise<void> {
 async function loadSystemPrompt(): Promise<void> {
   const el = document.getElementById("mem-system-prompt")!;
   try {
-    const res = await fetch(`${API_BASE}/settings`);
-    if (!res.ok) throw new Error("Failed to fetch settings");
-    const data = await res.json();
-    let prompt = "";
-    if (Array.isArray(data)) {
-      for (const cat of data) {
-        if (cat.settings) {
-          const sp = cat.settings.find((s: any) => s.name === "system_prompt");
-          if (sp) {
-            prompt = sp.value;
-            break;
-          }
-        }
+    // Use the prompt-preview proxy (POST) to get the full system prompt
+    const res = await fetch(`${API_BASE}/prompt-preview/default`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "", plan: false }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.messages) {
+        const sys = data.messages.find((m: any) => m.role === "system");
+        el.textContent = sys?.content || "No system prompt found.";
+        return;
       }
     }
-    if (!prompt) prompt = "System prompt not found in settings.";
-    el.textContent = prompt;
+    throw new Error("Failed to parse prompt preview");
   } catch {
-    try {
-      const res = await fetch(`${API_BASE}/prompt-preview/default`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.messages) {
-          const sys = data.messages.find((m: any) => m.role === "system");
-          el.textContent = sys?.content || "No system prompt found.";
-          return;
-        }
-      }
-    } catch {
-      // ignore
-    }
     el.textContent = "Failed to load system prompt.";
   }
 }

@@ -34,6 +34,8 @@ function scheduleSubtaskEmoji(status: string): string {
       return "✅";
     case "cancelled":
       return "❌";
+    case "error":
+      return "💥";
     case "in_progress":
       return "🔄";
     case "pending":
@@ -50,11 +52,13 @@ function scheduleSubtaskBadgeStyle(status: string): string {
       ? "#10b981"
       : s === "cancelled"
         ? "#64748b"
-        : s === "in_progress"
-          ? "#06b6d4"
-          : s === "pending"
-            ? "#f59e0b"
-            : "#64748b";
+        : s === "error"
+          ? "#ef4444"
+          : s === "in_progress"
+            ? "#06b6d4"
+            : s === "pending"
+              ? "#f59e0b"
+              : "#64748b";
   return `--type-color:${color};background:${color}22;border-color:${color}44;color:${color}`;
 }
 
@@ -376,18 +380,18 @@ export async function showCronModal(job: any, onReload: () => void): Promise<voi
             <label style="font-size:0.8rem;color:var(--text-muted);">Schedule (cron expression)</label>
             <button id="cron-help-btn" type="button" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.7rem;padding:0;line-height:1;width:14px;height:14px;border-radius:50%;border:1px solid var(--text-muted);display:inline-flex;align-items:center;justify-content:center;" title="Cron format help">?</button>
           </div>
-          <input id="cron-schedule" type="text" class="filter-input" value="${isEdit ? escapeHtml(job.schedule) : "0 0 0 * * *"}" style="width:100%;font-family:monospace;" />
+          <input id="cron-schedule" type="text" class="filter-input" value="${isEdit ? escapeHtml(job.schedule) : "0 0 * * *"}" style="width:100%;font-family:monospace;" />
           <div id="cron-help-box" style="display:none;margin-top:0.5rem;padding:0.75rem;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;font-size:0.78rem;color:var(--text-secondary);line-height:1.6;">
-            <div style="margin-bottom:0.5rem;"><strong style="color:var(--text-primary);">6-field format:</strong> <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">sec min hour dom month dow</code></div>
+            <div style="margin-bottom:0.5rem;"><strong style="color:var(--text-primary);">5-field Linux format:</strong> <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">min hour dom month dow</code></div>
             <div style="margin-top:0.5rem;"><strong style="color:var(--text-primary);">Special:</strong> <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">*</code> = any, <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">*/N</code> = every N, <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">,</code> = list, <code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">-</code> = range</div>
             <div style="margin-top:0.5rem;"><strong style="color:var(--text-primary);">Examples:</strong></div>
-            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 * * * * *</code> — every minute at :00</div>
-            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 */10 * * * *</code> — every 10 minutes</div>
-            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 * * * *</code> — every hour at :00</div>
-            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 0 * * *</code> — daily at midnight</div>
-            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 30 6 * * *</code> — daily at 06:30:00</div>
-            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 9 * * 1-5</code> — weekdays at 09:00</div>
-            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 0 1 * *</code> — 1st of every month at midnight</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">* * * * *</code> — every minute</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">*/10 * * * *</code> — every 10 minutes</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 * * * *</code> — every hour at :00</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 * * *</code> — daily at midnight</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">30 6 * * *</code> — daily at 06:30</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 9 * * 1-5</code> — weekdays at 09:00</div>
+            <div><code style="color:var(--accent-cyan);background:rgba(0,0,0,0.2);padding:0.125rem 0.375rem;border-radius:3px;">0 0 1 * *</code> — 1st of every month at midnight</div>
           </div>
         </div>
         <div style="margin-bottom:1rem;">
@@ -409,7 +413,8 @@ export async function showCronModal(job: any, onReload: () => void): Promise<voi
           <select id="cron-planning-mode" class="filter-select" style="width:100%;">
             <option value="">- (Default)</option>
             <option value="no_plan" ${isEdit && job.planning_mode === "no_plan" ? "selected" : ""}>No Plan</option>
-            <option value="max_plan" ${isEdit && job.planning_mode === "max_plan" ? "selected" : ""}>Max Plan</option>
+            <option value="simple_plan" ${isEdit && job.planning_mode === "simple_plan" ? "selected" : ""}>Simple Plan</option>
+            <option value="plan_with_subtasks" ${isEdit && job.planning_mode === "plan_with_subtasks" ? "selected" : ""}>Plan with Subtasks</option>
           </select>
         </div>
         <div style="margin-bottom:1rem;">
