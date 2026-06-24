@@ -91,14 +91,16 @@ export function renderProfileSelect(channelId: number, current: string): string 
 
 export function renderProviderSelect(channelId: number, currentProvider: string): string {
   const selectId = `ch-${channelId}-provider`;
+  const currentInList = currentProvider && (_providers as string[]).includes(currentProvider);
   return `
     <div class="channel-field-group">
       <select id="${selectId}" class="filter-select channel-provider-select channel-edit-input"
         data-channel-id="${channelId}" data-field="provider" data-original="${escapeHtml(currentProvider)}">
+        ${currentProvider && !currentInList ? `<option value="${escapeHtml(currentProvider)}" selected>${escapeHtml(currentProvider)}</option>` : ""}
         ${_providers
           .map(
             (p: string) =>
-              `<option value="${escapeHtml(p)}" ${p === currentProvider ? "selected" : ""}>${escapeHtml(p)}</option>`,
+              `<option value="${escapeHtml(p)}" ${!currentInList && p === (_providers[0] || "") && !currentProvider ? "selected" : p === currentProvider ? "selected" : ""}>${escapeHtml(p)}</option>`,
           )
           .join("")}
       </select>
@@ -116,10 +118,12 @@ export function renderModelSelect(channelId: number, currentProvider: string, cu
   const selectId = `ch-${channelId}-model`;
   const refreshId = `ch-${channelId}-refresh`;
   const models = getModelsForProvider(currentProvider);
+  const currentInModels = currentModel && models.includes(currentModel);
   return `
     <div class="channel-field-group">
       <select id="${selectId}" class="filter-select channel-edit-input"
         data-channel-id="${channelId}" data-field="model" data-original="${escapeHtml(currentModel)}">
+        ${currentModel && !currentInModels ? `<option value="${escapeHtml(currentModel)}" selected>${escapeHtml(currentModel)}</option>` : ""}
         ${
           models.length > 0
             ? models
@@ -128,7 +132,9 @@ export function renderModelSelect(channelId: number, currentProvider: string, cu
                     `<option value="${escapeHtml(m)}" ${m === currentModel ? "selected" : ""}>${escapeHtml(m)}</option>`,
                 )
                 .join("")
-            : `<option value="${escapeHtml(currentModel)}" selected>${escapeHtml(currentModel || "—")}</option>`
+            : !currentModel
+              ? '<option value="">—</option>'
+              : ""
         }
       </select>
       <button type="button" id="${refreshId}" class="channel-refresh-btn" data-channel-id="${channelId}" data-provider="${escapeHtml(currentProvider)}" title="Refresh Models">⟳</button>
@@ -203,13 +209,21 @@ export function wireChannelConfigEditing(): void {
       const models = getModelsForProvider(newProvider);
       const modelSelect = document.getElementById(`ch-${channelId}-model`) as HTMLSelectElement | null;
       if (!modelSelect) return;
+      const prevModel = modelSelect.getAttribute("data-original") || modelSelect.value;
+      const prevModelValid = prevModel && models.includes(prevModel);
       modelSelect.innerHTML =
         models.length > 0
-          ? models.map((m: string) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("")
+          ? (prevModel && !prevModelValid
+              ? `<option value="${escapeHtml(prevModel)}" selected>${escapeHtml(prevModel)}</option>`
+              : "") +
+            models
+              .filter((m: string) => m !== prevModel || !prevModelValid)
+              .map((m: string) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`)
+              .join("")
           : '<option value="">—</option>';
-      const firstModel = models.length > 0 ? models[0] : "";
-      modelSelect.value = firstModel;
-      modelSelect.setAttribute("data-original", firstModel);
+      const newVal = prevModelValid ? prevModel : models.length > 0 ? models[0] : "";
+      modelSelect.value = newVal;
+      modelSelect.setAttribute("data-original", newVal);
       unenhanceSelect(modelSelect.id);
       enhanceSelect(modelSelect.id);
       const modelConfirmBtn = document.querySelector(
@@ -251,16 +265,20 @@ export function wireChannelConfigEditing(): void {
         const modelSelect = document.getElementById(`ch-${channelId}-model`) as HTMLSelectElement | null;
         if (modelSelect) {
           const currentVal = modelSelect.value;
+          const currentValValid = currentVal && models.includes(currentVal);
           modelSelect.innerHTML =
             models.length > 0
-              ? models
+              ? (currentVal && !currentValValid
+                  ? `<option value="${escapeHtml(currentVal)}" selected>${escapeHtml(currentVal)}</option>`
+                  : "") +
+                models
+                  .filter((m: string) => !currentValValid || m !== currentVal)
                   .map((m: string) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`)
                   .join("")
               : '<option value="">—</option>';
-          if (models.includes(currentVal)) {
-            modelSelect.value = currentVal;
-          }
-          modelSelect.setAttribute("data-original", modelSelect.value);
+          const finalVal = currentValValid ? currentVal : models.length > 0 ? models[0] : "";
+          modelSelect.value = finalVal;
+          modelSelect.setAttribute("data-original", finalVal);
         }
         (window as any).showToast?.(`Models refreshed for ${provider} (${models.length} models)`, "success");
       } catch (e) {
