@@ -176,7 +176,7 @@ messagesRouter.get("/events", (req: Request, res: Response) => {
           }
         }
         // No thread-level fallback — only per-message token_usage is shown.
-        // Messages without their own token_usage (tool, tool_result, etc.) show null.
+        // Messages without their own token_usage (tool, tool-result, etc.) show null.
 
         return {
           id: row.id,

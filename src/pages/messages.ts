@@ -203,7 +203,8 @@ function populateFilterControls(): void {
   roleSel.innerHTML = '<option value="all">All</option>';
   if (allFilters.roles) {
     for (const r of allFilters.roles) {
-      roleSel.innerHTML += `<option value="${escapeHtml(r)}">${escapeHtml(r.charAt(0).toUpperCase() + r.slice(1))}</option>`;
+      const displayLabel = r === "user" ? "cause" : r;
+      roleSel.innerHTML += `<option value="${escapeHtml(r)}">${escapeHtml(displayLabel.charAt(0).toUpperCase() + displayLabel.slice(1))}</option>`;
     }
   }
 
