@@ -150,24 +150,38 @@ async function showActionModal(existing: Action | null): Promise<void> {
         <button class="modal-close" id="modal-close">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="settings-section">
-          <label class="filter-label">Name</label>
-          <input class="filter-input" id="action-name" type="text" value="${isEdit ? escapeHtml(existing!.name) : ""}" placeholder="My Action" />
+        <div class="setting-row">
+          <div class="setting-label">
+            <div class="setting-name">Name</div>
+          </div>
+          <div class="setting-controls">
+            <div class="setting-input-group">
+              <input class="filter-input" id="action-name" type="text" value="${isEdit ? escapeHtml(existing!.name) : ""}" placeholder="My Action" />
+            </div>
+          </div>
         </div>
-        <div class="settings-section">
-          <label class="filter-label">Tool</label>
-          <select class="filter-select" id="action-tool">
-            <option value="">— Select a tool —</option>
-            ${availableTools
-              .map(
-                (t) =>
-                  `<option value="${escapeHtml(t.name)}"${isEdit && existing!.tool_name === t.name ? " selected" : ""}>${escapeHtml(t.name)}</option>`,
-              )
-              .join("")}
-          </select>
+        <div class="setting-row">
+          <div class="setting-label">
+            <div class="setting-name">Tool</div>
+          </div>
+          <div class="setting-controls">
+            <div class="setting-input-group">
+              <select class="filter-select" id="action-tool">
+                <option value="">— Select a tool —</option>
+                ${availableTools
+                  .map(
+                    (t) =>
+                      `<option value="${escapeHtml(t.name)}"${isEdit && existing!.tool_name === t.name ? " selected" : ""}>${escapeHtml(t.name)}</option>`,
+                  )
+                  .join("")}
+              </select>
+            </div>
+          </div>
         </div>
         <div class="settings-section" id="action-params-section" style="display:none">
-          <label class="filter-label">Parameters</label>
+          <div class="setting-label" style="margin-bottom:0.5rem;">
+            <div class="setting-name">Parameters</div>
+          </div>
           <div id="action-params-form"></div>
         </div>
       </div>
@@ -221,38 +235,62 @@ async function showActionModal(existing: Action | null): Promise<void> {
         : "";
 
       if (type === "boolean") {
-        html += `<div class="settings-section">
-          <label class="filter-label">${label}</label>
-          ${desc}
-          <select class="filter-select param-input" data-key="${escapeHtml(key)}">
-            <option value="true"${value === "true" ? " selected" : ""}>true</option>
-            <option value="false"${value === "false" || !value ? " selected" : ""}>false</option>
-          </select>
+        html += `<div class="setting-row">
+          <div class="setting-label">
+            <div class="setting-name">${label}</div>
+            ${desc}
+          </div>
+          <div class="setting-controls">
+            <div class="setting-input-group">
+              <select class="filter-select param-input" data-key="${escapeHtml(key)}">
+                <option value="true"${value === "true" ? " selected" : ""}>true</option>
+                <option value="false"${value === "false" || !value ? " selected" : ""}>false</option>
+              </select>
+            </div>
+          </div>
         </div>`;
       } else if (type === "array" && prop.items?.enum) {
-        html += `<div class="settings-section">
-          <label class="filter-label">${label}</label>
-          ${desc}
-          <select class="filter-select param-input" data-key="${escapeHtml(key)}">
-            ${prop.items.enum
-              .map(
-                (opt: string) =>
-                  `<option value="${escapeHtml(opt)}"${value === opt ? " selected" : ""}>${escapeHtml(opt)}</option>`,
-              )
-              .join("")}
-          </select>
+        html += `<div class="setting-row">
+          <div class="setting-label">
+            <div class="setting-name">${label}</div>
+            ${desc}
+          </div>
+          <div class="setting-controls">
+            <div class="setting-input-group">
+              <select class="filter-select param-input" data-key="${escapeHtml(key)}">
+                ${prop.items.enum
+                  .map(
+                    (opt: string) =>
+                      `<option value="${escapeHtml(opt)}"${value === opt ? " selected" : ""}>${escapeHtml(opt)}</option>`,
+                  )
+                  .join("")}
+              </select>
+            </div>
+          </div>
         </div>`;
       } else if (type === "integer" || type === "number") {
-        html += `<div class="settings-section">
-          <label class="filter-label">${label}</label>
-          ${desc}
-          <input class="filter-input param-input" data-key="${escapeHtml(key)}" type="number" value="${escapeHtml(value)}" placeholder="${escapeHtml(key)}" />
+        html += `<div class="setting-row">
+          <div class="setting-label">
+            <div class="setting-name">${label}</div>
+            ${desc}
+          </div>
+          <div class="setting-controls">
+            <div class="setting-input-group">
+              <input class="filter-input param-input" data-key="${escapeHtml(key)}" type="number" value="${escapeHtml(value)}" placeholder="${escapeHtml(key)}" />
+            </div>
+          </div>
         </div>`;
       } else {
-        html += `<div class="settings-section">
-          <label class="filter-label">${label}</label>
-          ${desc}
-          <input class="filter-input param-input" data-key="${escapeHtml(key)}" type="text" value="${escapeHtml(value)}" placeholder="${escapeHtml(key)}" />
+        html += `<div class="setting-row">
+          <div class="setting-label">
+            <div class="setting-name">${label}</div>
+            ${desc}
+          </div>
+          <div class="setting-controls">
+            <div class="setting-input-group">
+              <input class="filter-input param-input" data-key="${escapeHtml(key)}" type="text" value="${escapeHtml(value)}" placeholder="${escapeHtml(key)}" />
+            </div>
+          </div>
         </div>`;
       }
     }
