@@ -78,7 +78,7 @@ function renderPlatformsPage(platforms: PluginData[]): string {
           <span class="badge badge-neutral" style="margin-left:0.375rem;">source: ${escapeHtml(p.source)}</span>
         </span>
         <span style="display:flex;gap:0.25rem;align-items:center;">
-          <button type="button" class="plugin-toggle-btn" style="background:${p.status === "enabled" ? "rgba(148,163,184,0.1)" : "rgba(16,185,129,0.1)"};border:1px solid ${p.status === "enabled" ? "var(--glass-border)" : "rgba(16,185,129,0.2)"};border-radius:6px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.75rem;color:${p.status === "enabled" ? "var(--text-secondary)" : "#34d399"};">${p.status === "enabled" ? "Disable" : "Enable"}</button>
+          ${p.source !== "built-in" ? `<button type="button" class="plugin-toggle-btn" style="background:${p.status === "enabled" ? "rgba(148,163,184,0.1)" : "rgba(16,185,129,0.1)"};border:1px solid ${p.status === "enabled" ? "var(--glass-border)" : "rgba(16,185,129,0.2)"};border-radius:6px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.75rem;color:${p.status === "enabled" ? "var(--text-secondary)" : "#34d399"};">${p.status === "enabled" ? "Disable" : "Enable"}</button>` : ""}
           <button type="button" class="plugin-expand-btn" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0.25rem;font-size:1rem;" title="Toggle config">▶</button>
         </span>
       </div>
