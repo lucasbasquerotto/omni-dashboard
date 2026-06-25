@@ -12,6 +12,7 @@ import {
   renderProviderSelect,
   renderModelSelect,
   renderPlanningModeSelect,
+  renderTemplateInput,
   planningModeLabel,
 } from "./channel-config";
 
@@ -149,6 +150,12 @@ export function renderChannelsPage(channels: ChannelData[]): string {
           <div class="setting-controls">
             <div class="setting-name">Planning Mode</div>
             ${renderPlanningModeSelect(ch.id, ch.planning_mode || "")}
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-controls">
+            <div class="setting-name">Template</div>
+            ${renderTemplateInput(ch.id, ch.template || "", ch.readonly)}
           </div>
         </div>
       </div>

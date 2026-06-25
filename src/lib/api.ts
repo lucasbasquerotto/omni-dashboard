@@ -312,6 +312,7 @@ export interface ChannelData {
   current_model: string | null;
   readonly: boolean;
   planning_mode: string | null;
+  template: string | null;
 }
 
 // ── Platform Types ──
