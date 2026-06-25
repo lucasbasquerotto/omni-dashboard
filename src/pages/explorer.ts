@@ -279,12 +279,11 @@ async function loadTree(reset: boolean): Promise<void> {
 
   try {
     const response = await apiGet<{ entries: FsEntry[]; path: string }>("/fs/list?path=/");
-    treeData = response.entries
-      .map((e) => ({
-        entry: e,
-        expanded: expandedPaths.has(e.path) || false,
-        children: null,
-      }));
+    treeData = response.entries.map((e) => ({
+      entry: e,
+      expanded: expandedPaths.has(e.path) || false,
+      children: null,
+    }));
     renderTree(treeEl);
   } catch (e) {
     treeEl.innerHTML = `<div class="error-state">Failed to load: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
