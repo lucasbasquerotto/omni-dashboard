@@ -46,6 +46,25 @@ const STATUS_COLORS: Record<string, string> = {
   processing: COLORS.cyan,
 };
 
+function overviewStatusBadgeStyle(status: string): string {
+  const s = status.toLowerCase();
+  const color =
+    s === "completed"
+      ? "#10b981"
+      : s === "failed"
+        ? "#f43f5e"
+        : s === "processing"
+          ? "#f59e0b"
+          : s === "pending"
+            ? "#3b82f6"
+            : s === "skipped"
+              ? "#64748b"
+              : s === "interrupted"
+                ? "#f59e0b"
+                : "#64748b";
+  return `--type-color:${color};background:${color}22;border-color:${color}44;color:${color}`;
+}
+
 // ── Main Loader ──
 
 async function loadDashboard(): Promise<void> {
@@ -424,7 +443,7 @@ function renderRecentRow(r: DashboardData["recent_activity"][0]): string {
   const tokens = r.completion_tokens || 0;
   const url = `/messages?thread_id=${escapeHtml(r.thread_id || "")}`;
   return `<a href="${url}" class="dashboard-overview-row" role="row">
-    <div role="cell"><span class="badge status-badge-${r.status ? r.status.toLowerCase() : "unknown"}">${escapeHtml(r.status || "unknown")}</span></div>
+    <div role="cell"><span class="badge" style="${overviewStatusBadgeStyle(r.status || "unknown")}">${escapeHtml(r.status || "unknown")}</span></div>
     <div role="cell"><span class="badge badge-neutral">${escapeHtml(r.channel_name || "\u2014")}</span></div>
     <div role="cell" class="cell-preview">${preview}</div>
     <div role="cell" class="cell-num">${r.processing_time_ms !== null ? r.processing_time_ms.toFixed(0) + "ms" : "\u2014"}</div>
