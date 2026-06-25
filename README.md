@@ -174,7 +174,7 @@ Environment variable editor:
 - SPA fallback: Express serves `index.html` for any non-API, non-file route.
 - Static assets in `/assets/` cached for 365 days with `immutable: true`.
 - `index.html` served with `Cache-Control: no-store`.
-- Docker gateway used to reach sibling containers (`omniagent-omniagent-1:8080`, `qdrant:6333`).
+- Docker gateway used to reach sibling containers (`omniagent:8080`, `qdrant:6333`).
 
 ### Docker
 - **Multi-stage build**: Stage 1 builds frontend (Vite) + compiles backend (tsc). Stage 2 is a minimal `node:22-alpine` image.
@@ -304,7 +304,7 @@ The server reads the following environment variables:
 | `PORT` | `3001` | Server listen port |
 
 The dashboard container connects to:
-- **OmniAgent HTTP API** at `http://omniagent-omniagent-1:8080` (for settings and prompt-preview).
+- **OmniAgent HTTP API** at `http://omniagent:8080` (for settings and prompt-preview).
 - **Qdrant** at `http://qdrant:6333` (for wiki search).
 - Note: Dashboard cannot reach sibling containers via `localhost` — uses Docker internal networking.
 

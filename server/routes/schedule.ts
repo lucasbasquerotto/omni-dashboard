@@ -455,7 +455,7 @@ scheduleRouter.post("/:id/run", async (req: Request, res: Response) => {
 
     // Proxy to the omniagent backend's run-cron endpoint,
     // which uses the same scheduler logic as the scheduled tick.
-    const omniagentUrl = process.env.OMNIAGENT_URL || "http://omniagent-omniagent-1:8080";
+    const omniagentUrl = process.env.OMNIAGENT_URL || "http://omniagent:8080";
     const jobId = String(id);
     const url = `${omniagentUrl}/run-cron/${jobId}${force ? "?force=true" : ""}`;
     const response = await fetch(url, { method: "POST" });

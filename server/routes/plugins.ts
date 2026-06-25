@@ -3,7 +3,7 @@ import { Router, Request, Response, NextFunction } from "express";
 export const pluginsRouter = Router();
 
 // Proxy /api/plugins/* to the OmniAgent backend
-const OMNIAGENT_URL = process.env.OMNIAGENT_URL || "http://omniagent-omniagent-1:8080";
+const OMNIAGENT_URL = process.env.OMNIAGENT_URL || "http://omniagent:8080";
 
 // Use a middleware approach instead of all("*") which fails in Express 5
 pluginsRouter.use(async (req: Request, res: Response, _next: NextFunction) => {
