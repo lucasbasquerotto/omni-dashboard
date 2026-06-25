@@ -102,8 +102,17 @@ async function omniagentProxy(req: express.Request, res: express.Response): Prom
       fetchOpts.body = JSON.stringify(req.body);
     }
     const response = await fetch(targetUrl.toString(), fetchOpts);
-    const data = await response.json();
-    res.status(response.status).json(data);
+    const text = await response.text();
+    if (text) {
+      try {
+        const data = JSON.parse(text);
+        res.status(response.status).json(data);
+      } catch {
+        res.status(response.status).send(text);
+      }
+    } else {
+      res.status(response.status).end();
+    }
   } catch (err) {
     console.error(`[omniagent-proxy] Error proxying ${req.method} ${req.path}:`, err);
     res

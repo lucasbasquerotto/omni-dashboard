@@ -318,44 +318,21 @@ memoryRouter.post("/upload/:profile/:type", upload.single("file"), async (req: R
 });
 
 // ─── GET /context/:channelName ──────────────────────────────────────────────────
-// Returns only the dynamic context section (wiki pages, host, workdir, recent convs)
+// Returns the real dynamic context blocks (recent messages, summaries, skills,
+// retrieved content, wiki references, hindsight memories) via Rust's
+// `/api/context/{channelName}` endpoint.
 memoryRouter.get("/context/:channelName", async (req: Request, res: Response) => {
   try {
     const channelName = req.params.channelName as string;
-    const response = await fetch(`http://omniagent:8080/prompt-preview/${encodeURIComponent(channelName)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: "[memory context]", plan: false }),
-    });
+    const response = await fetch(
+      `http://omniagent:8080/api/context/${encodeURIComponent(channelName)}`,
+    );
     if (!response.ok) {
       res.status(response.status).json({ error: `OmniAgent returned ${response.status}` });
       return;
     }
     const data: any = await response.json();
-    if (!data.messages || data.messages.length === 0) {
-      res.json({ context: "(no context returned)" });
-      return;
-    }
-
-    const parts: string[] = [];
-    for (const msg of data.messages) {
-      if (msg.role === "system") {
-        const content: string = msg.content || "";
-        const wikiIdx = content.indexOf("RELEVANT WIKI PAGES");
-        const hostIdx = content.indexOf("\nHost:");
-        const tsIdx = content.indexOf("Conversation started:");
-        if (wikiIdx >= 0) parts.push(content.slice(wikiIdx));
-        else if (hostIdx >= 0) parts.push(content.slice(hostIdx + 1));
-        else if (tsIdx >= 0) parts.push(content.slice(tsIdx));
-      } else if (msg.role === "user" && msg.content === "[memory context]") {
-        continue;
-      } else {
-        parts.push(msg.content || "");
-      }
-    }
-
-    const context = parts.filter(Boolean).join("\n\n---\n\n") || "(no dynamic context)";
-    res.json({ context });
+    res.json({ context: data.context || "(empty context)" });
   } catch (err) {
     console.error("[memory] GET /context/:channelName error:", err);
     res

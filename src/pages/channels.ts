@@ -5,7 +5,13 @@
 import { apiGet, type ChannelData, type PluginData } from "../lib/api";
 import { enhanceSelect, syncSelectDisplay } from "../lib/dropdown";
 import { escapeHtml } from "../lib/helpers";
-import { _profiles, _providers, _providerModels, wireChannelConfigEditing } from "../lib/channel-config";
+import {
+  _profiles,
+  _providers,
+  _providerModels,
+  _templates,
+  wireChannelConfigEditing,
+} from "../lib/channel-config";
 import {
   _channelFilters,
   setChannelFilters,
@@ -134,6 +140,15 @@ async function loadChannels(): Promise<void> {
     // Enhance filter selects
     enhanceSelect("filter-platform");
     enhanceSelect("filter-channel-status");
+
+    // Load templates for template select
+    try {
+      const t = await apiGet<any[]>("/templates");
+      _templates.length = 0;
+      _templates.push(...t);
+    } catch {
+      _templates.length = 0;
+    }
 
     content.innerHTML = renderChannelsPage(channels);
     wireChannels();

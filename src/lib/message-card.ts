@@ -25,8 +25,8 @@ marked.use(
 function renderMarkdown(md: string): string {
   const renderer = new Renderer();
   const origTable = renderer.table.bind(renderer);
-  renderer.table = (token) => {
-    const html = (origTable as (token: any) => string)(token);
+  renderer.table = (header: string, body: string) => {
+    const html = (origTable as (header: string, body: string) => string)(header, body);
     return '<div class="table-scroll">' + html + "</div>";
   };
   return marked.parse(md, { gfm: true, renderer }) as string;
@@ -160,7 +160,7 @@ export function renderMessageCard(msg: any): string {
         <span class="ev-time" title="${escapeHtml(tsFull)}">${ts}</span>
       </div>
       <div class="event-content-area">
-        <div class="ev-content-text${hasMore && !isEmpty ? " has-more" : ""}" data-msg-id="${msg.id}" data-view-original="${escapeHtml(contentRaw)}">${isEmpty ? "<em>Empty</em>" : content}</div>
+        <div class="ev-content-text${hasMore && !isEmpty ? " has-more" : ""}" data-msg-id="${msg.id}" data-view-raw="${btoa(encodeURIComponent(contentRaw))}">${isEmpty ? "<em>Empty</em>" : content}</div>
         ${
           hasMore && !isEmpty
             ? `<div class="ev-content-actions">
@@ -195,13 +195,19 @@ export function wireMessageCardToggles(container: HTMLElement): void {
       const contentDiv = card.querySelector(`.ev-content-text[data-msg-id="${msgId}"]`) as HTMLElement | null;
       if (!contentDiv) return;
 
-      const originalRaw = contentDiv.getAttribute("data-view-original") || "";
+      const rawB64 = contentDiv.getAttribute("data-view-raw") || "";
+      let rawContent: string;
+      try {
+        rawContent = decodeURIComponent(atob(rawB64));
+      } catch {
+        rawContent = rawB64;
+      }
       const currentView = contentDiv.getAttribute("data-view") || "original";
       const targetView = btnEl.classList.contains("ev-view-md") ? "md" : "json";
 
       if (currentView === targetView) {
         // Already in this view — switch back to original
-        contentDiv.innerHTML = escapeHtml(originalRaw);
+        contentDiv.innerHTML = escapeHtml(rawContent);
         contentDiv.setAttribute("data-view", "original");
         btnEl.textContent = btnEl.classList.contains("ev-view-md") ? "See as Markdown" : "See as JSON";
         card.querySelectorAll(".ev-view-btn").forEach((b) => {
@@ -214,16 +220,13 @@ export function wireMessageCardToggles(container: HTMLElement): void {
 
       // Render the view
       if (targetView === "md") {
-        const rendered = renderMarkdown(originalRaw);
+        const rendered = renderMarkdown(rawContent);
         // Enhance code blocks
         const wrapper = document.createElement("div");
         wrapper.innerHTML = rendered;
         enhanceCodeBlocks(wrapper);
-        // Copy any existing enhanced code blocks from the full page context
-        // (enhanceCodeBlocks works on the wrapper's pre elements)
-        contentDiv.innerHTML = wrapper.innerHTML;
+        contentDiv.innerHTML = `<div class="markdown-content">${wrapper.innerHTML}</div>`;
         contentDiv.setAttribute("data-view", "md");
-        // Also enhance code blocks that might be inside the content area
         if (typeof enhanceCodeBlocks === "function") {
           enhanceCodeBlocks(card);
         }
@@ -231,11 +234,11 @@ export function wireMessageCardToggles(container: HTMLElement): void {
         // JSON view
         let formatted: string;
         try {
-          const parsed = JSON.parse(originalRaw);
+          const parsed = JSON.parse(rawContent);
           formatted = JSON.stringify(parsed, null, 2);
         } catch {
           // Not valid JSON — show as pretty text
-          formatted = originalRaw;
+          formatted = rawContent;
         }
         const escaped = escapeHtml(formatted);
         contentDiv.innerHTML = `<pre style="background:transparent;padding:0;margin:0;overflow-x:auto;font-size:0.82rem;line-height:1.5;color:var(--text-primary, #e2e8f0);">${escaped}</pre>`;
