@@ -35,8 +35,8 @@ function renderMarkdown(md: string): string {
 
   const renderer = new Renderer();
   const origTable = renderer.table.bind(renderer);
-  renderer.table = (token) => {
-    const html = (origTable as (token: any) => string)(token);
+  renderer.table = (header: string, body: string) => {
+    const html = (origTable as (header: string, body: string) => string)(header, body);
     return '<div class="table-scroll">' + html + "</div>";
   };
 

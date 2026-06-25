@@ -253,7 +253,7 @@ async function loadStats(): Promise<void> {
     if (_currentProfile) params.set("profile", _currentProfile);
     const stats = await apiGet<any>(`/memory/stats?${params.toString()}`);
     el.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:0.5rem;">
         <div class="stat-card" style="text-align:center;padding:1rem;background:var(--bg-card);border-radius:8px;border:1px solid var(--glass-border);">
           <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary);">${stats.threads}</div>
           <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">Threads</div>

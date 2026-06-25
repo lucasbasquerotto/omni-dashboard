@@ -403,11 +403,13 @@ function renderRow(row: ThreadRow): string {
       <div role="cell" class="cell-preview">${preview}</div>
       <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "—"}</div>
       <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "—"}</div>
-      <div role="cell" style="display:inline-flex;align-items:center;gap:0.25rem;font-size:0.8rem;color:var(--text-muted)">
-        ${row.provider ? `<span class="ev-provider" title="Provider">${escapeHtml(row.provider)}</span>` : ""}
-        ${row.provider && row.model ? `<span style="color:var(--text-muted);opacity:0.4">·</span>` : ""}
-        ${row.model ? `<span class="ev-model" title="Model">${escapeHtml(row.model)}</span>` : ""}
-        ${!row.provider && !row.model ? "—" : ""}
+      <div role="cell" style="font-size:0.8rem;color:var(--text-muted)">
+        <span style="display:inline-flex;align-items:center;gap:0.25rem;">
+          ${row.provider ? `<span class="ev-provider" title="Provider">${escapeHtml(row.provider)}</span>` : ""}
+          ${row.provider && row.model ? `<span style="color:var(--text-muted);opacity:0.4">·</span>` : ""}
+          ${row.model ? `<span class="ev-model" title="Model">${escapeHtml(row.model)}</span>` : ""}
+          ${!row.provider && !row.model ? "—" : ""}
+        </span>
       </div>
     </a>
   `;

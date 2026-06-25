@@ -430,5 +430,6 @@ export async function apiDelete<T>(path: string): Promise<T> {
     const text = await res.text().catch(() => "Unknown error");
     throw new Error(`${res.status}: ${text}`);
   }
-  return res.json();
+  const text = await res.text();
+  return text ? JSON.parse(text) : (undefined as T);
 }

@@ -10,6 +10,8 @@ interface Action {
   params: Record<string, any>;
   created_at: string;
   updated_at: string;
+  enabled: boolean;
+  is_builtin: boolean;
 }
 
 interface McpToolInfo {
@@ -90,10 +92,11 @@ function renderActionList(listEl: HTMLElement): void {
     </div>
   `;
 
-  // Wire Run/Edit/Delete buttons
+  // Wire Run/Edit/Toggle/Delete buttons
   currentActions.forEach((a, i) => {
     document.getElementById(`action-run-${i}`)?.addEventListener("click", () => void runAction(a, i));
     document.getElementById(`action-edit-${i}`)?.addEventListener("click", () => void showActionModal(a));
+    document.getElementById(`action-toggle-${i}`)?.addEventListener("click", () => void toggleAction(a));
     document.getElementById(`action-delete-${i}`)?.addEventListener("click", () => void deleteAction(a));
   });
 }
@@ -102,16 +105,18 @@ function renderActionRow(a: Action, i: number): string {
   const paramsStr =
     Object.keys(a.params).length > 0 ? escapeHtml(JSON.stringify(a.params)) : "<em>No params</em>";
   const created = formatDate(a.created_at);
+  const isDisabled = !a.enabled;
 
-  return `<tr>
-    <td><strong>${escapeHtml(a.name)}</strong></td>
+  return `<tr class="${isDisabled ? "action-disabled" : ""}" style="${isDisabled ? "opacity:0.55" : ""}">
+    <td><strong>${escapeHtml(a.name)}</strong>${isDisabled ? ' <span class="badge badge-neutral" style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);padding:0.05rem 0.35rem;border-radius:4px;margin-left:0.35rem;vertical-align:middle">Disabled</span>' : ""}</td>
     <td><code>${escapeHtml(a.tool_name)}</code></td>
     <td style="font-size:0.8rem;color:var(--text-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${paramsStr}</td>
     <td class="cell-timestamp">${created}</td>
     <td style="text-align:right;white-space:nowrap">
-      <button class="btn btn-sm btn-primary" id="action-run-${i}" title="Run this action">▶ Run</button>
+      <button class="btn btn-sm btn-primary" id="action-run-${i}" title="${isDisabled ? "Action is disabled" : "Run this action"}" ${isDisabled ? "disabled" : ""}>▶ Run</button>
       <button class="btn btn-sm btn-secondary" id="action-edit-${i}" title="Edit action">✎ Edit</button>
-      <button class="btn btn-sm btn-danger" id="action-delete-${i}" title="Delete action">🗑 Delete</button>
+      <button class="btn btn-sm ${isDisabled ? "btn-primary" : "btn-warning"}" id="action-toggle-${i}" title="${isDisabled ? "Enable action" : "Disable action"}" style="${isDisabled ? "" : "background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#f59e0b"}">${isDisabled ? "▶ Enable" : "⏸ Disable"}</button>
+      ${!a.is_builtin ? `<button class="btn btn-sm btn-danger" id="action-delete-${i}" title="Delete action">🗑 Delete</button>` : ""}
     </td>
   </tr>`;
 }
@@ -178,7 +183,7 @@ async function showActionModal(existing: Action | null): Promise<void> {
             </div>
           </div>
         </div>
-        <div class="settings-section" id="action-params-section" style="display:none">
+        <div class="settings-section" id="action-params-section" style="display:none;margin-top:0.75rem;">
           <div class="setting-label" style="margin-bottom:0.5rem;">
             <div class="setting-name">Parameters</div>
           </div>
@@ -213,7 +218,8 @@ async function showActionModal(existing: Action | null): Promise<void> {
   function updateParamsForm(): void {
     const toolName = toolSelect.value;
     const tool = availableTools.find((t) => t.name === toolName);
-    if (!tool || !tool.input_schema?.properties) {
+    const props = tool?.input_schema?.properties || {};
+    if (!tool || Object.keys(props).length === 0) {
       paramsSection.style.display = "none";
       paramsForm.innerHTML = "";
       return;
@@ -276,7 +282,7 @@ async function showActionModal(existing: Action | null): Promise<void> {
           </div>
           <div class="setting-controls">
             <div class="setting-input-group">
-              <input class="filter-input param-input" data-key="${escapeHtml(key)}" type="number" value="${escapeHtml(value)}" placeholder="${escapeHtml(key)}" />
+              <input class="filter-input param-input" data-key="${escapeHtml(key)}" type="tel" value="${escapeHtml(value)}" placeholder="${escapeHtml(key)}" />
             </div>
           </div>
         </div>`;
@@ -389,6 +395,22 @@ async function deleteAction(action: Action): Promise<void> {
     void loadActions();
   } catch (e: any) {
     alert(`Failed to delete: ${e?.message || "Unknown error"}`);
+  }
+}
+
+// ── Toggle Enable/Disable ──
+async function toggleAction(action: Action): Promise<void> {
+  const newEnabled = !action.enabled;
+  try {
+    await apiPut(`/actions/${action.id}`, {
+      name: action.name,
+      tool_name: action.tool_name,
+      params: action.params,
+      enabled: newEnabled,
+    });
+    void loadActions();
+  } catch (e: any) {
+    alert(`Failed to toggle action: ${e?.message || "Unknown error"}`);
   }
 }
 
