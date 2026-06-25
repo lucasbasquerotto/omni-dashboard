@@ -421,7 +421,7 @@ export async function showCronModal(job: any, onReload: () => void): Promise<voi
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Instruction File</label>
           <select id="cron-instruction-file" class="filter-select" style="width:100%;">
             <option value="">- (None)</option>
-            ${templates.map((t: any) => `<option value="${escapeHtml(t.name)}" ${isEdit && job.instruction_file === t.name ? "selected" : ""}>${escapeHtml(t.label)} (${escapeHtml(t.profile)})</option>`).join("")}
+            ${templates.map((t: any) => `<option value="${escapeHtml(t.name)}" ${isEdit && job.template === t.name ? "selected" : ""}>${escapeHtml(t.label)} (${escapeHtml(t.profile)})</option>`).join("")}
           </select>
           <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">Template file to inject into the agent's prompt when this job runs.</div>
         </div>
@@ -510,7 +510,7 @@ export async function showCronModal(job: any, onReload: () => void): Promise<voi
     const prompt = (modal.querySelector("#cron-prompt") as HTMLTextAreaElement).value.trim();
     const active = (modal.querySelector("#cron-active") as HTMLInputElement).checked;
     const silent = (document.getElementById("cron-silent") as HTMLInputElement).checked;
-    const instruction_file = (modal.querySelector("#cron-instruction-file") as HTMLSelectElement).value;
+    const template = (modal.querySelector("#cron-instruction-file") as HTMLSelectElement).value;
     const channel_id = channelVal ? parseInt(channelVal, 10) : null;
 
     if (!display_name) {
@@ -548,7 +548,7 @@ export async function showCronModal(job: any, onReload: () => void): Promise<voi
         mode,
         silent,
         planning_mode: planningMode || "",
-        instruction_file: instruction_file || null,
+        template: template || null,
       };
       if (mode === "action") body.action_id = action_id || null;
 
