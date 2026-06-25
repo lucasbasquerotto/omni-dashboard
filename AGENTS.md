@@ -75,6 +75,33 @@ The badge is rendered in `src/lib/message-card.ts` using the `.ev-iter-badge` CS
 
 The Create Schedule modal defaults the "Active" checkbox to **unchecked**. New schedules are created inactive and must be explicitly activated. The scheduler filters by `active = true` in `cron_jobs` table, so inactive jobs are never picked up. Use `force=true` to run an inactive job via the trigger endpoint.
 
+## Cron Schedule Format
+
+All cron schedules in the dashboard use the **5-field Linux format**: `min hour dom month dow`. Each field accepts:
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `min` | 0–59 | Minute of the hour |
+| `hour` | 0–23 | Hour of the day |
+| `dom` | 1–31 | Day of the month |
+| `month` | 1–12 (or names) | Month |
+| `dow` | 0–7 (0/7 = Sun) | Day of the week |
+
+**Special syntax:** `*` = any, `*/N` = every N, `,` = list, `-` = range.
+
+**Common examples:**
+```
+* * * * *     — every minute
+*/10 * * * *  — every 10 minutes
+0 * * * *     — every hour at :00
+0 0 * * *     — daily at midnight
+30 6 * * *    — daily at 06:30
+0 9 * * 1-5   — weekdays at 09:00
+0 0 1 * *     — 1st of every month at midnight
+```
+
+The default schedule value in the create modal is `0 0 * * *` (daily at midnight). The help box in `src/lib/schedule-detail.ts` (lines 384-395) documents this format.
+
 ---
 
 ## CSS Class Conventions

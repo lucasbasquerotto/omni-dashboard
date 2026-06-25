@@ -209,7 +209,11 @@ memoryRouter.get("/text/:profile/:type", async (req: Request, res: Response) => 
     }
 
     const fileName = type === "soul" ? "USER.md" : "MEMORY.md";
-    const filePath = join(OMNI_DATA_DIR, "profiles", profile, "memories", fileName);
+    // Check profile-specific memories first, then fall back to global memories
+    let filePath = join(OMNI_DATA_DIR, "profiles", profile, "memories", fileName);
+    if (!existsSync(filePath)) {
+      filePath = join(OMNI_DATA_DIR, "memories", fileName);
+    }
 
     if (!existsSync(filePath)) {
       res.status(404).json({ error: `${type} file not found for profile '${profile}'` });
@@ -318,14 +322,11 @@ memoryRouter.post("/upload/:profile/:type", upload.single("file"), async (req: R
 memoryRouter.get("/context/:channelName", async (req: Request, res: Response) => {
   try {
     const channelName = req.params.channelName as string;
-    const response = await fetch(
-      `http://omniagent:8080/prompt-preview/${encodeURIComponent(channelName)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: "[memory context]", plan: false }),
-      },
-    );
+    const response = await fetch(`http://omniagent:8080/prompt-preview/${encodeURIComponent(channelName)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "[memory context]", plan: false }),
+    });
     if (!response.ok) {
       res.status(response.status).json({ error: `OmniAgent returned ${response.status}` });
       return;

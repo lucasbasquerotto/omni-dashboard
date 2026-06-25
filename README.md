@@ -28,7 +28,7 @@ Paginated thread list with filter controls:
 ### Messages (`/messages`)
 Detailed message viewer with extensive filtering:
 
-- Filters: Channel, Thread ID, Role (user/agent/system/tool), Type (multi-select toggle buttons for prompt/response/reasoning/tool/tool_output/iteration/delegate_result/skill), Subtype (free-text), Provider, Model, Seq-0 only checkbox.
+- Filters: Channel, Thread ID, Role (cause/agent/system/tool), Type (multi-select toggle buttons for prompt/response/reasoning/tool/tool_output/iteration/delegate_result/skill), Subtype (free-text), Provider, Model, Seq-0 only checkbox.
 - URL search param sync — filters persist in the URL.
 - Per-message display: color-coded role badges, timing and token display, expandable content with 3-line truncation.
 - Color-coded type and status badges.
@@ -58,7 +58,7 @@ Kanban board with drag-and-drop cards across 7 columns:
 Cron job list with mode indicators:
 
 - Shows all cron jobs from the `cron_jobs` table.
-- Each row: name, schedule/cron expression (5-field Linux format: min hour dom month dow), mode (agentic/direct), enabled/disabled status, prompt preview, skills, last run / next run.
+- Each row: name, schedule/cron expression (**5-field Linux format**: `min hour dom month dow`), mode (agentic/direct), enabled/disabled status, prompt preview, skills, last run / next run.
 - **Detail View** (`/schedule/:id`): Full job detail with mode selector toggle, active/inactive switch, channel_id field.
 - JSONB fields (skills, context_from, enabled_toolsets) parsed via `parseJsonArray` helper.
 

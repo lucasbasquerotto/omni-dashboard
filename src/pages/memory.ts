@@ -290,21 +290,15 @@ async function loadStats(): Promise<void> {
 async function loadSystemPrompt(): Promise<void> {
   const el = document.getElementById("mem-system-prompt")!;
   try {
-    // Use the prompt-preview proxy (POST) to get the full system prompt
-    const res = await fetch(`${API_BASE}/prompt-preview/default`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: "", plan: false }),
-    });
+    // Use the prompt proxy (GET) to get the raw system prompt TEMPLATE
+    // without MEMORY/SOUL content filled in (those have their own cards)
+    const res = await fetch(`${API_BASE}/prompt/default`);
     if (res.ok) {
       const data = await res.json();
-      if (data.messages) {
-        const sys = data.messages.find((m: any) => m.role === "system");
-        el.textContent = sys?.content || "No system prompt found.";
-        return;
-      }
+      el.textContent = data.content || "No system prompt template found.";
+      return;
     }
-    throw new Error("Failed to parse prompt preview");
+    throw new Error("Failed to load prompt template");
   } catch {
     el.textContent = "Failed to load system prompt.";
   }
@@ -402,7 +396,7 @@ async function loadChannelContext(): Promise<void> {
   el.textContent = "Loading context...";
 
   try {
-    const data = await apiGet<{ context: string }>(`/context/${encodeURIComponent(channelName)}`);
+    const data = await apiGet<{ context: string }>(`/memory/context/${encodeURIComponent(channelName)}`);
     el.textContent = data.context;
   } catch (e) {
     el.textContent = `Failed to load context: ${e instanceof Error ? e.message : "Unknown error"}`;

@@ -43,7 +43,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
     if (activeOnly) {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
-              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat, cj.silent,
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.silent,
               cj.instruction_file, cj.planning_mode,
               a.name AS action_name
        FROM cron_jobs cj
@@ -55,7 +55,7 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
     } else {
       sql = `SELECT DISTINCT ON (cj.name) cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
-              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat, cj.silent,
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.silent,
               cj.instruction_file, cj.planning_mode,
               a.name AS action_name
        FROM cron_jobs cj
@@ -87,11 +87,6 @@ scheduleRouter.get("/", async (req: Request, res: Response) => {
       channel_id: job.channel_id,
       channel_name: job.channel_name || null,
       profile: job.profile,
-      script: job.script || null,
-      no_agent: !!job.no_agent,
-      workdir: job.workdir || null,
-      deliver: job.deliver || null,
-      repeat: job.repeat || null,
       last_run: job.last_run_at,
       next_run: job.next_run_at,
       last_run_at: job.last_run_at,
@@ -122,7 +117,7 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
     const jobs = await queryDb(
       `SELECT cj.id, cj.name, cj.display_name, cj.schedule, cj.prompt, cj.skills, cj.enabled, cj.active,
               cj.mode, cj.action_id, cj.channel_id, ch.name as channel_name, cj.profile,
-              cj.last_run_at, cj.next_run_at, cj.created_at, cj.script, cj.no_agent, cj.workdir, cj.deliver, cj.repeat, cj.silent,
+              cj.last_run_at, cj.next_run_at, cj.created_at, cj.silent,
               cj.instruction_file, cj.planning_mode,
               a.name AS action_name
        FROM cron_jobs cj
@@ -158,11 +153,6 @@ scheduleRouter.get("/:id", async (req: Request, res: Response) => {
       channel_id: job.channel_id,
       channel_name: job.channel_name || null,
       profile: job.profile,
-      script: job.script || null,
-      no_agent: !!job.no_agent,
-      workdir: job.workdir || null,
-      deliver: job.deliver || null,
-      repeat: job.repeat || null,
       last_run: job.last_run_at,
       next_run: job.next_run_at,
       last_run_at: job.last_run_at,

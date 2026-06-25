@@ -5,6 +5,7 @@ import { escapeHtml } from "./helpers";
 
 // ── Role badge colors ──
 const ROLE_COLORS: Record<string, string> = {
+  cause: "#3b82f6",
   user: "#3b82f6",
   agent: "#10b981",
   system: "#f59e0b",
@@ -13,6 +14,11 @@ const ROLE_COLORS: Record<string, string> = {
 
 function roleColor(role: string): string {
   return ROLE_COLORS[role.toLowerCase()] || "#64748b";
+}
+
+// ── Role display label — map "user" to "cause" ──
+function roleDisplayLabel(role: string): string {
+  return role === "user" ? "cause" : role;
 }
 
 // ── Type badge colors ──
@@ -104,7 +110,7 @@ export function renderMessageCard(msg: any): string {
         ${msg.iteration_number !== null && msg.iteration_number !== undefined ? `<span class="ev-iter-badge" title="LLM Iteration">⟳ ${msg.iteration_number}</span>` : ""}
         ${channelStr ? `<span class="badge badge-neutral" title="Channel ID">${channelStr}</span>` : ""}
         <span class="agent-badge" title="Role: ${escapeHtml(role)}" style="--agent-color:${rColor};background:${rColor}22;border-color:${rColor}44;color:${rColor}">
-          ${escapeHtml(role)}
+          ${escapeHtml(roleDisplayLabel(role))}
         </span>
         <span class="event-type-badge" title="Status: ${escapeHtml(msg.status || "unknown")}" style="${statusBadgeStyle(msg.status)}">
           ${escapeHtml(msg.status || "unknown")}

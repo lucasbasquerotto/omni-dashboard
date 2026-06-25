@@ -66,6 +66,26 @@ app.post("/api/prompt-preview/:channelName", async (req, res) => {
   }
 });
 
+// Proxy for raw prompt template — returns the template without resolved variables
+app.get("/api/prompt/:channelName", async (req, res) => {
+  try {
+    const { channelName } = req.params;
+    const omniagentUrl = `http://omniagent:8080/prompt/${encodeURIComponent(channelName)}`;
+    const response = await fetch(omniagentUrl);
+    if (!response.ok) {
+      res.status(response.status).json({ error: `OmniAgent returned ${response.status}` });
+      return;
+    }
+    const text = await response.text();
+    res.json({ content: text });
+  } catch (err) {
+    console.error("[prompt] Proxy error:", err);
+    res
+      .status(502)
+      .json({ error: "Failed to reach OmniAgent: " + (err instanceof Error ? err.message : String(err)) });
+  }
+});
+
 // Proxy for OmniAgent HTTP API — forward /api/actions*, /api/mcp/tools
 const OMNIAGENT_API = "http://omniagent:8080";
 

@@ -125,8 +125,8 @@ async function submitPreview(): Promise<void> {
           (msg: any, i: number) => `
         <div class="msg-card msg-${msg.role} ${msg.msg_type === "plan" ? "msg-plan" : ""}">
           <div class="msg-header">
-            <span class="msg-role-badge msg-role-${msg.role === "system" ? "system" : msg.role === "agent" ? "assistant" : "user"}">
-              ${msg.msg_type === "plan" ? "Plan" : msg.role}
+            <span class="msg-role-badge msg-role-${msg.role === "system" ? "system" : msg.role === "agent" ? "assistant" : msg.role === "user" ? "cause" : msg.role}">
+              ${msg.msg_type === "plan" ? "Plan" : msg.role === "user" ? "cause" : msg.role}
             </span>
             <span class="msg-idx">#${i + 1}</span>
           </div>
