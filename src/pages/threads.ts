@@ -386,14 +386,6 @@ function renderRow(row: ThreadRow): string {
 
   const typeStr = row.cause_msg_type ? escapeHtml(row.cause_msg_type) : "—";
   const subtypeStr = row.cause_msg_subtype ? escapeHtml(row.cause_msg_subtype) : "—";
-  const providerModel =
-    row.provider && row.model
-      ? escapeHtml(`${row.provider}/${row.model}`)
-      : row.provider
-        ? escapeHtml(row.provider)
-        : row.model
-          ? escapeHtml(row.model)
-          : "—";
 
   const url = `/messages?thread_id=${escapeHtml(row.id)}`;
 
@@ -402,8 +394,8 @@ function renderRow(row: ThreadRow): string {
       <div role="cell"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code></div>
       <div role="cell"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span></div>
       <div role="cell"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></div>
-      <div role="cell" style="font-size:0.78rem;color:var(--text-secondary);">${typeStr}</div>
-      <div role="cell" style="font-size:0.78rem;color:var(--text-secondary);">${subtypeStr}</div>
+      <div role="cell">${typeStr === "—" ? typeStr : `<span class="event-type-badge" title="Type: ${typeStr}" style="--type-color:${seq0TypeColor(row.cause_msg_type || "")};background:${seq0TypeColor(row.cause_msg_type || "")}22;border-color:${seq0TypeColor(row.cause_msg_type || "")}44;color:${seq0TypeColor(row.cause_msg_type || "")}">${typeStr}</span>`}</div>
+      <div role="cell" style="font-size:0.8rem;color:var(--text-muted);font-style:italic;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${subtypeStr}</div>
       <div role="cell"><span class="badge" style="${channelStyle(row.channel_closed)}"${row.channel_closed ? ' title="Channel closed"' : ""}>${escapeHtml(row.channel_name)}</span></div>
       <div role="cell" class="cell-timestamp">${ts}</div>
       <div role="cell"><span class="badge" style="--type-color:${pmCol};background:${pmCol}22;border-color:${pmCol}44;color:${pmCol}">${planningModeLabel(row.planning_mode)}</span></div>
@@ -411,9 +403,26 @@ function renderRow(row: ThreadRow): string {
       <div role="cell" class="cell-preview">${preview}</div>
       <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "—"}</div>
       <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "—"}</div>
-      <div role="cell" style="font-size:0.75rem;color:var(--text-secondary);font-family:monospace;">${providerModel}</div>
+      <div role="cell" style="display:inline-flex;align-items:center;gap:0.25rem;font-size:0.8rem;color:var(--text-muted)">
+        ${row.provider ? `<span class="ev-provider" title="Provider">${escapeHtml(row.provider)}</span>` : ""}
+        ${row.provider && row.model ? `<span style="color:var(--text-muted);opacity:0.4">·</span>` : ""}
+        ${row.model ? `<span class="ev-model" title="Model">${escapeHtml(row.model)}</span>` : ""}
+        ${!row.provider && !row.model ? "—" : ""}
+      </div>
     </a>
   `;
+}
+
+// ── Seq-0 type badge colors ──
+const SEQ0_TYPE_COLORS: Record<string, string> = {
+  user: "#3b82f6",
+  cron: "#f59e0b",
+  kanban: "#8b5cf6",
+  message: "#64748b",
+};
+
+function seq0TypeColor(type: string): string {
+  return SEQ0_TYPE_COLORS[type.toLowerCase()] || "#64748b";
 }
 
 // ── Utilities ──
