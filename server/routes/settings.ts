@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 
 export const settingsRouter = Router();
 
-const OMNIBASE = "http://omniagent-omniagent-1:8080";
+const OMNIBASE = "http://omniagent:8080";
 
 // GET /api/settings — fetch all settings organized by category
 settingsRouter.get("/", async (_req: Request, res: Response) => {

@@ -50,7 +50,7 @@ app.post("/api/prompt-preview/:channelName", async (req, res) => {
   try {
     const { channelName } = req.params;
     const { prompt, plan } = req.body;
-    const omniagentUrl = `http://omniagent-omniagent-1:8080/prompt-preview/${encodeURIComponent(channelName)}`;
+    const omniagentUrl = `http://omniagent:8080/prompt-preview/${encodeURIComponent(channelName)}`;
     const response = await fetch(omniagentUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -67,7 +67,7 @@ app.post("/api/prompt-preview/:channelName", async (req, res) => {
 });
 
 // Proxy for OmniAgent HTTP API — forward /api/actions*, /api/mcp/tools
-const OMNIAGENT_API = "http://omniagent-omniagent-1:8080";
+const OMNIAGENT_API = "http://omniagent:8080";
 
 async function omniagentProxy(req: express.Request, res: express.Response): Promise<void> {
   try {

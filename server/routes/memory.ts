@@ -319,7 +319,7 @@ memoryRouter.get("/context/:channelName", async (req: Request, res: Response) =>
   try {
     const channelName = req.params.channelName as string;
     const response = await fetch(
-      `http://omniagent-omniagent-1:8080/prompt-preview/${encodeURIComponent(channelName)}`,
+      `http://omniagent:8080/prompt-preview/${encodeURIComponent(channelName)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

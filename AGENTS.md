@@ -300,7 +300,7 @@ To add a new page:
 
 ### Container networking
 - The dashboard container **cannot reach sibling containers** via `localhost` — Docker maps ports differently.
-- Use Docker gateway IP or internal Docker network hostnames (`omniagent-omniagent-1:8080`, `qdrant:6333`).
+- Use Docker gateway IP or internal Docker network hostnames (`omniagent:8080`, `qdrant:6333`).
 
 ---
 
