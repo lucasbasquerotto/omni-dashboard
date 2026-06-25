@@ -1,4 +1,36 @@
 import { escapeHtml } from "./helpers";
+import { marked, Renderer } from "marked";
+import { markedHighlight } from "marked-highlight";
+import hljs from "highlight.js";
+
+// ── Configure markdown/highlight once (same as explorer.ts) ──
+hljs.configure({ ignoreUnescapedHTML: true });
+
+marked.use(
+  markedHighlight({
+    langPrefix: "hljs language-",
+    highlight(code, lang) {
+      if (lang && hljs.getLanguage(lang)) {
+        return hljs.highlight(code, { language: lang }).value;
+      }
+      try {
+        return hljs.highlightAuto(code).value;
+      } catch {
+        return code;
+      }
+    },
+  }),
+);
+
+function renderMarkdown(md: string): string {
+  const renderer = new Renderer();
+  const origTable = renderer.table.bind(renderer);
+  renderer.table = (token) => {
+    const html = (origTable as (token: any) => string)(token);
+    return '<div class="table-scroll">' + html + "</div>";
+  };
+  return marked.parse(md, { gfm: true, renderer }) as string;
+}
 
 // ── Shared message card rendering ──
 // Used by both /messages and /schedule/<id> pages
@@ -128,8 +160,16 @@ export function renderMessageCard(msg: any): string {
         <span class="ev-time" title="${escapeHtml(tsFull)}">${ts}</span>
       </div>
       <div class="event-content-area">
-        <div class="ev-content-text${hasMore && !isEmpty ? " has-more" : ""}">${isEmpty ? "<em>Empty</em>" : content}</div>
-        ${hasMore && !isEmpty ? `<button class="ev-expand-btn">Show more</button>` : ""}
+        <div class="ev-content-text${hasMore && !isEmpty ? " has-more" : ""}" data-msg-id="${msg.id}" data-view-original="${escapeHtml(contentRaw)}">${isEmpty ? "<em>Empty</em>" : content}</div>
+        ${
+          hasMore && !isEmpty
+            ? `<div class="ev-content-actions">
+          <button class="ev-expand-btn">Show more</button>
+          <button class="ev-view-btn ev-view-md" data-msg-id="${msg.id}">See as Markdown</button>
+          <button class="ev-view-btn ev-view-json" data-msg-id="${msg.id}">See as JSON</button>
+        </div>`
+            : ""
+        }
       </div>
     </div>
   `;
@@ -143,5 +183,117 @@ export function wireMessageCardToggles(container: HTMLElement): void {
       const isExpanded = card.classList.toggle("expanded");
       (e.currentTarget as HTMLElement).textContent = isExpanded ? "Show less" : "Show more";
     });
+  });
+
+  // ── "See as Markdown" / "See as JSON" view buttons ──
+  container.querySelectorAll(".ev-view-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const btnEl = e.currentTarget as HTMLElement;
+      const msgId = btnEl.getAttribute("data-msg-id");
+      if (!msgId) return;
+      const card = btnEl.closest(".event-row")!;
+      const contentDiv = card.querySelector(`.ev-content-text[data-msg-id="${msgId}"]`) as HTMLElement | null;
+      if (!contentDiv) return;
+
+      const originalRaw = contentDiv.getAttribute("data-view-original") || "";
+      const currentView = contentDiv.getAttribute("data-view") || "original";
+      const targetView = btnEl.classList.contains("ev-view-md") ? "md" : "json";
+
+      if (currentView === targetView) {
+        // Already in this view — switch back to original
+        contentDiv.innerHTML = escapeHtml(originalRaw);
+        contentDiv.setAttribute("data-view", "original");
+        btnEl.textContent = btnEl.classList.contains("ev-view-md") ? "See as Markdown" : "See as JSON";
+        card.querySelectorAll(".ev-view-btn").forEach((b) => {
+          (b as HTMLElement).textContent = b.classList.contains("ev-view-md")
+            ? "See as Markdown"
+            : "See as JSON";
+        });
+        return;
+      }
+
+      // Render the view
+      if (targetView === "md") {
+        const rendered = renderMarkdown(originalRaw);
+        // Enhance code blocks
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = rendered;
+        enhanceCodeBlocks(wrapper);
+        // Copy any existing enhanced code blocks from the full page context
+        // (enhanceCodeBlocks works on the wrapper's pre elements)
+        contentDiv.innerHTML = wrapper.innerHTML;
+        contentDiv.setAttribute("data-view", "md");
+        // Also enhance code blocks that might be inside the content area
+        if (typeof enhanceCodeBlocks === "function") {
+          enhanceCodeBlocks(card);
+        }
+      } else {
+        // JSON view
+        let formatted: string;
+        try {
+          const parsed = JSON.parse(originalRaw);
+          formatted = JSON.stringify(parsed, null, 2);
+        } catch {
+          // Not valid JSON — show as pretty text
+          formatted = originalRaw;
+        }
+        const escaped = escapeHtml(formatted);
+        contentDiv.innerHTML = `<pre style="background:transparent;padding:0;margin:0;overflow-x:auto;font-size:0.82rem;line-height:1.5;color:var(--text-primary, #e2e8f0);">${escaped}</pre>`;
+        contentDiv.setAttribute("data-view", "json");
+        // Try syntax highlighting
+        try {
+          const highlighted = hljs.highlight(formatted, { language: "json" }).value;
+          contentDiv.innerHTML = `<pre style="background:transparent;padding:0;margin:0;overflow-x:auto;font-size:0.82rem;line-height:1.5;"><code class="hljs language-json">${highlighted}</code></pre>`;
+        } catch {
+          // fallback to plain pre
+        }
+      }
+
+      // Update buttons
+      btnEl.textContent = "Show original";
+      card.querySelectorAll(".ev-view-btn").forEach((b) => {
+        const other = b as HTMLElement;
+        if (other !== btnEl) {
+          other.textContent = other.classList.contains("ev-view-md") ? "See as Markdown" : "See as JSON";
+        }
+      });
+    });
+  });
+}
+
+// ── Enhance code blocks with copy buttons (same as explorer.ts) ──
+function enhanceCodeBlocks(container: HTMLElement): void {
+  container.querySelectorAll("pre").forEach((pre) => {
+    if (pre.querySelector(".code-actions")) return;
+    const code = pre.querySelector("code");
+    if (!code) return;
+    const actions = document.createElement("div");
+    actions.className = "code-actions";
+    const langLabel = document.createElement("span");
+    langLabel.className = "code-lang";
+    const cls = Array.from(code.classList).find((c) => c.startsWith("language-"));
+    langLabel.textContent = cls ? cls.replace("language-", "") : "";
+    if (langLabel.textContent) actions.appendChild(langLabel);
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "code-copy-btn";
+    copyBtn.textContent = "Copy";
+    copyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(code.textContent || "");
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => {
+          copyBtn.textContent = "Copy";
+        }, 2000);
+      } catch {
+        copyBtn.textContent = "Failed";
+        setTimeout(() => {
+          copyBtn.textContent = "Copy";
+        }, 2000);
+      }
+    });
+    actions.appendChild(copyBtn);
+    pre.style.position = "relative";
+    pre.prepend(actions);
   });
 }
