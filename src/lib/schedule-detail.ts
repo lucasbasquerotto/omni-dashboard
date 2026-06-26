@@ -330,16 +330,22 @@ export async function loadScheduleThreads(scheduleId: string): Promise<void> {
       });
     }
 
-    // Wire order toggle buttons
+    // Wire order toggle buttons (clone to remove old listeners)
+    const orderBtnClone = orderBtn?.cloneNode(true) as HTMLButtonElement;
+    const orderBtnBottomClone = orderBtnBottom?.cloneNode(true) as HTMLButtonElement;
     const toggleOrder = () => {
       threadsOrder = threadsOrder === "desc" ? "asc" : "desc";
       threadsOffset = 0;
       void loadScheduleThreads(scheduleId);
     };
-    const orderToggleBtn = document.getElementById("threads-order-btn");
-    const orderToggleBtnBottom = document.getElementById("threads-order-btn-bottom");
-    if (orderToggleBtn) orderToggleBtn.addEventListener("click", toggleOrder);
-    if (orderToggleBtnBottom) orderToggleBtnBottom.addEventListener("click", toggleOrder);
+    if (orderBtn && orderBtn.parentNode) {
+      orderBtn.parentNode.replaceChild(orderBtnClone, orderBtn);
+      orderBtnClone.addEventListener("click", toggleOrder);
+    }
+    if (orderBtnBottom && orderBtnBottom.parentNode) {
+      orderBtnBottom.parentNode.replaceChild(orderBtnBottomClone, orderBtnBottom);
+      orderBtnBottomClone.addEventListener("click", toggleOrder);
+    }
   } catch {
     el.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Failed to load activity.</div>';
   }
