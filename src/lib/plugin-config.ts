@@ -59,10 +59,16 @@ export function renderConfigField(
           style="max-width:120px;" />
       `;
       break;
-    case "enum":
+    case "enum": {
+      const hasDefault = field.default !== undefined && field.default !== null && field.default !== "";
+      const showDefault = !value && hasDefault;
       inputHtml = `
         <select id="${fieldId}" class="filter-select setting-input plugin-config-input" data-key="${escapeHtml(field.key)}" style="max-width:240px;">
-          <option value="">Select...</option>
+          ${
+            showDefault
+              ? `<option value="" selected>- (Default: ${escapeHtml(String(field.default))}) -</option>`
+              : `<option value="">Select...</option>`
+          }
           ${(field.allowed_values || [])
             .map(
               (opt) =>
@@ -72,6 +78,7 @@ export function renderConfigField(
         </select>
       `;
       break;
+    }
     case "multi_select": {
       const selectedValues: string[] = Array.isArray(value) ? value : value ? String(value).split(",") : [];
       inputHtml = `
