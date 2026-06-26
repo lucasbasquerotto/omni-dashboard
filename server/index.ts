@@ -51,11 +51,15 @@ app.post("/api/prompt-preview/:channelName", async (req, res) => {
     const { channelName } = req.params;
     const { prompt, plan } = req.body;
     const omniagentUrl = `http://omniagent:8080/prompt-preview/${encodeURIComponent(channelName)}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     const response = await fetch(omniagentUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, plan }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (err) {
@@ -71,7 +75,10 @@ app.get("/api/prompt/:channelName", async (req, res) => {
   try {
     const { channelName } = req.params;
     const omniagentUrl = `http://omniagent:8080/prompt/${encodeURIComponent(channelName)}`;
-    const response = await fetch(omniagentUrl);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(omniagentUrl, { signal: controller.signal });
+    clearTimeout(timeout);
     if (!response.ok) {
       res.status(response.status).json({ error: `OmniAgent returned ${response.status}` });
       return;

@@ -4640,20 +4640,21 @@ a.thread-row {
 }
 
 .channel-refresh-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid var(--glass-border);
-  background: rgba(148, 163, 184, 0.08);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 0;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:28px;
+  height:28px;
+  border-radius:6px;
+  border:1px solid var(--glass-border);
+  background:#94a3b814;
+  color:var(--text-secondary);
+  cursor:pointer;
+  font-size:1rem;
+  line-height:1;
+  padding:0;
+  transition:all .15s ease;
+  flex-shrink:0;
 }
 
 .channel-refresh-btn:hover {
