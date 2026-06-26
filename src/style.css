@@ -2189,12 +2189,22 @@ a.thread-row {
   font-weight: 600;
   color: var(--text-primary);
 }
-.ev-content-text[data-view="md"] .markdown-content h1 { font-size: 1.35rem; }
-.ev-content-text[data-view="md"] .markdown-content h2 { font-size: 1.15rem; }
-.ev-content-text[data-view="md"] .markdown-content h3 { font-size: 1rem; }
-.ev-content-text[data-view="md"] .markdown-content h4 { font-size: 0.875rem; }
+.ev-content-text[data-view="md"] .markdown-content h1 {
+  font-size: 1.35rem;
+}
+.ev-content-text[data-view="md"] .markdown-content h2 {
+  font-size: 1.15rem;
+}
+.ev-content-text[data-view="md"] .markdown-content h3 {
+  font-size: 1rem;
+}
+.ev-content-text[data-view="md"] .markdown-content h4 {
+  font-size: 0.875rem;
+}
 .ev-content-text[data-view="md"] .markdown-content h5,
-.ev-content-text[data-view="md"] .markdown-content h6 { font-size: 0.85rem; }
+.ev-content-text[data-view="md"] .markdown-content h6 {
+  font-size: 0.85rem;
+}
 .ev-content-text[data-view="md"] .markdown-content table {
   width: 100%;
   border-collapse: collapse;
@@ -2962,6 +2972,11 @@ a.thread-row {
 .nav-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.order-btn {
+  line-height: 1;
+  vertical-align: middle;
 }
 
 /* ── Kanban Board ── */
@@ -4666,21 +4681,21 @@ a.thread-row {
 }
 
 .channel-refresh-btn {
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:28px;
-  height:28px;
-  border-radius:6px;
-  border:1px solid var(--glass-border);
-  background:#94a3b814;
-  color:var(--text-secondary);
-  cursor:pointer;
-  font-size:1rem;
-  line-height:1;
-  padding:0;
-  transition:all .15s ease;
-  flex-shrink:0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  background: #94a3b814;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .channel-refresh-btn:hover {

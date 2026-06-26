@@ -13,14 +13,14 @@ import { router } from "./router";
 // ── Pagination state for kanban activity ──
 let kanbanActivityOffset = 0;
 const kanbanActivityLimit = 10;
+let kanbanActivityOrder: "desc" | "asc" = "desc";
 
-// ── Thread / Activity loading ──
 async function loadKanbanActivity(taskId: string): Promise<void> {
   const el = document.getElementById("kanban-threads");
   if (!el) return;
   try {
     const res = await fetch(
-      `/api/kanban/tasks/${encodeURIComponent(taskId)}/threads?offset=${kanbanActivityOffset}&limit=${kanbanActivityLimit}`,
+      `/api/kanban/tasks/${encodeURIComponent(taskId)}/threads?offset=${kanbanActivityOffset}&limit=${kanbanActivityLimit}&order=${kanbanActivityOrder}`,
     );
     if (!res.ok) throw new Error("Failed to load thread activity");
     const data = await res.json();
@@ -50,12 +50,19 @@ async function loadKanbanActivity(taskId: string): Promise<void> {
 
     // Update pagination
     const currentPage = Math.floor(kanbanActivityOffset / kanbanActivityLimit) + 1;
-    const pageInfo = document.getElementById("threads-page-info");
-    const prevBtn = document.getElementById("threads-prev-page") as HTMLButtonElement;
-    const nextBtn = document.getElementById("threads-next-page") as HTMLButtonElement;
+    const pageInfo = document.getElementById("kanban-threads-page-info");
+    const prevBtn = document.getElementById("kanban-threads-prev-page") as HTMLButtonElement;
+    const nextBtn = document.getElementById("kanban-threads-next-page") as HTMLButtonElement;
     if (pageInfo) pageInfo.textContent = `Page ${currentPage} (${total} total)`;
     if (prevBtn) prevBtn.disabled = kanbanActivityOffset <= 0;
     if (nextBtn) nextBtn.disabled = kanbanActivityOffset + kanbanActivityLimit >= total;
+
+    // Update order button text
+    const orderBtn = document.getElementById("kanban-threads-order-btn");
+    const orderBtnBottom = document.getElementById("kanban-threads-order-btn-bottom");
+    const orderText = kanbanActivityOrder === "desc" ? "↓ Recent" : "↑ Oldest";
+    if (orderBtn) orderBtn.textContent = orderText;
+    if (orderBtnBottom) orderBtnBottom.textContent = orderText;
 
     // Wire pagination buttons (clone to remove old listeners)
     const prevClone = prevBtn?.cloneNode(true) as HTMLButtonElement;
@@ -76,9 +83,9 @@ async function loadKanbanActivity(taskId: string): Promise<void> {
     }
 
     // Bottom pagination
-    const prevBottom = document.getElementById("threads-prev-page-bottom") as HTMLButtonElement;
-    const nextBottom = document.getElementById("threads-next-page-bottom") as HTMLButtonElement;
-    const pageInfoBottom = document.getElementById("threads-page-info-bottom");
+    const prevBottom = document.getElementById("kanban-threads-prev-page-bottom") as HTMLButtonElement;
+    const nextBottom = document.getElementById("kanban-threads-next-page-bottom") as HTMLButtonElement;
+    const pageInfoBottom = document.getElementById("kanban-threads-page-info-bottom");
     const countEl = document.getElementById("kanban-threads-count");
     if (countEl) {
       const start = total > 0 ? kanbanActivityOffset + 1 : 0;
@@ -96,6 +103,9 @@ async function loadKanbanActivity(taskId: string): Promise<void> {
       prevBottomClone.addEventListener("click", () => {
         kanbanActivityOffset = Math.max(0, kanbanActivityOffset - kanbanActivityLimit);
         void loadKanbanActivity(taskId);
+        document
+          .getElementById("kanban-activity-card")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
     if (nextBottom && nextBottom.parentNode) {
@@ -103,7 +113,27 @@ async function loadKanbanActivity(taskId: string): Promise<void> {
       nextBottomClone.addEventListener("click", () => {
         kanbanActivityOffset += kanbanActivityLimit;
         void loadKanbanActivity(taskId);
+        document
+          .getElementById("kanban-activity-card")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
+    }
+
+    // Wire order toggle buttons (clone to remove old listeners)
+    const orderBtnClone = orderBtn?.cloneNode(true) as HTMLButtonElement;
+    const orderBtnBottomClone = orderBtnBottom?.cloneNode(true) as HTMLButtonElement;
+    const toggleOrder = () => {
+      kanbanActivityOrder = kanbanActivityOrder === "desc" ? "asc" : "desc";
+      kanbanActivityOffset = 0;
+      void loadKanbanActivity(taskId);
+    };
+    if (orderBtn && orderBtn.parentNode) {
+      orderBtn.parentNode.replaceChild(orderBtnClone, orderBtn);
+      orderBtnClone.addEventListener("click", toggleOrder);
+    }
+    if (orderBtnBottom && orderBtnBottom.parentNode) {
+      orderBtnBottom.parentNode.replaceChild(orderBtnBottomClone, orderBtnBottom);
+      orderBtnBottomClone.addEventListener("click", toggleOrder);
     }
   } catch {
     el.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Failed to load activity.</div>';
@@ -303,19 +333,6 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
             .join("")}
         </div>
       </div>
-
-      <div id="kanban-activity-section" style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--glass-border,rgba(255,255,255,0.08));">
-        <div class="detail-label" style="margin-bottom:0.5rem;">Recent Activity</div>
-        <div id="kanban-threads" style="font-size:0.85rem;color:var(--text-muted);">Loading activity...</div>
-        <div id="threads-bottom-nav" style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--glass-border,rgba(255,255,255,0.08));display:flex;align-items:center;justify-content:space-between;">
-          <span id="kanban-threads-count"></span>
-          <span>
-            <button class="nav-btn" id="threads-prev-page-bottom" disabled style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:4px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.75rem;">← Prev</button>
-            <span id="threads-page-info-bottom" style="margin:0 0.5rem;font-size:0.75rem;color:var(--text-muted);">Page 1</span>
-            <button class="nav-btn" id="threads-next-page-bottom" disabled style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:4px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.75rem;">Next →</button>
-          </span>
-        </div>
-      </div>
     `;
 
     // Wire up detail move buttons
@@ -431,6 +448,29 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
     <div class="card" id="task-detail-card">
       <div class="card-body">
         <div class="loading">Loading task</div>
+      </div>
+    </div>
+    <div class="card" id="kanban-activity-card">
+      <div class="card-header">
+        <span class="card-title">Recent Activity</span>
+        <span class="events-nav" id="kanban-threads-nav">
+          <button class="nav-btn" id="kanban-threads-prev-page" disabled>← Prev</button>
+          <span id="kanban-threads-page-info">Page 1</span>
+          <button class="nav-btn" id="kanban-threads-next-page" disabled>Next →</button>
+          <button class="nav-btn order-btn" id="kanban-threads-order-btn">↓ Recent</button>
+        </span>
+      </div>
+      <div class="card-body" id="kanban-threads">
+        <div class="loading">Loading activity...</div>
+      </div>
+      <div class="card-footer" style="padding:0.75rem 1.25rem;border-top:1px solid var(--border-primary);display:flex;align-items:center;justify-content:space-between;">
+        <span class="events-count" id="kanban-threads-count"></span>
+        <span class="events-nav">
+          <button class="nav-btn" id="kanban-threads-prev-page-bottom" disabled>← Prev</button>
+          <span id="kanban-threads-page-info-bottom">Page 1</span>
+          <button class="nav-btn" id="kanban-threads-next-page-bottom" disabled>Next →</button>
+          <button class="nav-btn order-btn" id="kanban-threads-order-btn-bottom">↓ Recent</button>
+        </span>
       </div>
     </div>
     <!-- Edit Task Modal -->
