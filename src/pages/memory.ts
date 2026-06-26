@@ -11,14 +11,14 @@ let _currentChannel = "";
 
 export async function renderMemory(container: HTMLElement): Promise<void> {
   container.innerHTML = `
-    <div class="page-header">
+    <div class="page-header" style="flex-wrap:wrap;gap:0.75rem;">
       <div>
         <h1 class="page-title">Memory</h1>
         <p class="page-subtitle">Profile memory, context, and search</p>
       </div>
-      <div style="display:flex;align-items:center;gap:0.75rem;">
-        <label class="filter-label" style="margin:0;">Profile</label>
-        <select id="mem-profile-select" class="filter-select">
+      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;min-width:0;">
+        <label class="filter-label" style="margin:0;white-space:nowrap;">Profile</label>
+        <select id="mem-profile-select" class="filter-select" style="min-width:0;max-width:100%;">
           <option value="">Loading...</option>
         </select>
       </div>
@@ -37,7 +37,7 @@ export async function renderMemory(container: HTMLElement): Promise<void> {
       <div class="card" style="max-width:100%;">
         <div class="card-header"><span class="card-title">⚙️ Base System Prompt</span></div>
         <div class="card-body">
-          <pre id="mem-system-prompt" class="code-block" style="max-height:400px;max-width:100%;overflow-x:auto;overflow-y:auto;font-size:0.8rem;line-height:1.5;margin:0;white-space:pre-wrap;">Loading...</pre>
+          <pre id="mem-system-prompt" class="code-block" style="max-height:400px;max-width:100%;overflow-x:auto;overflow-y:auto;font-size:0.8rem;line-height:1.5;margin:0;word-break:break-word;white-space:pre-wrap;">Loading...</pre>
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export async function renderMemory(container: HTMLElement): Promise<void> {
       <div class="card" style="max-width:100%;">
         <div class="card-header"><span class="card-title">🧠 MEMORY</span></div>
         <div class="card-body">
-          <pre id="mem-memory-text" class="code-block" style="max-height:300px;max-width:100%;overflow-x:auto;overflow-y:auto;font-size:0.8rem;line-height:1.5;margin:0 0 0.75rem 0;white-space:pre-wrap;">Loading...</pre>
+          <pre id="mem-memory-text" class="code-block" style="max-height:300px;max-width:100%;overflow-x:auto;overflow-y:auto;font-size:0.8rem;line-height:1.5;margin:0 0 0.75rem 0;word-break:break-word;white-space:pre-wrap;">Loading...</pre>
           <div style="display:flex;align-items:center;gap:0.5rem;">
             <button id="mem-memory-upload-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.375rem 0.75rem;">📁 Upload .md</button>
             <span id="mem-memory-status" style="font-size:0.75rem;color:var(--text-muted);"></span>
@@ -58,7 +58,7 @@ export async function renderMemory(container: HTMLElement): Promise<void> {
       <div class="card" style="max-width:100%;">
         <div class="card-header"><span class="card-title">💫 SOUL</span></div>
         <div class="card-body">
-          <pre id="mem-soul-text" class="code-block" style="max-height:300px;max-width:100%;overflow-x:auto;overflow-y:auto;font-size:0.8rem;line-height:1.5;margin:0 0 0.75rem 0;white-space:pre-wrap;">Loading...</pre>
+          <pre id="mem-soul-text" class="code-block" style="max-height:300px;max-width:100%;overflow-x:auto;overflow-y:auto;font-size:0.8rem;line-height:1.5;margin:0 0 0.75rem 0;word-break:break-word;white-space:pre-wrap;">Loading...</pre>
           <div style="display:flex;align-items:center;gap:0.5rem;">
             <button id="mem-soul-upload-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.375rem 0.75rem;">📁 Upload .md</button>
             <span id="mem-soul-status" style="font-size:0.75rem;color:var(--text-muted);"></span>
@@ -73,21 +73,21 @@ export async function renderMemory(container: HTMLElement): Promise<void> {
         <div class="card-body" id="mem-channel-block">
           <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">
             <label class="filter-label" style="margin:0;">Channel</label>
-            <select id="mem-channel-select" class="filter-select" style="min-width:200px;">
+            <select id="mem-channel-select" class="filter-select" style="min-width:0;flex:1;max-width:100%;">
               <option value="">— Select a channel —</option>
             </select>
           </div>
           <div id="mem-channel-stats" style="display:none;margin-bottom:0.75rem;">
-            <div id="mem-channel-stats-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;"></div>
+            <div id="mem-channel-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:0.5rem;"></div>
           </div>
           <div id="mem-channel-context-area" style="display:none;margin-bottom:0.75rem;">
             <div class="detail-label" style="margin-bottom:0.25rem;">Context Preview</div>
-            <div id="mem-channel-context" style="font-size:0.8rem;color:var(--text-secondary);line-height:1.5;max-height:400px;overflow-y:auto;background:var(--bg-card);border-radius:6px;padding:0.75rem;border:1px solid var(--glass-border);white-space:pre-wrap;"></div>
+            <div id="mem-channel-context" style="font-size:0.8rem;color:var(--text-secondary);line-height:1.5;max-height:400px;overflow-x:hidden;overflow-y:auto;background:var(--bg-card);border-radius:6px;padding:0.75rem;border:1px solid var(--glass-border);word-break:break-word;white-space:pre-wrap;"></div>
           </div>
           <div id="mem-channel-msg-search-area" style="display:none;">
-            <div class="setting-card" style="border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;padding:0.75rem;background:var(--bg-card);">
+            <div class="setting-card" style="border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;padding:0.75rem;background:var(--bg-card);max-width:100%;box-sizing:border-box;">
               <div class="detail-label" style="margin-bottom:0.5rem;">💬 Message Search</div>
-              <input type="text" id="mem-msg-search" class="filter-input" placeholder="Type at least 1 character to search messages in this channel..." style="width:100%;box-sizing:border-box;" />
+              <input type="text" id="mem-msg-search" class="filter-input" placeholder="Type at least 1 character to search messages in this channel..." style="width:100%;max-width:100%;box-sizing:border-box;" />
               <div id="mem-msg-results" class="events-scroll" style="margin-top:0.5rem;"></div>
             </div>
           </div>
@@ -99,8 +99,8 @@ export async function renderMemory(container: HTMLElement): Promise<void> {
       <div class="card" style="max-width:100%;">
         <div class="card-header"><span class="card-title">📚 Wiki Search</span></div>
         <div class="card-body">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">
-            <input type="text" id="mem-wiki-search" class="filter-input" placeholder="Type at least 1 character to search wiki..." style="flex:1;" />
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;max-width:100%;">
+            <input type="text" id="mem-wiki-search" class="filter-input" placeholder="Type at least 1 character to search wiki..." style="flex:1;min-width:0;max-width:100%;" />
           </div>
           <div id="mem-wiki-results"></div>
         </div>
