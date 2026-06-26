@@ -442,7 +442,7 @@ export async function showCronModal(job: any, onReload: () => void): Promise<voi
           </select>
         </div>
         <div style="margin-bottom:1rem;">
-          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Instruction File</label>
+          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Template</label>
           <select id="cron-instruction-file" class="filter-select" style="width:100%;">
             <option value="">- (None)</option>
             ${templates.map((t: any) => `<option value="${escapeHtml(t.name)}" ${isEdit && job.template === t.name ? "selected" : ""}>${escapeHtml(t.label)} (${escapeHtml(t.profile)})</option>`).join("")}

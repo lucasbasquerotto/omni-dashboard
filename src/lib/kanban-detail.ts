@@ -341,12 +341,12 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
 
         await populateEditChannelSelect(task.channel_id || "");
         await populateProfileSelect("task-edit-profile", task.profile || "");
-        await populateTemplatesSelect("task-edit-template", task.template || "");
         const planningModeSelect = document.getElementById("task-edit-planning-mode") as HTMLSelectElement;
         if (planningModeSelect) {
           planningModeSelect.value = task.planning_mode || "";
           syncSelectDisplay("task-edit-planning-mode");
         }
+        await populateTemplatesSelect("task-edit-template", task.template || "");
 
         const modal = document.getElementById("edit-task-modal");
         if (modal) modal.style.display = "flex";
@@ -480,13 +480,6 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
             </select>
           </div>
           <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Template</label>
-            <select id="task-edit-template" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
-              <option value="">None</option>
-            </select>
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Structured guidance injected into the agent's prompt when this task runs.</div>
-          </div>
-          <div>
             <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Planning Mode</label>
             <select id="task-edit-planning-mode" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
               <option value="">- (Default)</option>
@@ -494,6 +487,13 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
               <option value="auto_plan">Simple Plan</option>
               <option value="auto_subtasks">Plan with Subtasks</option>
             </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Template</label>
+            <select id="task-edit-template" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
+              <option value="">None</option>
+            </select>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Structured guidance injected into the agent's prompt when this task runs.</div>
           </div>
         </div>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
