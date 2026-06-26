@@ -82,6 +82,7 @@ export async function renderMemory(container: HTMLElement): Promise<void> {
           </div>
           <div id="mem-channel-context-area" style="display:none;margin-bottom:0.75rem;">
             <div class="detail-label" style="margin-bottom:0.25rem;">Context Preview</div>
+            <div id="mem-channel-timings" style="display:none;margin-bottom:0.5rem;"></div>
             <div id="mem-channel-context" style="font-size:0.8rem;color:var(--text-secondary);line-height:1.5;max-height:400px;overflow-x:hidden;overflow-y:auto;background:var(--bg-card);border-radius:6px;padding:0.75rem;border:1px solid var(--glass-border);word-break:break-word;white-space:pre-wrap;"></div>
           </div>
           <div id="mem-channel-msg-search-area" style="display:none;">
@@ -389,15 +390,34 @@ async function loadChannelStats(): Promise<void> {
 
 async function loadChannelContext(): Promise<void> {
   const el = document.getElementById("mem-channel-context")!;
+  const timingsEl = document.getElementById("mem-channel-timings")!;
   const channelSelect = document.getElementById("mem-channel-select") as HTMLSelectElement;
   const channelName =
     channelSelect.options[channelSelect.selectedIndex]?.text.split(" (")[0] || _currentChannel;
 
   el.textContent = "Loading context...";
+  timingsEl.style.display = "none";
 
   try {
-    const data = await apiGet<{ context: string }>(`/memory/context/${encodeURIComponent(channelName)}`);
+    const data = await apiGet<{ context: string; timings?: Record<string, number> }>(
+      `/memory/context/${encodeURIComponent(channelName)}`,
+    );
     el.textContent = data.context;
+    if (data.timings && Object.keys(data.timings).length > 0) {
+      timingsEl.style.display = "block";
+      const entries = Object.entries(data.timings).sort((a, b) => b[1] - a[1]); // slowest first
+      timingsEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:0.375rem;">
+        ${entries
+          .map(
+            ([label, ms]) =>
+              `<span style="font-size:0.7rem;padding:0.2rem 0.5rem;border-radius:4px;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);color:var(--text-secondary);white-space:nowrap;">
+                <span style="color:var(--text-muted);">${label.replace(/_/g, " ")}</span>
+                <span style="color:${ms > 200 ? "var(--accent-amber)" : ms > 100 ? "var(--accent-cyan)" : "var(--accent-emerald)"};font-weight:600;margin-left:0.25rem;">${ms}ms</span>
+              </span>`,
+          )
+          .join("")}
+      </div>`;
+    }
   } catch (e) {
     el.textContent = `Failed to load context: ${e instanceof Error ? e.message : "Unknown error"}`;
   }
