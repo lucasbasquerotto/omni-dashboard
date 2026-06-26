@@ -52,15 +52,15 @@ function closeCreateModal(): void {
   const profile = document.getElementById("task-create-profile") as HTMLSelectElement;
   if (profile) profile.value = "";
   syncSelectDisplay("task-create-profile");
-  const template = document.getElementById("task-create-template") as HTMLSelectElement;
-  if (template) {
-    template.value = "";
-    syncSelectDisplay("task-create-template");
-  }
   const planning_mode = document.getElementById("task-create-planning-mode") as HTMLSelectElement;
   if (planning_mode) {
     planning_mode.value = "";
     syncSelectDisplay("task-create-planning-mode");
+  }
+  const template = document.getElementById("task-create-template") as HTMLSelectElement;
+  if (template) {
+    template.value = "";
+    syncSelectDisplay("task-create-template");
   }
 }
 
@@ -215,13 +215,6 @@ export function renderKanban(container: HTMLElement): void {
             </select>
           </div>
           <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Template</label>
-            <select id="task-create-template" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
-              <option value="">None</option>
-            </select>
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Structured guidance injected into the agent's prompt. Create .md files in profiles/&lt;name&gt;/templates/</div>
-          </div>
-          <div>
             <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Planning Mode</label>
             <select id="task-create-planning-mode" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
               <option value="">- (Default)</option>
@@ -229,6 +222,13 @@ export function renderKanban(container: HTMLElement): void {
               <option value="auto_plan">Simple Plan</option>
               <option value="auto_subtasks">Plan with Subtasks</option>
             </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Template</label>
+            <select id="task-create-template" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
+              <option value="">None</option>
+            </select>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Structured guidance injected into the agent's prompt. Create .md files in profiles/&lt;name&gt;/templates/</div>
           </div>
         </div>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
