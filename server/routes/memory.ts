@@ -324,9 +324,20 @@ memoryRouter.post("/upload/:profile/:type", upload.single("file"), async (req: R
 memoryRouter.get("/context/:channelName", async (req: Request, res: Response) => {
   try {
     const channelName = req.params.channelName as string;
-    const response = await fetch(`http://omniagent:8080/api/context/${encodeURIComponent(channelName)}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(`http://omniagent:8080/api/context/${encodeURIComponent(channelName)}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
     if (!response.ok) {
-      res.status(response.status).json({ error: `OmniAgent returned ${response.status}` });
+      const text = await response.text();
+      if (response.status >= 500) {
+        const short = text.length > 200 ? text.substring(0, 200) + "..." : text;
+        res.status(response.status).json({ error: `OmniAgent error: ${short}` });
+        return;
+      }
+      res.status(response.status).json({ error: `OmniAgent error (${response.status})` });
       return;
     }
     const data: any = await response.json();
