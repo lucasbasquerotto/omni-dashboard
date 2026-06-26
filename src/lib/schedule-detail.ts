@@ -539,6 +539,16 @@ export async function showCronModal(job: any, onReload: () => void): Promise<voi
       return;
     }
 
+    // Client-side 5-field cron validation
+    const cronFields = schedule.trim().split(/\s+/);
+    if (cronFields.length !== 5) {
+      (window as any).showToast?.(
+        `Invalid cron expression: expected 5 fields (min hour dom month dow), got ${cronFields.length}. Use 5-field Linux format, e.g. '0 9 * * 1-5' for weekdays at 9am.`,
+        "error",
+      );
+      return;
+    }
+
     try {
       const body: any = {
         name,
