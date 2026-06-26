@@ -157,15 +157,23 @@ function renderProviderSelect(profileName: string, currentProvider: string): str
 function renderModelSelect(profileName: string, currentProvider: string, currentModel: string): string {
   const selectId = `prof-model-${escapeHtml(profileName)}`;
   const models = getModelsForProvider(currentProvider);
+  const currentInModels = currentModel && models.includes(currentModel);
   const options =
-    models.length > 0
+    '<option value="" ' +
+    (!currentModel ? "selected" : "") +
+    ">- (Default) -</option>" +
+    (currentModel && !currentInModels
+      ? `<option value="${escapeHtml(currentModel)}" selected>${escapeHtml(currentModel)}</option>`
+      : "") +
+    (models.length > 0
       ? models
+          .filter((m) => !currentInModels || m !== currentModel)
           .map(
             (m) =>
               `<option value="${escapeHtml(m)}" ${m === currentModel ? "selected" : ""}>${escapeHtml(m)}</option>`,
           )
           .join("")
-      : `<option value="${escapeHtml(currentModel)}" selected>${escapeHtml(currentModel || "—")}</option>`;
+      : "");
   return `
     <div style="display:flex;align-items:center;gap:0.375rem;">
       <select id="${selectId}" class="profile-model-select"
@@ -409,6 +417,9 @@ function wireProfiles(): void {
       if (!modelSelect) return;
       (btn as HTMLElement).style.opacity = "0.5";
       try {
+        // Trigger server-side model refresh first (same as channels handler)
+        await apiPost(`/plugins/${encodeURIComponent(provider)}/refresh-models`, {});
+        // Then fetch the updated model list
         const detailResp = await apiGet<any>(`/plugins/${encodeURIComponent(provider)}`);
         const detail = detailResp.data || detailResp;
         const schema = [
@@ -425,15 +436,17 @@ function wireProfiles(): void {
         _providerModels[provider] = models;
         const currentVal = modelSelect.getAttribute("data-original") || modelSelect.value;
         modelSelect.innerHTML =
-          models.length > 0
+          '<option value="">- (Default) -</option>' +
+          (models.length > 0
             ? models
                 .map(
                   (m) =>
                     `<option value="${escapeHtml(m)}" ${m === currentVal ? "selected" : ""}>${escapeHtml(m)}</option>`,
                 )
                 .join("")
-            : `<option value="">—</option>`;
-        (window as any).showToast?.(`Models refreshed`, "success");
+            : "");
+        modelSelect.value = currentVal && models.includes(currentVal) ? currentVal : "";
+        (window as any).showToast?.(`Models refreshed for ${provider} (${models.length} models)`, "success");
       } catch (e) {
         (window as any).showToast?.(
           "Failed to refresh: " + (e instanceof Error ? e.message : "Unknown"),
