@@ -292,12 +292,18 @@ kanbanRouter.patch("/tasks/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    // Check task exists
-    const tasks = await queryDb(`SELECT id FROM kanban_tasks WHERE id = $1`, [taskId]);
+    // Check task exists and fetch current values
+    const tasks = await queryDb(
+      `SELECT id, title, body, status, priority, channel_id, profile, template,
+              planning_mode, archived, assignee, created_at, updated_at
+       FROM kanban_tasks WHERE id = $1`,
+      [taskId],
+    );
     if (tasks.length === 0) {
       res.status(404).json({ error: "Task not found" });
       return;
     }
+    const before = tasks[0];
 
     const { title, body, channel_id, profile, priority, status, archived, template, planning_mode } =
       req.body;
@@ -361,6 +367,48 @@ kanbanRouter.patch("/tasks/:id", async (req: Request, res: Response) => {
 
     const sql = `UPDATE kanban_tasks SET ${setClauses.join(", ")} WHERE id = $1`;
     await queryDb(sql, [taskId, ...params]);
+
+    // ── Insert kanban history for the edit ──
+    const previousValues = {
+      title: before.title,
+      body: before.body,
+      status: before.status,
+      priority: before.priority,
+      channel_id: before.channel_id,
+      profile: before.profile,
+      template: before.template,
+      planning_mode: before.planning_mode,
+      archived: before.archived,
+      assignee: before.assignee,
+    };
+
+    const hasStatusChange = status !== undefined && status !== before.status;
+    const hasArchiveChange = archived !== undefined && archived !== before.archived;
+
+    if (hasArchiveChange) {
+      // Archived/unarchived — log without previous_values
+      const action = archived ? "archived" : "unarchived";
+      await queryDb(
+        `INSERT INTO kanban_history (kanban_task_id, action, initial_board, final_board, previous_values)
+         VALUES ($1, $2, NULL, NULL, NULL)`,
+        [taskId, action],
+      );
+    } else if (hasStatusChange) {
+      // Status move — log without previous_values
+      await queryDb(
+        `INSERT INTO kanban_history (kanban_task_id, action, initial_board, final_board, previous_values)
+         VALUES ($1, $2, $3, $4, NULL)`,
+        [taskId, "moved", before.status, status],
+      );
+    } else {
+      // Field edit — log with full previous values
+      await queryDb(
+        `INSERT INTO kanban_history (kanban_task_id, action, initial_board, final_board, previous_values)
+         VALUES ($1, $2, NULL, NULL, $3::jsonb)`,
+        [taskId, "edited", JSON.stringify(previousValues)],
+      );
+    }
+
     res.json({ success: true });
   } catch (e: any) {
     console.error("Kanban update task error:", e?.message || e);

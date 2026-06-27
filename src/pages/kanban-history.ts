@@ -286,7 +286,7 @@ async function loadHistory(): Promise<void> {
                   <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem;">
                     ${taskIdLink(r.kanban_task_id, taskStatus)}
                     <span style="color:var(--text-secondary);font-size:0.82rem;">${formatEvent(r.action, r.initial_board, r.final_board)}</span>
-                    ${r.previous_values ? `<button class="kh-json-btn" style="background:none;border:none;cursor:pointer;color:var(--accent-cyan);font-size:0.9rem;padding:0 0.25rem;line-height:1;" title="Show previous values as JSON">📋</button>` : ""}
+                    ${r.action === "edited" && r.previous_values ? `<button class="kh-json-btn" style="background:none;border:none;cursor:pointer;color:var(--accent-cyan);font-size:0.9rem;padding:0 0.25rem;line-height:1;" title="Show previous values as JSON">📋</button>` : ""}
                   </div>
                 </td>
               </tr>`;
