@@ -425,6 +425,38 @@ kanbanRouter.delete("/tasks/:id", async (req: Request, res: Response) => {
       return;
     }
 
+    // Fetch the task before deleting to capture previous_values
+    const tasks = await queryDb(
+      `SELECT id, title, body, status, priority, channel_id, profile, template,
+              planning_mode, archived, assignee, created_at, updated_at
+       FROM kanban_tasks WHERE id = $1`,
+      [taskId],
+    );
+    if (tasks.length === 0) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+    const before = tasks[0];
+
+    // ── Insert kanban history with full previous values ──
+    const previousValues = {
+      title: before.title,
+      body: before.body,
+      status: before.status,
+      priority: before.priority,
+      channel_id: before.channel_id,
+      profile: before.profile,
+      template: before.template,
+      planning_mode: before.planning_mode,
+      archived: before.archived,
+      assignee: before.assignee,
+    };
+    await queryDb(
+      `INSERT INTO kanban_history (kanban_task_id, action, initial_board, final_board, previous_values)
+       VALUES ($1, $2, NULL, NULL, $3::jsonb)`,
+      [taskId, "deleted", JSON.stringify(previousValues)],
+    );
+
     const result = await queryDb(`DELETE FROM kanban_tasks WHERE id = $1 RETURNING id`, [taskId]);
 
     if (result.length === 0) {
