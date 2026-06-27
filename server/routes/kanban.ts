@@ -108,6 +108,17 @@ kanbanRouter.post("/tasks", async (req: Request, res: Response) => {
       ],
     );
 
+    // ── Kanban history: record creation ──
+    try {
+      await queryDb(
+        `INSERT INTO kanban_history (kanban_task_id, action, initial_board, final_board, previous_values)
+         VALUES ($1, $2, NULL, $3, NULL)`,
+        [id, "created", taskStatus],
+      );
+    } catch (histErr: any) {
+      console.error("[kanban] Failed to insert create history:", histErr?.message || histErr);
+    }
+
     res.json({ success: true, id });
   } catch (e: any) {
     console.error("Kanban create task error:", e?.message || e);
@@ -192,6 +203,19 @@ kanbanRouter.patch("/tasks/:id/status", async (req: Request, res: Response) => {
       taskId,
     ]);
 
+    // ── Kanban history: record move ──
+    if (oldStatus !== status) {
+      try {
+        await queryDb(
+          `INSERT INTO kanban_history (kanban_task_id, action, initial_board, final_board, previous_values)
+           VALUES ($1, $2, $3, $4, NULL)`,
+          [taskId, "moved", oldStatus, status],
+        );
+      } catch (histErr: any) {
+        console.error("[kanban] Failed to insert status-move history:", histErr?.message || histErr);
+      }
+    }
+
     res.json({ success: true });
   } catch (e: any) {
     console.error("Kanban update status error:", e?.message || e);
@@ -275,6 +299,19 @@ kanbanRouter.patch("/tasks/:id/position", async (req: Request, res: Response) =>
       position,
       taskId,
     ]);
+
+    // ── Kanban history: record move on cross-column drag ──
+    if (oldStatus !== newStatus) {
+      try {
+        await queryDb(
+          `INSERT INTO kanban_history (kanban_task_id, action, initial_board, final_board, previous_values)
+           VALUES ($1, $2, $3, $4, NULL)`,
+          [taskId, "moved", oldStatus, newStatus],
+        );
+      } catch (histErr: any) {
+        console.error("[kanban] Failed to insert position-move history:", histErr?.message || histErr);
+      }
+    }
 
     res.json({ success: true });
   } catch (e: any) {

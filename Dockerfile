@@ -30,10 +30,12 @@ COPY --from=builder /build/dist /app/dist
 # Copy compiled backend
 COPY --from=builder /build/server-dist /app/server
 
-# Install only production dependencies for runtime
+# Copy package files for production install
 COPY --from=builder /build/package.json /app/package.json
 COPY --from=builder /build/package-lock.json /app/package-lock.json
-RUN npm ci --omit=dev
+
+# Install only production dependencies — remove prepare script to avoid husky dependency
+RUN npm pkg delete scripts.prepare && npm ci --omit=dev
 
 EXPOSE 3001
 

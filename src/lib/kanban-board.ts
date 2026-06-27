@@ -133,7 +133,7 @@ export async function moveTask(taskId: string, status: string): Promise<void> {
 
 /**
  * Load and render the full kanban board into the DOM.
- * Handles column layout, card rendering, drag-and-drop wiring.
+ * Handles column layout, card rendering, drag-and-drop, and touch drag.
  */
 export async function loadBoard(showArchived: boolean): Promise<void> {
   const boardEl = document.getElementById("kanban-board")!;
@@ -158,14 +158,9 @@ export async function loadBoard(showArchived: boolean): Promise<void> {
       </div>
     `;
 
-    // Only enable native drag on non-touch devices
-    const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-
     // Wire up card click handlers for navigation
     document.querySelectorAll(".kanban-card").forEach((card) => {
-      if (!isTouchDevice) {
-        (card as HTMLElement).draggable = true;
-      }
+      (card as HTMLElement).draggable = true;
       card.addEventListener("click", (e) => {
         if ((e.target as HTMLElement).closest("button, select, input, textarea")) return;
         const taskId = card.getAttribute("data-task-id");
@@ -177,74 +172,156 @@ export async function loadBoard(showArchived: boolean): Promise<void> {
       });
     });
 
-    if (!isTouchDevice) {
-      // Wire up drag start
-      document.querySelectorAll(".kanban-card").forEach((card) => {
-        card.addEventListener("dragstart", (e) => {
-          if ((e.target as HTMLElement).closest("button, select, input, textarea")) {
+    // ── Touch-based drag-and-drop (mobile support) ──
+    let touchDragTaskId: string | null = null;
+    let touchStartY = 0;
+    let touchStartX = 0;
+    let isTouchDragging = false;
+
+    document.querySelectorAll(".kanban-card").forEach((card) => {
+      card.addEventListener(
+        "touchstart",
+        (e) => {
+          if ((e.target as HTMLElement).closest("button, select, input, textarea")) return;
+          const touch = e.touches[0];
+          touchStartX = touch.clientX;
+          touchStartY = touch.clientY;
+          touchDragTaskId = card.getAttribute("data-task-id");
+          isTouchDragging = false;
+        },
+        { passive: true },
+      );
+
+      card.addEventListener(
+        "touchmove",
+        (e) => {
+          if (!touchDragTaskId) return;
+          const touch = e.touches[0];
+          const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+          if (dist > 15 && !isTouchDragging) {
+            isTouchDragging = true;
+          }
+          if (isTouchDragging) {
             e.preventDefault();
-            return;
-          }
-          const taskId = (e.currentTarget as HTMLElement).getAttribute("data-task-id");
-          if (taskId && (e as DragEvent).dataTransfer) {
-            (e as DragEvent).dataTransfer!.setData("text/plain", taskId);
-            (e as DragEvent).dataTransfer!.effectAllowed = "move";
-          }
-        });
-      });
-
-      // Wire up drag-and-drop columns
-      document.querySelectorAll(".kanban-col-body").forEach((col) => {
-        col.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          if ((e as DragEvent).dataTransfer) {
-            (e as DragEvent).dataTransfer!.dropEffect = "move";
-          }
-        });
-        col.addEventListener("drop", async (e) => {
-          e.preventDefault();
-          const taskId = (e as DragEvent).dataTransfer?.getData("text/plain");
-          if (!taskId) return;
-          const colBody = (e.currentTarget as HTMLElement).closest(".kanban-col-body");
-          const newStatus = colBody?.getAttribute("data-column");
-          if (!newStatus) return;
-
-          // Determine insert position based on drop Y coordinate
-          const cards = Array.from(colBody!.querySelectorAll(".kanban-card"))
-            .map((card) => ({
-              el: card as HTMLElement,
-              rect: (card as HTMLElement).getBoundingClientRect(),
-            }))
-            .sort((a, b) => a.rect.top - b.rect.top);
-
-          const dropY = (e as DragEvent).clientY;
-          let insertIndex = cards.length;
-          for (let i = 0; i < cards.length; i++) {
-            const midY = cards[i].rect.top + cards[i].rect.height / 2;
-            if (dropY < midY) {
-              insertIndex = i;
-              break;
-            }
-          }
-
-          try {
-            const res = await fetch("/api/kanban/tasks/" + encodeURIComponent(taskId) + "/position", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: newStatus, position: insertIndex }),
+            // Highlight column under finger
+            document.querySelectorAll(".kanban-col-body").forEach((col) => {
+              const rect = col.getBoundingClientRect();
+              if (
+                touch.clientX >= rect.left &&
+                touch.clientX <= rect.right &&
+                touch.clientY >= rect.top &&
+                touch.clientY <= rect.bottom
+              ) {
+                (col as HTMLElement).style.background = "rgba(139, 92, 246, 0.08)";
+              } else {
+                (col as HTMLElement).style.background = "";
+              }
             });
-            if (!res.ok) {
-              const text = await res.text().catch(() => "Unknown error");
-              console.error("Position move failed:", `${res.status}: ${text}`);
-            }
-            void loadBoard(showArchived);
-          } catch (err) {
-            console.error("Drop move failed:", err);
-            void loadBoard(showArchived);
           }
-        });
+        },
+        { passive: false },
+      );
+
+      card.addEventListener(
+        "touchend",
+        (e) => {
+          if (!touchDragTaskId) return;
+          const touch = e.changedTouches[0];
+          if (isTouchDragging) {
+            // Find column under the release point
+            const dropEl = document.elementFromPoint(touch.clientX, touch.clientY);
+            const colBody = dropEl?.closest(".kanban-col-body");
+            const newStatus = colBody?.getAttribute("data-column");
+            if (newStatus && touchDragTaskId) {
+              const id = touchDragTaskId;
+              touchDragTaskId = null;
+              isTouchDragging = false;
+              // Reset highlights
+              document.querySelectorAll(".kanban-col-body").forEach((col) => {
+                (col as HTMLElement).style.background = "";
+              });
+              void moveTask(id, newStatus).then(() => loadBoard(showArchived));
+              return;
+            }
+          }
+          // Reset
+          document.querySelectorAll(".kanban-col-body").forEach((col) => {
+            (col as HTMLElement).style.background = "";
+          });
+          touchDragTaskId = null;
+          isTouchDragging = false;
+        },
+        { passive: true },
+      );
+    });
+
+    // ── Desktop drag-and-drop ──
+    // Wire up drag start
+    document.querySelectorAll(".kanban-card").forEach((card) => {
+      card.addEventListener("dragstart", (e) => {
+        if ((e.target as HTMLElement).closest("button, select, input, textarea")) {
+          e.preventDefault();
+          return;
+        }
+        const taskId = (e.currentTarget as HTMLElement).getAttribute("data-task-id");
+        if (taskId && (e as DragEvent).dataTransfer) {
+          (e as DragEvent).dataTransfer!.setData("text/plain", taskId);
+          (e as DragEvent).dataTransfer!.effectAllowed = "move";
+        }
       });
-    }
+    });
+
+    // Wire up drag-and-drop columns
+    document.querySelectorAll(".kanban-col-body").forEach((col) => {
+      col.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if ((e as DragEvent).dataTransfer) {
+          (e as DragEvent).dataTransfer!.dropEffect = "move";
+        }
+      });
+      col.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        const taskId = (e as DragEvent).dataTransfer?.getData("text/plain");
+        if (!taskId) return;
+        const colBody = (e.currentTarget as HTMLElement).closest(".kanban-col-body");
+        const newStatus = colBody?.getAttribute("data-column");
+        if (!newStatus) return;
+
+        // Determine insert position based on drop Y coordinate
+        const cards = Array.from(colBody!.querySelectorAll(".kanban-card"))
+          .map((card) => ({
+            el: card as HTMLElement,
+            rect: (card as HTMLElement).getBoundingClientRect(),
+          }))
+          .sort((a, b) => a.rect.top - b.rect.top);
+
+        const dropY = (e as DragEvent).clientY;
+        let insertIndex = cards.length;
+        for (let i = 0; i < cards.length; i++) {
+          const midY = cards[i].rect.top + cards[i].rect.height / 2;
+          if (dropY < midY) {
+            insertIndex = i;
+            break;
+          }
+        }
+
+        try {
+          const res = await fetch("/api/kanban/tasks/" + encodeURIComponent(taskId) + "/position", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus, position: insertIndex }),
+          });
+          if (!res.ok) {
+            const text = await res.text().catch(() => "Unknown error");
+            console.error("Position move failed:", `${res.status}: ${text}`);
+          }
+          void loadBoard(showArchived);
+        } catch (err) {
+          console.error("Drop move failed:", err);
+          void loadBoard(showArchived);
+        }
+      });
+    });
   } catch (e) {
     boardEl.innerHTML = `<div class="error-state">Failed to load board: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
   }

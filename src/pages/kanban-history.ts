@@ -295,7 +295,7 @@ async function loadHistory(): Promise<void> {
                   <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem;">
                     ${taskIdLink(r.kanban_task_id, taskStatus)}
                     <span style="color:var(--text-secondary);font-size:0.82rem;">${formatEvent(r.action, r.initial_board, r.final_board)}</span>
-                    ${r.previous_values ? `<button class="kh-json-btn" style="background:none;border:none;cursor:pointer;color:var(--accent-cyan);font-size:0.9rem;padding:0 0.25rem;line-height:1;" title="Show previous values as JSON">📋</button>` : ""}
+                    ${r.previous_values ? `<button class="kh-json-btn" data-row-index="${rows.indexOf(r)}" style="background:none;border:none;cursor:pointer;color:var(--accent-cyan);font-size:0.9rem;padding:0 0.25rem;line-height:1;" title="Show previous values as JSON">📋</button>` : ""}
                   </div>
                 </td>
               </tr>`;
@@ -306,11 +306,12 @@ async function loadHistory(): Promise<void> {
       </div>
     `;
 
-    // Wire JSON view buttons
-    listEl.querySelectorAll(".kh-json-btn").forEach((btn, i) => {
+    // Wire JSON view buttons — use data-row-index for correct row mapping
+    listEl.querySelectorAll(".kh-json-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const row = rows[i];
-        if (row.previous_values) {
+        const idx = parseInt((btn as HTMLElement).getAttribute("data-row-index") || "", 10);
+        const row = rows[idx];
+        if (row && row.previous_values) {
           openJsonModal("Previous Values", row.previous_values);
         }
       });
