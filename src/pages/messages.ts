@@ -151,7 +151,7 @@ export function renderMessages(container: HTMLElement): void {
       <div class="card-body" id="messages-list">
         <div class="loading">Loading messages</div>
       </div>
-      <div class="card-footer" id="messages-bottom-nav" style="padding:0.75rem 1.25rem;border-top:1px solid var(--border-primary);display:flex;align-items:center;justify-content:space-between">
+      <div class="card-footer" id="messages-bottom-nav" style="padding:0.75rem 1.25rem;border-top:1px solid var(--border-primary);display:flex;align-items:center;justify-content:flex-end">
         <span class="events-count" id="messages-count-bottom"></span>
         <span class="events-nav">
           <button class="nav-btn" id="prev-page-bottom" disabled>← Prev</button>
@@ -496,8 +496,15 @@ async function loadMessages(): Promise<void> {
     const orderBtn = document.getElementById("order-btn");
     const orderBtnBottom = document.getElementById("order-btn-bottom");
     const arrowChar = orderBy === "desc" ? "↓" : "↑";
-    if (orderBtn) orderBtn.querySelector(".arrow")!.textContent = arrowChar;
-    if (orderBtnBottom) orderBtnBottom.querySelector(".arrow")!.textContent = arrowChar;
+    const label = orderBy === "desc" ? "Recent" : "Oldest";
+    if (orderBtn) {
+      orderBtn.querySelector(".arrow")!.textContent = arrowChar;
+      orderBtn.childNodes[1].textContent = " " + label;
+    }
+    if (orderBtnBottom) {
+      orderBtnBottom.querySelector(".arrow")!.textContent = arrowChar;
+      orderBtnBottom.childNodes[1].textContent = " " + label;
+    }
 
     if (data.messages.length === 0) {
       listEl.innerHTML = `<div class="empty-state">No messages match the current filters</div>`;

@@ -2989,6 +2989,13 @@ a.thread-row {
   color: var(--accent-purple);
 }
 
+/* Don't keep purple after click — reset focus to default */
+.nav-btn:focus:not(:focus-visible) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--glass-border);
+  color: var(--text-secondary);
+}
+
 .nav-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
@@ -3003,7 +3010,7 @@ a.thread-row {
 .order-btn .arrow {
   display: inline-block;
   line-height: 1;
-  transform: translateY(-2px);
+  vertical-align: middle;
 }
 
 /* ── Kanban Board ── */
