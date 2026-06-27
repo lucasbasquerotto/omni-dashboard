@@ -61,8 +61,15 @@ async function loadKanbanActivity(taskId: string): Promise<void> {
     const orderBtn = document.getElementById("kanban-threads-order-btn");
     const orderBtnBottom = document.getElementById("kanban-threads-order-btn-bottom");
     const arrowChar = kanbanActivityOrder === "desc" ? "↓" : "↑";
-    if (orderBtn) orderBtn.querySelector(".arrow")!.textContent = arrowChar;
-    if (orderBtnBottom) orderBtnBottom.querySelector(".arrow")!.textContent = arrowChar;
+    const label = kanbanActivityOrder === "desc" ? "Recent" : "Oldest";
+    if (orderBtn) {
+      orderBtn.querySelector(".arrow")!.textContent = arrowChar;
+      orderBtn.childNodes[1].textContent = " " + label;
+    }
+    if (orderBtnBottom) {
+      orderBtnBottom.querySelector(".arrow")!.textContent = arrowChar;
+      orderBtnBottom.childNodes[1].textContent = " " + label;
+    }
 
     // Wire pagination buttons (clone to remove old listeners)
     const prevClone = prevBtn?.cloneNode(true) as HTMLButtonElement;
@@ -453,7 +460,7 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
     </div>
     <div class="card" id="kanban-activity-card">
       <div class="card-header">
-        <span class="card-title">Recent Activity</span>
+        <span class="card-title">Activity</span>
         <span class="events-nav" id="kanban-threads-nav">
           <button class="nav-btn" id="kanban-threads-prev-page" disabled>← Prev</button>
           <span id="kanban-threads-page-info">Page 1</span>

@@ -126,11 +126,19 @@ export async function loadScheduleDetail(cronId: string): Promise<any> {
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Mode</div>
             <div style="color:var(--text-primary);">${job.mode ? escapeHtml(job.mode) : "—"}</div>
           </div>
+          ${
+            job.mode === "action"
+              ? `
+          <div style="margin-bottom:0.75rem;">
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Silent</div>
+            <div><span class="badge ${job.silent ? "badge-warning" : "badge-neutral"}">${job.silent ? "Silent (thread only on error)" : "Not silent"}</span></div>
+          </div>`
+              : ""
+          }
           <div style="margin-bottom:0.75rem;">
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Status</div>
-            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-              <span class="badge ${job.enabled ? "badge-success" : "badge-neutral"}">${job.enabled ? "Enabled" : "Disabled"}</span>
-              <span class="badge ${job.active ? "badge-success" : "badge-warning"}">${job.active ? "Active" : "Inactive"}</span>
+            <div>
+              <span class="badge ${job.active ? "badge-success" : "badge-neutral"}">${job.active ? "Active" : "Inactive"}</span>
             </div>
           </div>
           <div style="margin-bottom:0.75rem;">
@@ -273,8 +281,15 @@ export async function loadScheduleThreads(scheduleId: string): Promise<void> {
     const orderBtn = document.getElementById("threads-order-btn");
     const orderBtnBottom = document.getElementById("threads-order-btn-bottom");
     const arrowChar = threadsOrder === "desc" ? "↓" : "↑";
-    if (orderBtn) orderBtn.querySelector(".arrow")!.textContent = arrowChar;
-    if (orderBtnBottom) orderBtnBottom.querySelector(".arrow")!.textContent = arrowChar;
+    const label = threadsOrder === "desc" ? "Recent" : "Oldest";
+    if (orderBtn) {
+      orderBtn.querySelector(".arrow")!.textContent = arrowChar;
+      orderBtn.childNodes[1].textContent = " " + label;
+    }
+    if (orderBtnBottom) {
+      orderBtnBottom.querySelector(".arrow")!.textContent = arrowChar;
+      orderBtnBottom.childNodes[1].textContent = " " + label;
+    }
 
     // Wire pagination buttons (clone to remove old listeners)
     const prevClone = prevBtn?.cloneNode(true) as HTMLButtonElement;
@@ -651,7 +666,7 @@ export async function renderScheduleDetail(container: HTMLElement, cronId: strin
     </div>
     <div class="card" id="recent-activity-card">
       <div class="card-header">
-        <span class="card-title">Recent Activity</span>
+        <span class="card-title">Activity</span>
         <span class="events-nav" id="schedule-threads-nav">
           <button class="nav-btn" id="threads-prev-page" disabled>← Prev</button>
           <span id="threads-page-info">Page 1</span>
