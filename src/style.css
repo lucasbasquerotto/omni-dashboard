@@ -759,6 +759,25 @@ a.thread-row {
   margin-bottom: 1.5rem;
 }
 
+@media (max-width: 900px) {
+  .page-header {
+    flex-wrap: wrap;
+  }
+  .page-header > div:first-child {
+    width: 100%;
+    margin-bottom: 0.25rem;
+  }
+  .kanban-summary,
+  .page-header > div:last-child {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .kanban-summary > *,
+  .page-header > div:last-child > * {
+    margin-bottom: 0.25rem;
+  }
+}
+
 .page-title {
   font-size: 1.5rem;
   font-weight: 700;
@@ -3799,11 +3818,13 @@ a.thread-row {
 
 @media (max-width: 900px) {
   .settings-card .card-header {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
   }
   .settings-card .card-header .card-title {
-    margin-bottom: 0.375rem;
+    width: 100%;
   }
   .settings-card .card-header .tool-actions {
     flex-wrap: wrap;
@@ -3811,6 +3832,12 @@ a.thread-row {
   }
   .settings-card .card-header .plugin-expand-btn {
     margin-left: auto;
+  }
+  .settings-card .card-header > span:empty {
+    display: none;
+  }
+  .settings-card .card-header .channel-status-badge {
+    margin-left: 0;
   }
 }
 

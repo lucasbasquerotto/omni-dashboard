@@ -59,6 +59,10 @@ function createRouter() {
 
   return {
     go(route: string) {
+      // Scroll to top on navigation
+      window.scrollTo(0, 0);
+      content.scrollTop = 0;
+
       // Check parameterized routes first
       for (const pr of paramRoutes) {
         if (route.startsWith(pr.prefix)) {

@@ -14,7 +14,7 @@ import { escapeHtml } from "../lib/helpers";
 export function renderOverview(container: HTMLElement): void {
   container.innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">Overview Dashboard</h1>
+      <h1 class="page-title">Overview</h1>
       <p class="page-subtitle">System health, activity, and performance at a glance</p>
     </div>
     <div id="dashboard-content"><div class="loading" style="padding:3rem;text-align:center;">Loading dashboard...</div></div>

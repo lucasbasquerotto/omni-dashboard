@@ -37,11 +37,25 @@ const savedConfigs: Map<string, Record<string, any>> = new Map();
 async function loadTools(): Promise<void> {
   const content = document.getElementById("tools-content")!;
   try {
-    const response = await apiGet<any>("/plugins");
+    const [pluginsResponse, toolsResponse] = await Promise.all([
+      apiGet<any>("/plugins"),
+      apiGet<any>("/mcp/tools"),
+    ]);
     // Backend wraps in { success, data } — extract data array
-    const allPlugins: PluginData[] = response.data || response;
+    const allPlugins: PluginData[] = pluginsResponse.data || pluginsResponse;
     // Filter to MCP type plugins
     const mcpPlugins = allPlugins.filter((p: PluginData) => p.plugin_type === "mcp");
+
+    // Build tool map: server_name -> tool names
+    const toolMap: Record<string, string[]> = {};
+    const toolsList: any[] = Array.isArray(toolsResponse)
+      ? toolsResponse
+      : toolsResponse?.tools || toolsResponse?.data || [];
+    for (const t of toolsList) {
+      const server = t.server_name || t.source || "unknown";
+      if (!toolMap[server]) toolMap[server] = [];
+      toolMap[server].push(t.name || t.tool || "?");
+    }
 
     // Build final list: built-in + plugin tools
     const allTools: PluginData[] = [];
@@ -65,27 +79,30 @@ async function loadTools(): Promise<void> {
           },
           config: {},
         });
+        // Built-in tools might have entries in the tool map
+        if (!toolMap[name]) toolMap[name] = [];
       }
     }
 
     // Add plugin-based tools
     allTools.push(...mcpPlugins);
 
-    content.innerHTML = renderToolsPage(allTools);
+    content.innerHTML = renderToolsPage(allTools, toolMap);
     wireTools();
   } catch (e) {
     content.innerHTML = `<div class="error-state" style="padding:3rem;text-align:center;">Failed to load tools: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
   }
 }
 
-function renderToolsPage(tools: PluginData[]): string {
+function renderToolsPage(tools: PluginData[], toolMap: Record<string, string[]>): string {
   if (!tools || tools.length === 0) {
     return '<div class="empty-state">No tools found</div>';
   }
 
   return tools
-    .map(
-      (p) => `
+    .map((p) => {
+      const pluginTools = toolMap[p.name] || [];
+      return `
     <div class="card settings-card${p.source !== "built-in" && p.status === "disabled" ? " plugin-disabled-card" : ""}" data-plugin-name="${escapeHtml(p.name)}">
       <div class="card-header" style="cursor:pointer;">
         <span class="card-title">
@@ -96,17 +113,31 @@ function renderToolsPage(tools: PluginData[]): string {
           <span class="badge ${getStatusBadgeClass(p.status)}">${p.status === "enabled" ? "● Enabled" : p.status === "disabled" ? "○ Disabled" : "● Error"}</span>
           ${p.version ? `<span class="badge badge-info" style="margin-left:0.125rem;">v${escapeHtml(p.version)}</span>` : ""}
           <span class="badge badge-neutral" style="margin-left:0.125rem;">${p.source === "built-in" ? "built-in tool" : `source: ${escapeHtml(p.source)}`}</span>
+          ${pluginTools.length > 0 ? `<span class="badge badge-neutral" style="margin-left:0.125rem;">${pluginTools.length} tool${pluginTools.length > 1 ? "s" : ""}</span>` : ""}
           ${p.status === "enabled" ? `<button type="button" class="plugin-toggle-btn" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);border-radius:6px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.75rem;color:var(--text-secondary);">Disable</button>` : `<button type="button" class="plugin-toggle-btn" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:6px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.75rem;color:#34d399;">Enable</button>`}
           <button type="button" class="plugin-expand-btn" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0.25rem;font-size:1rem;" title="Toggle config">▶</button>
         </span>
       </div>
       <div class="card-body plugin-body" style="display:none;">
         ${renderPluginConfig(p)}
+        ${pluginTools.length > 0 ? renderPluginTools(p.name, pluginTools) : ""}
       </div>
     </div>
-  `,
-    )
+  `;
+    })
     .join("");
+}
+
+function renderPluginTools(pluginName: string, tools: string[]): string {
+  const sorted = [...tools].sort();
+  return `
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--glass-border,rgba(255,255,255,0.06));">
+      <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Tools (${tools.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
+        ${sorted.map((t) => `<code style="font-size:0.75rem;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:4px;padding:0.2rem 0.5rem;color:var(--text-secondary);">${escapeHtml(t)}</code>`).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderPluginConfig(p: PluginData): string {
