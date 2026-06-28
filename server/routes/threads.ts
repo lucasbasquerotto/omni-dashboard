@@ -57,9 +57,12 @@ threadsRouter.get("/", (req: Request, res: Response) => {
         params.push(`%${threadId}%`);
       }
       if (parentId) {
-        // Search for threads whose parent_id matches, OR whose id matches (to show the parent itself)
-        where += ` AND (t.parent_id::text LIKE $${paramIdx++} OR t.id::text LIKE $${paramIdx++})`;
-        params.push(`%${parentId}%`, `%${parentId}%`);
+        const pid = parseInt(parentId, 10);
+        if (!isNaN(pid)) {
+          // Exact match: bring the parent thread itself AND all threads whose parent_id matches
+          where += ` AND (t.id = $${paramIdx++} OR t.parent_id = $${paramIdx++})`;
+          params.push(pid, pid);
+        }
       }
 
       const countSql = `
