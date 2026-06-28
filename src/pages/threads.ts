@@ -25,6 +25,7 @@ interface ThreadRow {
   planning_mode: string;
   cause_msg_type: string | null;
   cause_msg_subtype: string | null;
+  parent_id: number | null;
 }
 
 interface ThreadsResponse {
@@ -45,6 +46,7 @@ let currentOffset = 0;
 let currentStatus = "all";
 let currentCause = "all";
 let currentThreadId = "";
+let currentParentId = "";
 
 // ── URL search param sync ──
 function syncFiltersToUrl(): void {
@@ -52,6 +54,7 @@ function syncFiltersToUrl(): void {
   if (currentStatus !== "all") params.set("status", currentStatus);
   if (currentCause !== "all") params.set("cause", currentCause);
   if (currentThreadId) params.set("thread_id", currentThreadId);
+  if (currentParentId) params.set("parent_id", currentParentId);
   if (currentOffset > 0) params.set("offset", String(currentOffset));
   const qs = params.toString();
   const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
@@ -66,6 +69,8 @@ function applyFiltersFromUrl(): void {
   if (cause) currentCause = cause;
   const threadId = p.get("thread_id");
   if (threadId) currentThreadId = threadId;
+  const parentId = p.get("parent_id");
+  if (parentId) currentParentId = parentId;
   const offset = p.get("offset");
   if (offset) currentOffset = parseInt(offset, 10) || 0;
 }
@@ -152,6 +157,10 @@ export function renderThreads(container: HTMLElement): void {
         <label class="filter-label">Thread ID</label>
         <input class="filter-input" id="filter-thread-id" type="text" placeholder="Thread ID..." />
       </div>
+      <div class="filter-section">
+        <label class="filter-label">Parent ID</label>
+        <input class="filter-input" id="filter-parent-id" type="text" placeholder="Parent ID..." />
+      </div>
       <div class="filter-actions">
         <button class="btn btn-secondary" id="btn-refresh">⟳ Refresh</button>
         <button class="btn btn-secondary" id="btn-reset">✕ Reset</button>
@@ -182,11 +191,14 @@ export function renderThreads(container: HTMLElement): void {
   currentStatus = "all";
   currentCause = "all";
   currentThreadId = "";
+  currentParentId = "";
 
   applyFiltersFromUrl();
 
   const threadInput = document.getElementById("filter-thread-id") as HTMLInputElement | null;
   if (threadInput) threadInput.value = currentThreadId;
+  const parentInput = document.getElementById("filter-parent-id") as HTMLInputElement | null;
+  if (parentInput) parentInput.value = currentParentId;
 
   void loadFilters();
 }
@@ -244,18 +256,27 @@ function wireFilterEvents(): void {
     currentOffset = 0;
     void loadThreads();
   });
+  const parentInput = document.getElementById("filter-parent-id") as HTMLInputElement;
+  parentInput.addEventListener("input", () => {
+    currentParentId = parentInput.value.trim();
+    currentOffset = 0;
+    void loadThreads();
+  });
   document.getElementById("btn-refresh")!.addEventListener("click", () => void loadThreads());
   document.getElementById("btn-reset")!.addEventListener("click", () => {
     currentStatus = "all";
     currentCause = "all";
     currentThreadId = "";
+    currentParentId = "";
     currentOffset = 0;
     const statusSel = document.getElementById("filter-status") as HTMLSelectElement;
     const causeSel = document.getElementById("filter-cause") as HTMLSelectElement;
     const threadInput = document.getElementById("filter-thread-id") as HTMLInputElement;
+    const parentInput = document.getElementById("filter-parent-id") as HTMLInputElement;
     statusSel.value = "all";
     causeSel.value = "all";
     threadInput.value = "";
+    parentInput.value = "";
     syncSelectDisplay("filter-status");
     syncSelectDisplay("filter-cause");
     history.replaceState(null, "", window.location.pathname);
@@ -303,6 +324,7 @@ async function loadThreads(): Promise<void> {
     if (currentStatus !== "all") params.set("status", currentStatus);
     if (currentCause !== "all") params.set("cause", currentCause);
     if (currentThreadId) params.set("thread_id", currentThreadId);
+    if (currentParentId) params.set("parent_id", currentParentId);
 
     const data = await apiGet<ThreadsResponse>(`/threads?${params.toString()}`);
 
@@ -427,7 +449,7 @@ function renderRow(row: ThreadRow): string {
 
   return `
     <a href="${url}" class="thread-row" role="row">
-      <div role="cell"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code></div>
+      <div role="cell"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code>${row.parent_id ? `<br><span style="font-size:0.65rem;color:var(--text-muted);" title="Parent ID">↳ #${escapeHtml(String(row.parent_id))}</span>` : ""}</div>
       <div role="cell"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span>${stopBtn}</div>
       <div role="cell"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></div>
       <div role="cell">${typeStr === "—" ? typeStr : `<span class="event-type-badge" title="Type: ${typeStr}" style="--type-color:${seq0TypeColor(row.cause_msg_type || "")};background:${seq0TypeColor(row.cause_msg_type || "")}22;border-color:${seq0TypeColor(row.cause_msg_type || "")}44;color:${seq0TypeColor(row.cause_msg_type || "")}">${typeStr}</span>`}</div>
@@ -453,7 +475,7 @@ function renderRow(row: ThreadRow): string {
 
 // ── Seq-0 type badge colors ──
 const SEQ0_TYPE_COLORS: Record<string, string> = {
-  user: "#3b82f6",
+  Cause: "#3b82f6",
   cron: "#f59e0b",
   kanban: "#8b5cf6",
   message: "#64748b",
