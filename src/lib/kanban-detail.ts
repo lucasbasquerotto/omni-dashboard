@@ -275,6 +275,18 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
     const task = await apiGet<any>("/kanban/tasks/" + encodeURIComponent(taskId));
     if (subtitle) subtitle.textContent = `Task: ${escapeHtml(task.title)}`;
 
+    // Load channels to resolve channel name
+    let channelName = "";
+    try {
+      const channels = await apiGet<any[]>("/channels");
+      const match = channels.find((ch: any) => String(ch.id) === String(task.channel_id));
+      if (match) {
+        channelName = match.name || match.platform || "";
+      }
+    } catch {
+      // Channel lookup failure — fall back to raw ID
+    }
+
     // Update archive button text
     if (archiveBtn) {
       archiveBtn.textContent = task.archived ? "Unarchive" : "Archive";
@@ -297,7 +309,7 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
         </div>
         <div>
           <div class="detail-label">Channel</div>
-          <div>${task.channel_id ? escapeHtml(task.channel_id) : "<em>None</em>"}</div>
+          <div>${channelName ? escapeHtml(channelName) : task.channel_id ? escapeHtml(String(task.channel_id)) : "<em>None</em>"}</div>
         </div>
         <div>
           <div class="detail-label">Profile</div>
