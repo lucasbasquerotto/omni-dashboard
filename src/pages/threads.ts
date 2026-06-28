@@ -439,6 +439,7 @@ function renderRow(row: ThreadRow): string {
 
   const typeStr = row.cause_msg_type ? escapeHtml(row.cause_msg_type) : "—";
   const subtypeStr = row.cause_msg_subtype ? escapeHtml(row.cause_msg_subtype) : "—";
+  const parentIdStr = row.parent_id ? `<span class="event-type-badge" title="Parent ID: ${escapeHtml(String(row.parent_id))}" style="--type-color:#64748b;background:rgba(100,116,139,0.12);border-color:rgba(100,116,139,0.25);color:#94a3b8;font-size:0.7rem;">Parent: #${escapeHtml(String(row.parent_id))}</span>` : "";
 
   const url = `/messages?thread_id=${escapeHtml(row.id)}`;
 
@@ -449,7 +450,7 @@ function renderRow(row: ThreadRow): string {
 
   return `
     <a href="${url}" class="thread-row" role="row">
-      <div role="cell"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code>${row.parent_id ? `<br><span style="font-size:0.65rem;color:var(--text-muted);" title="Parent ID">↳ #${escapeHtml(String(row.parent_id))}</span>` : ""}</div>
+      <div role="cell"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code>${row.parent_id ? `<br>${parentIdStr}` : ""}</div>
       <div role="cell"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span>${stopBtn}</div>
       <div role="cell"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></div>
       <div role="cell">${typeStr === "—" ? typeStr : `<span class="event-type-badge" title="Type: ${typeStr}" style="--type-color:${seq0TypeColor(row.cause_msg_type || "")};background:${seq0TypeColor(row.cause_msg_type || "")}22;border-color:${seq0TypeColor(row.cause_msg_type || "")}44;color:${seq0TypeColor(row.cause_msg_type || "")}">${typeStr}</span>`}</div>
