@@ -159,9 +159,7 @@ function wireCronButtons(activeOnly: boolean, onStateChange: (active: boolean) =
         }
         const data = await res.json();
         (window as any).showToast?.(
-          data.thread_id != null
-            ? `Job fired — thread #${data.thread_id}`
-            : `Job fired (no thread created)`,
+          data.thread_id != null ? `Job fired — thread #${data.thread_id}` : `Job fired (no thread created)`,
           "success",
         );
       } catch (e) {

@@ -146,7 +146,6 @@ function renderProviderSelect(profileName: string, currentProvider: string): str
       : "") +
     (_providers.length > 0
       ? _providers
-          .filter((p) => !currentInList || p !== currentProvider)
           .map(
             (p) =>
               `<option value="${escapeHtml(p)}" ${p === currentProvider ? "selected" : ""}>${escapeHtml(p)}</option>`,
