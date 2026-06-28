@@ -147,29 +147,6 @@ async function loadKanbanActivity(taskId: string): Promise<void> {
   }
 }
 
-// ── Dependency card helper ──
-
-function renderDependencyCard(dep: any): string {
-  const displayId = dep.display_id || dep.id;
-  const title = escapeHtml(dep.title || "Untitled");
-  const status = dep.status || "backlog";
-  const statusLabel = STATUS_LABELS[status] || status;
-  const statusClass = statusBadge(status);
-  const priorityLabel = dep.priority >= 3 ? "High" : dep.priority >= 1 ? "Med" : "Low";
-  const priorityClass =
-    dep.priority >= 3 ? "badge-error" : dep.priority >= 1 ? "badge-warning" : "badge-neutral";
-  return `
-    <div class="dep-card" data-dep-id="${dep.id}" style="background:rgba(255,255,255,0.04);border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;padding:0.5rem 0.75rem;cursor:pointer;transition:all 0.15s;min-width:180px;max-width:260px;flex:1 1 auto;display:flex;flex-direction:column;gap:0.25rem;" title="${title}">
-      <div style="font-size:0.8rem;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</div>
-      <div style="display:flex;gap:0.35rem;align-items:center;font-size:0.7rem;">
-        <code style="font-size:0.65rem;color:var(--text-muted);">#${displayId}</code>
-        <span class="badge ${statusClass}" style="font-size:0.6rem;padding:0.1rem 0.35rem;">${statusLabel}</span>
-        <span class="badge ${priorityClass}" style="font-size:0.6rem;padding:0.1rem 0.35rem;">${priorityLabel}</span>
-      </div>
-    </div>
-  `;
-}
-
 // ── Channel / Profile population helpers ──
 
 async function populateEditChannelSelect(currentChannelId: string): Promise<void> {
@@ -363,19 +340,6 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
             .join("")}
         </div>
       </div>
-
-      ${
-        task.dependencies && task.dependencies.length > 0
-          ? `
-      <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--glass-border,rgba(255,255,255,0.08));">
-        <div class="detail-label" style="margin-bottom:0.5rem;">Dependencies (${task.dependencies.length})</div>
-        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
-          ${task.dependencies.map((dep: any) => renderDependencyCard(dep)).join("")}
-        </div>
-      </div>
-    `
-          : ""
-      }
     `;
 
     // Wire up detail move buttons
@@ -475,11 +439,106 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
       }
     });
 
+    // ── Render dependencies table ──
+    renderDepsTable(task);
+    wireDepsAdd(taskId);
+    wireDepsRemove(taskId);
+
     // Load activity
     void loadKanbanActivity(taskId);
   } catch (e) {
     el.innerHTML = `<div class="error-state">Failed to load task: ${e instanceof Error ? e.message : "Unknown error"}</div>`;
   }
+}
+
+function renderDepsTable(task: any): void {
+  const tbody = document.getElementById("deps-tbody");
+  const countEl = document.getElementById("deps-count");
+  if (!tbody) return;
+  const deps = task.dependencies || [];
+  if (countEl) countEl.textContent = `${deps.length} dependenc${deps.length === 1 ? "y" : "ies"}`;
+  if (deps.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="5" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.8rem;">No dependencies</td></tr>';
+    return;
+  }
+  tbody.innerHTML = deps
+    .map(
+      (dep: any) =>
+        `<tr data-dep-id="${escapeHtml(dep.id)}" style="border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.06));">
+          <td style="padding:0.4rem 0.5rem;"><code style="font-size:0.75rem;color:var(--accent-cyan);">${escapeHtml(dep.id)}</code></td>
+          <td style="padding:0.4rem 0.5rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary);">${escapeHtml(dep.title || "")}</td>
+          <td style="padding:0.4rem 0.5rem;">${
+            (dep as any).archived
+              ? '<span class="badge badge-neutral" style="font-size:0.7rem;">Archived</span>'
+              : `<span class="badge ${statusBadge(dep.status)}" style="font-size:0.7rem;">${STATUS_LABELS[dep.status] || dep.status}</span>`
+          }</td>
+          <td style="padding:0.4rem 0.5rem;color:var(--text-muted);font-size:0.75rem;">${dep.created_at ? new Date(dep.created_at).toLocaleString() : "-"}</td>
+          <td style="padding:0.4rem 0.5rem;text-align:right;">
+            <button class="dep-remove-btn" data-dep-id="${escapeHtml(dep.id)}" style="background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.2);color:var(--accent-rose);border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.7rem;">Remove</button>
+          </td>
+        </tr>`,
+    )
+    .join("");
+}
+
+function wireDepsAdd(taskId: string): void {
+  const input = document.getElementById("dep-add-input") as HTMLInputElement;
+  const btn = document.getElementById("dep-add-btn");
+  if (!input || !btn) return;
+
+  const handler = async () => {
+    const depId = input.value.trim();
+    if (!depId) return;
+    btn.setAttribute("disabled", "true");
+    const original = (btn as HTMLButtonElement).textContent;
+    (btn as HTMLButtonElement).textContent = "Adding...";
+    try {
+      const res = await fetch(`/api/kanban/tasks/${encodeURIComponent(taskId)}/dependencies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ depends_on_id: depId }),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
+      input.value = "";
+      (window as any).showToast?.("Dependency added", "success");
+      void loadTaskDetail(taskId);
+    } catch (e: any) {
+      (window as any).showToast?.("Failed: " + (e.message || "Unknown"), "error");
+    } finally {
+      (btn as HTMLButtonElement).textContent = original;
+      btn.removeAttribute("disabled");
+    }
+  };
+
+  btn.addEventListener("click", handler);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") void handler();
+  });
+}
+
+function wireDepsRemove(taskId: string): void {
+  document.querySelectorAll(".dep-remove-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const depId = (btn as HTMLElement).getAttribute("data-dep-id");
+      if (!depId) return;
+      if (!confirm(`Remove dependency on "${depId}"?`)) return;
+      try {
+        const res = await fetch(
+          `/api/kanban/tasks/${encodeURIComponent(taskId)}/dependencies/${encodeURIComponent(depId)}`,
+          { method: "DELETE" },
+        );
+        if (!res.ok) throw new Error(await res.text());
+        (window as any).showToast?.("Dependency removed", "success");
+        void loadTaskDetail(taskId);
+      } catch (e: any) {
+        (window as any).showToast?.("Failed: " + (e.message || "Unknown"), "error");
+      }
+    });
+  });
 }
 
 /**
@@ -503,6 +562,34 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
     <div class="card" id="task-detail-card">
       <div class="card-body">
         <div class="loading">Loading task</div>
+      </div>
+    </div>
+    <div class="card" id="kanban-deps-card">
+      <div class="card-header">
+        <span class="card-title">Dependencies</span>
+        <span id="deps-count" style="font-size:0.8rem;color:var(--text-muted);"></span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+          <input type="text" id="dep-add-input" placeholder="Task ID..." style="flex:1;padding:0.375rem 0.625rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.8rem;font-family:monospace;" />
+          <button id="dep-add-btn" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;white-space:nowrap;">+ Add</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table id="deps-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--glass-border);">
+                <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-muted);font-weight:500;">Task ID</th>
+                <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-muted);font-weight:500;">Preview</th>
+                <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-muted);font-weight:500;">Status</th>
+                <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-muted);font-weight:500;">Added</th>
+                <th style="text-align:right;padding:0.4rem 0.5rem;color:var(--text-muted);font-weight:500;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="deps-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.8rem;">No dependencies</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
     <div class="card" id="kanban-activity-card">

@@ -566,6 +566,70 @@ kanbanRouter.get("/tasks/:taskId/threads", async (req: Request, res: Response) =
   }
 });
 
+// ── POST /api/kanban/tasks/:taskId/dependencies — Add a dependency ──
+kanbanRouter.post("/tasks/:taskId/dependencies", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.taskId;
+    const { depends_on_id } = req.body;
+
+    if (!taskId || !depends_on_id) {
+      res.status(400).json({ error: "taskId and depends_on_id are required" });
+      return;
+    }
+
+    // Check that the dependency task exists
+    const depTasks = await queryDb(`SELECT id FROM kanban_tasks WHERE id = $1`, [depends_on_id]);
+    if (depTasks.length === 0) {
+      res.status(404).json({ error: `Dependency task '${depends_on_id}' not found` });
+      return;
+    }
+
+    // Check for circular dependency: if the dependee already depends on taskId
+    const circular = await queryDb(
+      `SELECT id FROM kanban_task_dependencies WHERE task_id = $1 AND depends_on_id = $2`,
+      [depends_on_id, taskId],
+    );
+    if (circular.length > 0) {
+      res.status(400).json({ error: "Circular dependency detected" });
+      return;
+    }
+
+    await queryDb(
+      `INSERT INTO kanban_task_dependencies (task_id, depends_on_id)
+       VALUES ($1, $2)
+       ON CONFLICT (task_id, depends_on_id) DO NOTHING`,
+      [taskId, depends_on_id],
+    );
+
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("Kanban add dependency error:", e?.message || e);
+    res.status(500).json({ error: e.message || "Unknown error" });
+  }
+});
+
+// ── DELETE /api/kanban/tasks/:taskId/dependencies/:depId — Remove a dependency ──
+kanbanRouter.delete("/tasks/:taskId/dependencies/:depId", async (req: Request, res: Response) => {
+  try {
+    const { taskId, depId } = req.params;
+
+    if (!taskId || !depId) {
+      res.status(400).json({ error: "Invalid parameters" });
+      return;
+    }
+
+    await queryDb(`DELETE FROM kanban_task_dependencies WHERE task_id = $1 AND depends_on_id = $2`, [
+      taskId,
+      depId,
+    ]);
+
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("Kanban remove dependency error:", e?.message || e);
+    res.status(500).json({ error: e.message || "Unknown error" });
+  }
+});
+
 // ── GET /api/kanban/history — History log ──
 kanbanRouter.get("/history", async (req: Request, res: Response) => {
   try {
