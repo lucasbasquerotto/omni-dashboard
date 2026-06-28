@@ -214,6 +214,31 @@ Thread rows in the Threads page must be **real `<a>` elements** with `href` attr
 <tr onclick="navigate(...)">...</tr>
 ```
 
+### Skills Must Be Real `<a>` Elements Too
+The same principle applies to skills on the Profiles page. Skills must be rendered as `<a>` tags with real `href` attributes (not `javascript:void(0)`):
+
+```html
+<!-- CORRECT -->
+<a class="channel-tag skill-link" href="/explorer?file=%2Fprofiles%2Fname%2Fskills%2Fname.md">skill-name</a>
+
+<!-- WRONG — do not use -->
+<a class="channel-tag skill-link" href="javascript:void(0)">skill-name</a>
+```
+
+This ensures middle-click opens in a new tab, and the browser shows the target URL on hover.
+
+### Sort Order Button Arrow Alignment
+The `.order-btn .arrow` element (used in Messages, Kanban Task Details, and Schedule Details pages) must have `margin-top: -2px` to vertically center the arrow icon with the label text. This was fixed once before but regressed — ensure it never gets removed:
+
+```css
+.order-btn .arrow {
+  display: inline-block;
+  line-height: 1;
+  vertical-align: middle;
+  margin-top: -2px;  /* REQUIRED: keeps arrow vertically aligned with text */
+}
+```
+
 ### Drag-Drop Overlay
 The global drag-drop overlay (for file uploads) checks for `'Files'` in `dataTransfer.types` to distinguish file drops from internal application drags (e.g., kanban card text/plain drags):
 

@@ -144,8 +144,8 @@ export function renderMessageCard(msg: any): string {
         <span class="agent-badge" title="Role: ${escapeHtml(role)}" style="--agent-color:${rColor};background:${rColor}22;border-color:${rColor}44;color:${rColor}">
           ${escapeHtml(roleDisplayLabel(role))}
         </span>
-        <span class="event-type-badge" title="Status: ${escapeHtml(msg.status || "unknown")}" style="${statusBadgeStyle(msg.status)}">
-          ${escapeHtml(msg.status || "unknown")}
+        <span class="event-type-badge" title="Status: ${escapeHtml(msg.thread_status || msg.status || "unknown")}" style="${statusBadgeStyle(msg.thread_status || msg.status)}">
+          ${escapeHtml(msg.thread_status || msg.status || "unknown")}
         </span>
         ${msg.type ? `<span class="event-type-badge" title="Type: ${escapeHtml(msg.type)}" style="--type-color:${typeColor(msg.type)};background:${typeColor(msg.type)}22;border-color:${typeColor(msg.type)}44;color:${typeColor(msg.type)}">${msg.type}</span>` : ""}
         ${msg.subtype ? `<span class="event-subtype" title="Subtype: ${escapeHtml(msg.subtype)}" style="font-size:0.8rem;color:var(--text-muted);font-style:italic;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${msg.subtype}</span>` : ""}
