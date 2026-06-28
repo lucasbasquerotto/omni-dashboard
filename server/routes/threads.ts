@@ -38,6 +38,7 @@ threadsRouter.get("/", (req: Request, res: Response) => {
       const status = req.query.status as string;
       const cause = req.query.cause as string;
       const threadId = req.query.thread_id as string;
+      const parentId = req.query.parent_id as string;
 
       let where = "WHERE 1=1";
       const params: any[] = [];
@@ -54,6 +55,11 @@ threadsRouter.get("/", (req: Request, res: Response) => {
       if (threadId) {
         where += ` AND t.id::text LIKE $${paramIdx++}`;
         params.push(`%${threadId}%`);
+      }
+      if (parentId) {
+        // Search for threads whose parent_id matches, OR whose id matches (to show the parent itself)
+        where += ` AND (t.parent_id::text LIKE $${paramIdx++} OR t.id::text LIKE $${paramIdx++})`;
+        params.push(`%${parentId}%`, `%${parentId}%`);
       }
 
       const countSql = `
@@ -79,6 +85,7 @@ threadsRouter.get("/", (req: Request, res: Response) => {
           t.started_at,
           t.ended_at,
           t.planning_mode,
+          t.parent_id,
           COALESCE(c.name, 'unknown') as channel_name,
           COALESCE(c.closed, false) as channel_closed,
           (SELECT COUNT(*) FROM messages m WHERE m.thread_id = t.id) as msg_count,
@@ -121,6 +128,7 @@ threadsRouter.get("/", (req: Request, res: Response) => {
         started_at: row.started_at,
         ended_at: row.ended_at,
         planning_mode: row.planning_mode || "",
+        parent_id: row.parent_id || null,
         channel_name: row.channel_name,
         channel_closed: !!row.channel_closed,
         msg_count: row.msg_count || 0,
