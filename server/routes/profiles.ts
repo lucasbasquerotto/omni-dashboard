@@ -154,9 +154,6 @@ function toDisplayNames(tools: string[] | null): string[] {
 /** All known tools in display format (with server:name prefix) */
 const ALL_TOOLS = Object.keys(DISPLAY_TO_RAW).sort();
 
-/** Return raw tool names for matching against config values (used only internally). */
-const ALL_TOOLS_RAW = Object.values(DISPLAY_TO_RAW).sort();
-
 // ── Routes ──
 
 // GET /api/profiles
