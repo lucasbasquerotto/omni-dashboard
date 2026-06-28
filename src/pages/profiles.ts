@@ -96,7 +96,7 @@ function renderProfilesPage(profiles: any[]): string {
         </div>
         <div class="setting-row">
           <div class="setting-controls">
-            <div class="setting-name">Provider</div>
+            <div class="setting-name">Default Provider</div>
             ${renderProviderSelect(p.name, p.provider || "")}
           </div>
         </div>
@@ -136,15 +136,23 @@ function renderProfilesPage(profiles: any[]): string {
 
 function renderProviderSelect(profileName: string, currentProvider: string): string {
   const selectId = `prof-provider-${escapeHtml(profileName)}`;
+  const currentInList = currentProvider && _providers.includes(currentProvider);
   const options =
-    _providers.length > 0
+    '<option value="" ' +
+    (!currentProvider ? "selected" : "") +
+    ">- (Default) -</option>" +
+    (currentProvider && !currentInList
+      ? `<option value="${escapeHtml(currentProvider)}" selected>${escapeHtml(currentProvider)}</option>`
+      : "") +
+    (_providers.length > 0
       ? _providers
+          .filter((p) => !currentInList || p !== currentProvider)
           .map(
             (p) =>
               `<option value="${escapeHtml(p)}" ${p === currentProvider ? "selected" : ""}>${escapeHtml(p)}</option>`,
           )
           .join("")
-      : `<option value="${escapeHtml(currentProvider)}" selected>${escapeHtml(currentProvider || "—")}</option>`;
+      : "");
   return `
     <div style="display:flex;align-items:center;gap:0.375rem;">
       <select id="${selectId}" class="profile-provider-select"
@@ -288,8 +296,27 @@ function renderToolSelect(profileName: string, selected: string[], allTools: str
 }
 
 function wireProfiles(): void {
-  // ── Select edits (profile-provider-select, profile-model-select) ──
-  document.querySelectorAll(".profile-provider-select, .profile-model-select").forEach((el) => {
+  // ── Select edits (profile-provider-select) ──
+  document.querySelectorAll(".profile-provider-select").forEach((el) => {
+    const select = el as HTMLSelectElement;
+    select.addEventListener("change", () => {
+      const profileName = select.getAttribute("data-profile-name");
+      const field = select.getAttribute("data-field");
+      const original = select.getAttribute("data-original") || "";
+      const confirmBtn = document.querySelector(
+        `.profile-edit-confirm[data-profile-name="${profileName}"][data-field="${field}"]`,
+      ) as HTMLElement | null;
+      const cancelBtn = document.querySelector(
+        `.profile-edit-cancel[data-profile-name="${profileName}"][data-field="${field}"]`,
+      ) as HTMLElement | null;
+      const changed = select.value !== original;
+      if (confirmBtn) confirmBtn.style.display = changed ? "inline-flex" : "none";
+      if (cancelBtn) cancelBtn.style.display = changed ? "inline-flex" : "none";
+    });
+  });
+
+  // ── Select edits (profile-model-select) ──
+  document.querySelectorAll(".profile-model-select").forEach((el) => {
     const select = el as HTMLSelectElement;
     select.addEventListener("change", () => {
       const profileName = select.getAttribute("data-profile-name");
@@ -319,13 +346,22 @@ function wireProfiles(): void {
         `prof-model-${escapeHtml(profileName)}`,
       ) as HTMLSelectElement | null;
       if (!modelSelect) return;
+      const prevModel = modelSelect.getAttribute("data-original") || modelSelect.value;
+      const prevModelValid = prevModel && models.includes(prevModel);
       modelSelect.innerHTML =
         models.length > 0
-          ? models.map((m: string) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("")
-          : '<option value="">—</option>';
-      const firstModel = models.length > 0 ? models[0] : "";
-      modelSelect.value = firstModel;
-      modelSelect.setAttribute("data-original", firstModel);
+          ? '<option value="">- (Default) -</option>' +
+            (prevModel && !prevModelValid
+              ? `<option value="${escapeHtml(prevModel)}" selected>${escapeHtml(prevModel)}</option>`
+              : "") +
+            models
+              .filter((m: string) => m !== prevModel || !prevModelValid)
+              .map((m: string) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`)
+              .join("")
+          : '<option value="">- (Default) -</option>';
+      const newVal = prevModelValid ? prevModel : "";
+      modelSelect.value = newVal;
+      modelSelect.setAttribute("data-original", newVal);
       // Re-enhance model select after updating options
       unenhanceSelect(modelSelect.id);
       enhanceSelect(modelSelect.id);
@@ -474,11 +510,11 @@ function wireProfiles(): void {
     btn.addEventListener("click", async () => {
       const profileName = btn.getAttribute("data-profile-name");
       if (!profileName) return;
-      const providerSelect = document.querySelector(
-        `.profile-provider-select[data-profile-name="${profileName}"]`,
-      ) as HTMLSelectElement | null;
-      if (!providerSelect) return;
-      const provider = providerSelect.value;
+      const providerInput = document.querySelector(
+        `.profile-provider-input[data-profile-name="${profileName}"]`,
+      ) as HTMLInputElement | null;
+      if (!providerInput) return;
+      const provider = providerInput.value;
       if (!provider) return;
       const modelSelect = document.getElementById(`prof-model-${profileName}`) as HTMLSelectElement | null;
       if (!modelSelect) return;
