@@ -206,7 +206,7 @@ function renderSkillsList(profileName: string, skills: string[]): string {
     .map((s) => {
       // Strip extension if present, then add .md
       const skillName = s.endsWith(".md") ? s.slice(0, -3) : s;
-      return `<a class="channel-tag skill-link" href="/explorer?file=%2Fprofiles%2F${encodeURIComponent(profileName)}%2Fskills%2F${encodeURIComponent(skillName)}.md" style="text-decoration:none;cursor:pointer;">${escapeHtml(s)}</a>`;
+      return `<a class="channel-tag skill-link" href="/explorer?file=%2Fprofiles%2F${encodeURIComponent(profileName)}%2Fskills%2F${encodeURIComponent(skillName)}.md" data-profile="${escapeHtml(profileName)}" data-skill="${escapeHtml(skillName)}" style="text-decoration:none;cursor:pointer;">${escapeHtml(s)}</a>`;
     })
     .join("")}</div>`;
 }
