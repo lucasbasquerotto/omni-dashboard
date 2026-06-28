@@ -143,11 +143,17 @@ function renderToolsPage(tools: PluginData[], toolMap: Record<string, string[]>)
 function renderPluginTools(pluginName: string, tools: string[]): string {
   // Strip the server/plugin prefix (e.g. "test-python-tool.echo" → "echo")
   // Some servers use "." separator, others use ":" — handle both.
+  // Also try alternate separator variant (hyphens ↔ underscores) in case
+  // the plugin name differs from the MCP server name registered in the tool.
+  const altName1 = pluginName.replace(/_/g, "-");
+  const altName2 = pluginName.replace(/-/g, "_");
   const stripPrefix = (tool: string): string => {
-    const dotPrefix = pluginName + ".";
-    const colonPrefix = pluginName + ":";
-    if (tool.startsWith(dotPrefix)) return tool.slice(dotPrefix.length);
-    if (tool.startsWith(colonPrefix)) return tool.slice(colonPrefix.length);
+    for (const name of new Set([pluginName, altName1, altName2])) {
+      const dotPrefix = name + ".";
+      if (tool.startsWith(dotPrefix)) return tool.slice(dotPrefix.length);
+      const colonPrefix = name + ":";
+      if (tool.startsWith(colonPrefix)) return tool.slice(colonPrefix.length);
+    }
     return tool;
   };
   const sorted = [...tools].sort();
