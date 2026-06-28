@@ -94,6 +94,18 @@ async function loadTools(): Promise<void> {
   }
 }
 
+function getPluginTools(p: PluginData, toolMap: Record<string, string[]>): string[] {
+  const exact = toolMap[p.name];
+  if (exact) return exact;
+  // Try alternative hyphenated/underscored name (plugin names sometimes differ from server names)
+  const altName = p.name.includes("_") ? p.name.replace(/_/g, "-") : p.name.replace(/-/g, "_");
+  if (altName !== p.name) {
+    const alt = toolMap[altName];
+    if (alt) return alt;
+  }
+  return [];
+}
+
 function renderToolsPage(tools: PluginData[], toolMap: Record<string, string[]>): string {
   if (!tools || tools.length === 0) {
     return '<div class="empty-state">No tools found</div>';
@@ -101,7 +113,7 @@ function renderToolsPage(tools: PluginData[], toolMap: Record<string, string[]>)
 
   return tools
     .map((p) => {
-      const pluginTools = toolMap[p.name] || [];
+      const pluginTools = getPluginTools(p, toolMap);
       return `
     <div class="card settings-card${p.source !== "built-in" && p.status === "disabled" ? " plugin-disabled-card" : ""}" data-plugin-name="${escapeHtml(p.name)}">
       <div class="card-header" style="cursor:pointer;">
@@ -129,12 +141,21 @@ function renderToolsPage(tools: PluginData[], toolMap: Record<string, string[]>)
 }
 
 function renderPluginTools(pluginName: string, tools: string[]): string {
+  // Strip the server/plugin prefix (e.g. "test-python-tool.echo" → "echo")
+  // Some servers use "." separator, others use ":" — handle both.
+  const stripPrefix = (tool: string): string => {
+    const dotPrefix = pluginName + ".";
+    const colonPrefix = pluginName + ":";
+    if (tool.startsWith(dotPrefix)) return tool.slice(dotPrefix.length);
+    if (tool.startsWith(colonPrefix)) return tool.slice(colonPrefix.length);
+    return tool;
+  };
   const sorted = [...tools].sort();
   return `
     <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--glass-border,rgba(255,255,255,0.06));">
       <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Tools (${tools.length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
-        ${sorted.map((t) => `<code style="font-size:0.75rem;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:4px;padding:0.2rem 0.5rem;color:var(--text-secondary);">${escapeHtml(t)}</code>`).join("")}
+        ${sorted.map((t) => `<code style="font-size:0.75rem;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:4px;padding:0.2rem 0.5rem;color:var(--text-secondary);">${escapeHtml(stripPrefix(t))}</code>`).join("")}
       </div>
     </div>
   `;

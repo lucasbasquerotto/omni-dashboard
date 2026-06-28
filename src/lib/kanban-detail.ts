@@ -147,6 +147,29 @@ async function loadKanbanActivity(taskId: string): Promise<void> {
   }
 }
 
+// ── Dependency card helper ──
+
+function renderDependencyCard(dep: any): string {
+  const displayId = dep.display_id || dep.id;
+  const title = escapeHtml(dep.title || "Untitled");
+  const status = dep.status || "backlog";
+  const statusLabel = STATUS_LABELS[status] || status;
+  const statusClass = statusBadge(status);
+  const priorityLabel = dep.priority >= 3 ? "High" : dep.priority >= 1 ? "Med" : "Low";
+  const priorityClass =
+    dep.priority >= 3 ? "badge-error" : dep.priority >= 1 ? "badge-warning" : "badge-neutral";
+  return `
+    <div class="dep-card" data-dep-id="${dep.id}" style="background:rgba(255,255,255,0.04);border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;padding:0.5rem 0.75rem;cursor:pointer;transition:all 0.15s;min-width:180px;max-width:260px;flex:1 1 auto;display:flex;flex-direction:column;gap:0.25rem;" title="${title}">
+      <div style="font-size:0.8rem;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</div>
+      <div style="display:flex;gap:0.35rem;align-items:center;font-size:0.7rem;">
+        <code style="font-size:0.65rem;color:var(--text-muted);">#${displayId}</code>
+        <span class="badge ${statusClass}" style="font-size:0.6rem;padding:0.1rem 0.35rem;">${statusLabel}</span>
+        <span class="badge ${priorityClass}" style="font-size:0.6rem;padding:0.1rem 0.35rem;">${priorityLabel}</span>
+      </div>
+    </div>
+  `;
+}
+
 // ── Channel / Profile population helpers ──
 
 async function populateEditChannelSelect(currentChannelId: string): Promise<void> {
@@ -340,6 +363,19 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
             .join("")}
         </div>
       </div>
+
+      ${
+        task.dependencies && task.dependencies.length > 0
+          ? `
+      <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--glass-border,rgba(255,255,255,0.08));">
+        <div class="detail-label" style="margin-bottom:0.5rem;">Dependencies (${task.dependencies.length})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+          ${task.dependencies.map((dep: any) => renderDependencyCard(dep)).join("")}
+        </div>
+      </div>
+    `
+          : ""
+      }
     `;
 
     // Wire up detail move buttons
@@ -349,6 +385,17 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
         if (!status) return;
         await moveTask(taskId, status);
         void loadTaskDetail(taskId);
+      });
+    });
+
+    // Wire up dep-card click handlers
+    el.querySelectorAll(".dep-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const depId = (card as HTMLElement).getAttribute("data-dep-id");
+        if (!depId) return;
+        const url = `/kanban-detail?task_id=${encodeURIComponent(depId)}`;
+        history.pushState({}, "", url);
+        void loadTaskDetail(depId);
       });
     });
 

@@ -1,6 +1,7 @@
 import { apiGet, apiPost } from "../lib/api";
 import { enhanceSelect, unenhanceSelect } from "../lib/dropdown";
 import { escapeHtml } from "../lib/helpers";
+import { router } from "../lib/router";
 
 // ── Cached provider/model data ──
 let _providers: string[] = [];
@@ -123,7 +124,7 @@ function renderProfilesPage(profiles: any[]): string {
             <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.5rem;">
               Skills are stored on the filesystem at <code>profiles/${escapeHtml(p.name)}/skills/</code>. Add or remove files there to manage skills.
             </div>
-            ${renderSkillsList(p.skills)}
+            ${renderSkillsList(p.name, p.skills)}
           </div>
         </div>
       </div>
@@ -197,12 +198,16 @@ function renderModelSelect(profileName: string, currentProvider: string, current
   `;
 }
 
-function renderSkillsList(skills: string[]): string {
+function renderSkillsList(profileName: string, skills: string[]): string {
   if (!skills || skills.length === 0) {
     return '<span class="text-muted" style="font-size:0.85rem;">No skills found on filesystem</span>';
   }
   return `<div class="channel-tag-list">${skills
-    .map((s) => `<span class="channel-tag">${escapeHtml(s)}</span>`)
+    .map((s) => {
+      // Strip extension if present, then add .md
+      const skillName = s.endsWith(".md") ? s.slice(0, -3) : s;
+      return `<a class="channel-tag skill-link" href="/explorer?file=%2Fprofiles%2F${encodeURIComponent(profileName)}%2Fskills%2F${encodeURIComponent(skillName)}.md" style="text-decoration:none;cursor:pointer;">${escapeHtml(s)}</a>`;
+    })
     .join("")}</div>`;
 }
 
@@ -740,3 +745,19 @@ function toolsetChipStyle(state: "full" | "partial" | "none"): string {
   const c = toolsetChipColors(state);
   return "background:" + c.background + ";border:" + c.border + ";color:" + c.color + ";";
 }
+
+// ── Skill links → Explorer ──
+document.addEventListener("click", (e) => {
+  const link = (e.target as HTMLElement)?.closest(".skill-link") as HTMLElement | null;
+  if (!link) return;
+  e.preventDefault();
+  const profile = link.getAttribute("data-profile");
+  const skill = link.getAttribute("data-skill");
+  if (!profile || !skill) return;
+  const filePath = `/profiles/${encodeURIComponent(profile)}/skills/${encodeURIComponent(skill)}`;
+  // Set the URL parameter and navigate to explorer
+  const url = new URL(location.href);
+  url.searchParams.set("file", filePath);
+  history.pushState(null, "", url.pathname + url.search);
+  router.go("explorer");
+});

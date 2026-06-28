@@ -63,7 +63,19 @@ kanbanRouter.get("/tasks/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    res.json(tasks[0]);
+    const task = tasks[0];
+
+    // ── Fetch dependencies ──
+    const dependencies = await queryDb(
+      `SELECT d.depends_on_id AS id, t.title, t.status, t.priority, d.created_at
+       FROM kanban_task_dependencies d
+       JOIN kanban_tasks t ON t.id = d.depends_on_id
+       WHERE d.task_id = $1
+       ORDER BY t.priority ASC, t.created_at DESC`,
+      [taskId],
+    );
+
+    res.json({ ...task, dependencies });
   } catch (e: any) {
     console.error("Kanban task detail error:", e?.message || e);
     res.status(500).json({ error: e.message || "Unknown error" });
@@ -494,7 +506,8 @@ kanbanRouter.delete("/tasks/:id", async (req: Request, res: Response) => {
       [taskId, "deleted", JSON.stringify(previousValues)],
     );
 
-    // Clear FK references in related tables before deleting
+    // Clear dependencies and FK references in related tables before deleting
+    await queryDb(`DELETE FROM kanban_task_dependencies WHERE task_id = $1 OR depends_on_id = $1`, [taskId]);
     await queryDb(`UPDATE threads SET task_id = NULL WHERE task_id = $1`, [taskId]);
 
     const result = await queryDb(`DELETE FROM kanban_tasks WHERE id = $1 RETURNING id`, [taskId]);
