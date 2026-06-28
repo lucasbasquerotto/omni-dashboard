@@ -653,8 +653,10 @@ export async function renderScheduleDetail(container: HTMLElement, cronId: strin
         <h1 class="page-title">Schedule Details</h1>
         <p class="page-subtitle" id="detail-subtitle">Job: ${escapeHtml(cronId)}</p>
       </div>
-      <div style="display:flex;gap:0.5rem;">
-        <button id="detail-edit-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;">Edit</button>
+      <div id="detail-action-buttons" style="display:flex;gap:0.5rem;">
+        <button id="detail-run-btn" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:var(--accent-green,#10b981);border-radius:4px;padding:0.3rem 0.6rem;cursor:pointer;font-size:0.78rem;line-height:1.4;font-weight:500;">Run</button>
+        <button id="detail-toggle-active" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);border-radius:4px;padding:0.3rem 0.6rem;cursor:pointer;font-size:0.78rem;line-height:1.4;font-weight:500;color:var(--text-secondary);">—</button>
+        <button id="detail-edit-btn" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:var(--accent-purple);border-radius:4px;padding:0.3rem 0.6rem;cursor:pointer;font-size:0.78rem;line-height:1.4;font-weight:500;">Edit</button>
         <a href="/schedule" class="back-link" id="back-to-schedule" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:var(--accent-cyan);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.85rem;text-decoration:none;">← Back to Schedules</a>
       </div>
     </div>
@@ -696,6 +698,80 @@ export async function renderScheduleDetail(container: HTMLElement, cronId: strin
   });
 
   const job = await loadScheduleDetail(cronId);
+
+  // Update the toggle button text once we know the job state
+  const toggleBtn = document.getElementById("detail-toggle-active") as HTMLButtonElement | null;
+  if (toggleBtn && job) {
+    toggleBtn.textContent = job.active ? "Deactivate" : "Activate";
+  }
+
+  // ── Run button ──
+  document.getElementById("detail-run-btn")?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const runBtn = e.currentTarget as HTMLButtonElement;
+    if (!job) return;
+    const originalText = runBtn.textContent;
+    runBtn.disabled = true;
+    runBtn.textContent = "Running...";
+
+    let force = false;
+    if (!job.active) {
+      if (!confirm(`Job "${job.name}" is inactive. Run anyway?`)) {
+        runBtn.disabled = false;
+        runBtn.textContent = originalText;
+        return;
+      }
+      force = true;
+    }
+
+    try {
+      const res = await fetch(`/api/schedule/${encodeURIComponent(job.id)}/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force }),
+      });
+      if (!res.ok) {
+        const errData = await res.text();
+        throw new Error(errData);
+      }
+      const data = await res.json();
+      (window as any).showToast?.(
+        data.thread_id != null ? `Job fired — thread #${data.thread_id}` : "Job fired (no thread created)",
+        "success",
+      );
+    } catch (err) {
+      (window as any).showToast?.("Failed: " + (err instanceof Error ? err.message : "Unknown"), "error");
+    } finally {
+      runBtn.disabled = false;
+      runBtn.textContent = originalText;
+    }
+  });
+
+  // ── Activate / Deactivate button ──
+  document.getElementById("detail-toggle-active")?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!job) return;
+    const btn = e.currentTarget as HTMLButtonElement;
+    const isActive = btn.textContent === "Activate";
+    try {
+      const res = await fetch(`/api/schedule/${encodeURIComponent(job.id)}/toggle`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: isActive }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      (window as any).showToast?.(isActive ? "Activated" : "Deactivated", "success");
+      // Re-render the detail page with fresh data
+      const freshJob = await loadScheduleDetail(cronId);
+      if (freshJob) {
+        btn.textContent = freshJob.active ? "Deactivate" : "Activate";
+        void loadScheduleThreads(freshJob.id);
+      }
+    } catch (err) {
+      (window as any).showToast?.("Failed: " + (err instanceof Error ? err.message : "Unknown"), "error");
+    }
+  });
+
   document.getElementById("detail-edit-btn")?.addEventListener("click", () =>
     showCronModal(job, () => {
       /* no-op on detail page */
