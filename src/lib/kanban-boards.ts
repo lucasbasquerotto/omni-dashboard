@@ -11,8 +11,10 @@ import {
   apiDelete,
   apiGet,
   apiPut,
+  fetchWorkflows,
   type BoardConfig,
   type BoardEntry,
+  type WorkflowEntry,
 } from "./api";
 import { escapeHtml } from "./helpers";
 
@@ -54,6 +56,37 @@ export function nextBoardOptions(boards: BoardEntry[], current: string | null): 
 /** Move-button gating: enabled only when a board is actually selected. */
 export function boardMoveEnabled(selection: string | null | undefined): boolean {
   return !!selection && selection.trim() !== "";
+}
+
+// ── Workflow select helpers (pure, unit-testable) ──
+
+/**
+ * The <option> entries for a board's workflow field. Values are the keys
+ * of workflows.yml; "" means "(none)". When `workflows` is empty the list
+ * contains only the "(none)" option (the field is effectively read-only).
+ */
+export function workflowSelectOptions(
+  workflows: WorkflowEntry[],
+  current?: string | null,
+): { value: string; label: string; selected: boolean }[] {
+  const options: { value: string; label: string; selected: boolean }[] = [
+    { value: "", label: "(none)", selected: !current },
+  ];
+  for (const w of workflows) {
+    options.push({ value: w.key, label: w.key, selected: w.key === current });
+  }
+  return options;
+}
+
+/**
+ * Muted "workflow: X · channel: Y" summary of a board's meta fields.
+ * Only fields that exist are included; empty string when none are set.
+ */
+export function boardMetaLabel(board: BoardConfig): string {
+  const parts: string[] = [];
+  if (board.workflow) parts.push(`workflow: ${board.workflow}`);
+  if (board.channel) parts.push(`channel: ${board.channel}`);
+  return parts.join(" · ");
 }
 
 // ── API wrappers ──
@@ -118,19 +151,40 @@ function readBoardForm(): { key: string; board: BoardConfig } {
 }
 
 /**
+ * HTML for the board workflow <select>. Values are workflows.yml keys
+ * ("" = none); when no workflows exist the select is disabled (read-only).
+ */
+export function renderWorkflowSelect(workflows: WorkflowEntry[], current?: string | null): string {
+  const options = workflowSelectOptions(workflows, current)
+    .map(
+      (o) =>
+        `<option value="${escapeHtml(o.value)}"${o.selected ? " selected" : ""}>${escapeHtml(o.label)}</option>`,
+    )
+    .join("");
+  return `<select id="board-form-workflow" style="${inputStyle}"${workflows.length === 0 ? " disabled" : ""}>
+    ${options}
+  </select>`;
+}
+
+/**
  * Open the create/edit board modal. `mode === "edit"` requires `boardKey`
  * and adds a delete option (with confirmation that the board's tasks will
  * be deleted). `onDone` fires after any successful save/delete.
+ *
+ * The workflow field is a <select> populated from workflows.yml (keys of
+ * the file); the board's saved workflow is pre-selected.
  */
-export function openBoardModal(
+export async function openBoardModal(
   mode: "create" | "edit",
   boardKey: string | null,
   boards: BoardEntry[],
   onDone: () => void,
-): void {
+): Promise<void> {
   document.getElementById("board-modal")?.remove();
   const existing = boards.find((b) => b.key === boardKey);
   const b = existing?.board ?? {};
+  // Workflow options come from workflows.yml; empty file ⇒ single "(none)" option.
+  const workflows = await fetchWorkflows();
   const modal = document.createElement("div");
   modal.id = "board-modal";
   modal.style.cssText =
@@ -142,7 +196,7 @@ export function openBoardModal(
         ${fieldRow("board-form-key", "Name *", `<input type="text" id="board-form-key" value="${escapeHtml(boardKey ?? "")}" ${mode === "edit" ? "disabled" : ""} style="${inputStyle}" />`, "Board name (key). Tasks reference it via the task's board field.")}
         ${fieldRow("board-form-channel", "Channel", `<input type="text" id="board-form-channel" value="${escapeHtml(b.channel ?? "")}" style="${inputStyle}" />`, "Channel name or id — fallback for tasks on this board.")}
         ${fieldRow("board-form-profile", "Profile", `<input type="text" id="board-form-profile" value="${escapeHtml(b.profile ?? "")}" style="${inputStyle}" />`)}
-        ${fieldRow("board-form-workflow", "Workflow", `<input type="text" id="board-form-workflow" value="${escapeHtml(b.workflow ?? "")}" style="${inputStyle}" />`, "Used when the task itself does not set a workflow.")}
+        ${fieldRow("board-form-workflow", "Workflow", renderWorkflowSelect(workflows, b.workflow), "Used when the task itself does not set a workflow.")}
         ${fieldRow(
           "board-form-plan",
           "Plan mode",
@@ -251,6 +305,10 @@ export async function wireBoardControls(opts: {
     container.innerHTML = "";
     return;
   }
+  const currentMeta = opts.currentBoard
+    ? boards.find((b) => b.key === opts.currentBoard)?.board
+    : undefined;
+  const metaLabel = currentMeta ? boardMetaLabel(currentMeta) : "";
   container.innerHTML = `
     <select id="kanban-board-select" title="Filter by board" style="background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);color:inherit;border-radius:6px;padding:0.375rem 0.5rem;font-size:0.8rem;cursor:pointer;">
       <option value="">No board</option>
@@ -261,6 +319,11 @@ export async function wireBoardControls(opts: {
         )
         .join("")}
     </select>
+    ${
+      metaLabel
+        ? `<span id="kanban-board-meta" style="color:var(--text-muted);font-size:0.75rem;margin-left:0.5rem;">${escapeHtml(metaLabel)}</span>`
+        : ""
+    }
     <button id="kanban-create-board-btn" title="Create a new board" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.625rem;cursor:pointer;font-size:0.78rem;font-weight:500;white-space:nowrap;">+ New Board</button>
     <button id="kanban-edit-board-btn" title="Edit the current board" style="display:${opts.currentBoard ? "inline-block" : "none"};background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.625rem;cursor:pointer;font-size:0.78rem;white-space:nowrap;">Edit Board</button>
   `;
@@ -273,7 +336,7 @@ export async function wireBoardControls(opts: {
   });
 
   document.getElementById("kanban-create-board-btn")?.addEventListener("click", () => {
-    openBoardModal("create", null, boards, () => {
+    void openBoardModal("create", null, boards, () => {
       void wireBoardControls(opts);
       opts.onBoardsChanged();
     });
@@ -282,7 +345,7 @@ export async function wireBoardControls(opts: {
   const editBtn = document.getElementById("kanban-edit-board-btn");
   editBtn?.addEventListener("click", () => {
     if (!opts.currentBoard) return;
-    openBoardModal("edit", opts.currentBoard, boards, () => {
+    void openBoardModal("edit", opts.currentBoard, boards, () => {
       void wireBoardControls(opts);
       opts.onBoardsChanged();
     });

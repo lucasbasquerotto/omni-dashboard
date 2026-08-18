@@ -3,7 +3,7 @@
  * Extracted from src/pages/kanban.ts
  */
 import { apiGet, type KanbanBoardResponse, type KanbanTask } from "./api";
-import { fetchBoards, setStoredBoard } from "./kanban-boards";
+import { boardMetaLabel, fetchBoards, setStoredBoard } from "./kanban-boards";
 import { formatApiError } from "../lib/helpers";
 
 // ── Status labels used across kanban modules ──
@@ -154,10 +154,14 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
             <div style="font-size:1.05rem;margin-bottom:0.75rem;color:var(--text-primary);">Select a board to view its tasks</div>
             <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;">
               ${boards
-                .map(
-                  (b) =>
-                    `<button class="board-choice-btn" data-board="${escapeHtml(b.key)}" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.85rem;">${escapeHtml(b.key)}</button>`,
-                )
+                .map((b) => {
+                  const meta = boardMetaLabel(b.board);
+                  return `<button class="board-choice-btn" data-board="${escapeHtml(b.key)}" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.85rem;">${escapeHtml(b.key)}${
+                    meta
+                      ? `<div style="font-size:0.7rem;color:var(--text-muted);font-weight:400;margin-top:0.25rem;">${escapeHtml(meta)}</div>`
+                      : ""
+                  }</button>`;
+                })
                 .join("")}
             </div>
             <div style="color:var(--text-muted);font-size:0.8rem;margin-top:0.75rem;">…or create a new board with the “+ New Board” button above.</div>
