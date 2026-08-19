@@ -121,7 +121,7 @@ export async function loadScheduleDetail(cronId: string): Promise<any> {
           </div>
           <div style="margin-bottom:0.75rem;">
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Schedule</div>
-            <code style="background:var(--bg-card);padding:0.25rem 0.5rem;border-radius:4px;font-size:0.8rem;color:var(--accent-cyan);">${escapeHtml(job.schedule)}</code>
+            <code style="background:var(--bg-card);padding:0.25rem 0.5rem;border-radius:4px;font-size:0.8rem;color:var(--accent-cyan);">${escapeHtml(job.cron)}</code>
           </div>
           <div style="margin-bottom:0.75rem;">
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Mode</div>
@@ -144,7 +144,7 @@ export async function loadScheduleDetail(cronId: string): Promise<any> {
           </div>
           <div style="margin-bottom:0.75rem;">
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Channel</div>
-            <div style="color:var(--text-primary);">${job.channel_name ? escapeHtml(job.channel_name) : job.channel_id ? `#${job.channel_id}` : "-"}</div>
+            <div style="color:var(--text-primary);">${job.channel ? escapeHtml(String(job.channel)) : "-"}</div>
           </div>
         </div>
         <div>
@@ -412,7 +412,7 @@ export async function showCronModal(job: Record<string, unknown>, onReload: () =
             <label style="font-size:0.8rem;color:var(--text-muted);">Schedule (cron expression)</label>
             <button id="cron-help-btn" type="button" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.7rem;padding:0;line-height:1;width:14px;height:14px;border-radius:50%;border:1px solid var(--text-muted);display:inline-flex;align-items:center;justify-content:center;" title="Cron format help">?</button>
           </div>
-          <input id="cron-schedule" type="text" class="filter-input" value="${isEdit ? escapeHtml((job as any).schedule) : "0 0 * * *"}" style="width:100%;font-family:monospace;" />
+          <input id="cron-schedule" type="text" class="filter-input" value="${isEdit ? escapeHtml((job as any).cron) : "0 0 * * *"}" style="width:100%;font-family:monospace;" />
           <div id="cron-help-box" style="display:none;margin-top:0.5rem;padding:0.75rem;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;font-size:0.78rem;color:var(--text-secondary);line-height:1.6;">
             <div style="margin-bottom:0.5rem;padding:0.375rem 0.5rem;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);border-radius:4px;color:var(--accent-purple);font-size:0.75rem;">
               ⚡ <strong>5-field format (no seconds field)</strong>: the system auto-prepends <code style="background:rgba(0,0,0,0.2);padding:0.125rem 0.25rem;border-radius:3px;">0</code> (second=0) internally. Do <em>not</em> include a seconds field.
@@ -433,7 +433,7 @@ export async function showCronModal(job: Record<string, unknown>, onReload: () =
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Channel</label>
           <select id="cron-channel" class="filter-select" style="width:100%;">
             <option value="">- (Default cron channel)</option>
-            ${channels.map((ch: { id: string; name: string; platform: string }) => `<option value="${ch.id}" ${isEdit && job.channel_id === ch.id ? "selected" : ""}>${escapeHtml(ch.name)} (${escapeHtml(ch.platform || "")})</option>`).join("")}
+            ${channels.map((ch: { id: string; name: string; platform: string }) => `<option value="${ch.id}" ${isEdit && job.channel === ch.id ? "selected" : ""}>${escapeHtml(ch.name)} (${escapeHtml(ch.platform || "")})</option>`).join("")}
           </select>
         </div>
         <div style="margin-bottom:1rem;">
@@ -554,7 +554,7 @@ export async function showCronModal(job: Record<string, unknown>, onReload: () =
     const active = (modal.querySelector("#cron-active") as HTMLInputElement).checked;
     const silent = (document.getElementById("cron-silent") as HTMLInputElement).checked;
     const template = (modal.querySelector("#cron-instruction-file") as HTMLSelectElement).value;
-    const channel_id = channelVal || null;
+    const channel = channelVal || null;
 
     if (!display_name) {
       showToast("Display Name is required", "error");
@@ -596,7 +596,7 @@ export async function showCronModal(job: Record<string, unknown>, onReload: () =
         schedule,
         prompt,
         active,
-        channel_id,
+        channel,
         profile,
         mode,
         silent,

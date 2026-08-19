@@ -136,19 +136,19 @@ export function renderChannelsPage(channels: ChannelData[], defaultProfile: stri
         <div class="setting-row">
           <div class="setting-controls">
             <div class="setting-name">Profile</div>
-            ${renderProfileSelect(ch.id, ch.current_profile || defaultProfile)}
+            ${renderProfileSelect(ch.id, ch.profile || defaultProfile)}
           </div>
         </div>
         <div class="setting-row">
           <div class="setting-controls">
             <div class="setting-name">Provider</div>
-            ${renderProviderSelect(ch.id, ch.current_provider || "default")}
+            ${renderProviderSelect(ch.id, ch.provider || "default")}
           </div>
         </div>
         <div class="setting-row">
           <div class="setting-controls">
             <div class="setting-name">Model</div>
-            ${renderModelSelect(ch.id, ch.current_provider || "default", ch.current_model || "")}
+            ${renderModelSelect(ch.id, ch.provider || "default", ch.model || "")}
           </div>
         </div>
         <div class="setting-row">

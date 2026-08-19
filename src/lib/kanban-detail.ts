@@ -148,12 +148,12 @@ async function populateEditChannelSelect(currentChannelId: string): Promise<void
       name?: string;
       id?: string;
       platform?: string;
-      channel_id?: string;
+      channel?: string;
     }[];
     select.innerHTML = '<option value="">None</option>';
     for (const ch of channels) {
       const opt = document.createElement("option");
-      opt.value = ch.id || ch.name || ch.channel_id || "";
+      opt.value = ch.id || ch.name || "";
       opt.textContent = ch.name || ch.id || "";
       if (opt.value === currentChannelId) {
         opt.selected = true;
@@ -276,7 +276,7 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
     try {
       const channels = (await apiGet("/channels")) as { id: string; name?: string; platform?: string }[];
       const match = channels.find(
-        (ch: { id: string; platform?: string }) => String(ch.id) === String(task.channel_id),
+        (ch: { id: string; platform?: string }) => String(ch.id) === String(task.channel),
       );
       if (match) {
         channelName = match.name || match.platform || "";
@@ -307,7 +307,7 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
         </div>
         <div>
           <div class="detail-label">Channel</div>
-          <div>${channelName ? escapeHtml(channelName) : task.channel_id ? escapeHtml(String(task.channel_id)) : "<em>None</em>"}</div>
+          <div>${channelName ? escapeHtml(channelName) : task.channel ? escapeHtml(String(task.channel)) : "<em>None</em>"}</div>
         </div>
         <div>
           <div class="detail-label">Profile</div>
@@ -436,7 +436,7 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
         syncSelectDisplay("task-edit-priority");
         syncSelectDisplay("task-edit-status");
 
-        await populateEditChannelSelect(task.channel_id || "");
+        await populateEditChannelSelect(task.channel || "");
         await populateProfileSelect("task-edit-profile", task.profile || "");
         const planSelect = document.getElementById("task-edit-plan") as HTMLSelectElement;
         if (planSelect) {
@@ -466,7 +466,7 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
         (document.getElementById("task-edit-priority") as HTMLSelectElement)?.value || "0",
       );
       const status = (document.getElementById("task-edit-status") as HTMLSelectElement)?.value || "backlog";
-      const channel_id =
+      const channel =
         (document.getElementById("task-edit-channel") as HTMLSelectElement)?.value || undefined;
       const profile = (document.getElementById("task-edit-profile") as HTMLSelectElement)?.value || undefined;
       const template =
@@ -479,7 +479,7 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
           body,
           priority,
           status,
-          channel_id,
+          channel,
           profile,
           template,
         };

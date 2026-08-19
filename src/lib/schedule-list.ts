@@ -55,7 +55,7 @@ export async function loadCronJobs(
                 (j: Record<string, any>) => `
               <tr data-cron-id="${escapeHtml(j.id)}">
                 <td style="color:var(--text-primary);font-weight:500;">${escapeHtml(j.name || j.id)}</td>
-                <td><code style="background:var(--bg-card);padding:0.125rem 0.375rem;border-radius:3px;font-size:0.75rem;">${escapeHtml(j.schedule)}</code></td>
+                <td><code style="background:var(--bg-card);padding:0.125rem 0.375rem;border-radius:3px;font-size:0.75rem;">${escapeHtml(j.cron)}</code></td>
                 <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:0.8rem;">
                   ${
                     j.mode === "action"
@@ -63,7 +63,7 @@ export async function loadCronJobs(
                       : escapeHtml(j.prompt_preview || "")
                   }
                 </td>
-                <td style="font-size:0.8rem;color:var(--text-muted);">${j.channel_name ? escapeHtml(j.channel_name) : j.channel_id ? `#${j.channel_id}` : "-"}</td>
+                <td style="font-size:0.8rem;color:var(--text-muted);">${j.channel ? escapeHtml(String(j.channel)) : "-"}</td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${j.profile ? escapeHtml(j.profile) : "-"}</td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${formatDate(j.last_run)}</td>
                 <td>

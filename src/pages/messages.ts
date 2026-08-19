@@ -5,7 +5,7 @@ import { escapeHtml, formatApiError } from "../lib/helpers";
 
 // ── State ──
 interface FilterState {
-  channel_id: string;
+  channel: string;
   thread_id: string;
   role: string;
   provider: string;
@@ -16,7 +16,7 @@ interface FilterState {
 }
 
 let currentFilters: FilterState = {
-  channel_id: "all",
+  channel: "all",
   thread_id: "",
   role: "all",
   provider: "all",
@@ -38,7 +38,7 @@ let orderBy: "desc" | "asc" = "desc";
 // ── URL search param sync ──
 function syncFiltersToUrl(): void {
   const params = new URLSearchParams();
-  if (currentFilters.channel_id !== "all") params.set("channel_id", currentFilters.channel_id);
+  if (currentFilters.channel !== "all") params.set("channel", currentFilters.channel);
   if (currentFilters.thread_id) params.set("thread_id", currentFilters.thread_id);
   if (currentFilters.role !== "all") params.set("role", currentFilters.role);
   if (currentFilters.provider !== "all") params.set("provider", currentFilters.provider);
@@ -57,8 +57,8 @@ function syncFiltersToUrl(): void {
 
 function applyFiltersFromUrl(): void {
   const p = new URLSearchParams(window.location.search);
-  const channelId = p.get("channel_id");
-  if (channelId) currentFilters.channel_id = channelId;
+  const channel = p.get("channel");
+  if (channel) currentFilters.channel = channel;
   const threadId = p.get("thread_id");
   if (threadId) currentFilters.thread_id = threadId;
   const role = p.get("role");
@@ -165,7 +165,7 @@ export function renderMessages(container: HTMLElement): void {
 
   // Reset state
   currentFilters = {
-    channel_id: "all",
+    channel: "all",
     thread_id: "",
     role: "all",
     provider: "all",
@@ -255,7 +255,7 @@ function populateFilterControls(): void {
 function wireFilterEvents(): void {
   // Channel select
   document.getElementById("filter-channel")!.addEventListener("change", (e) => {
-    currentFilters.channel_id = (e.target as HTMLSelectElement).value;
+    currentFilters.channel = (e.target as HTMLSelectElement).value;
     currentOffset = 0;
     void loadMessages();
   });
@@ -350,7 +350,7 @@ function wireFilterEvents(): void {
   // Reset button
   document.getElementById("btn-reset")!.addEventListener("click", () => {
     currentFilters = {
-      channel_id: "all",
+      channel: "all",
       thread_id: "",
       role: "all",
       provider: "all",
@@ -400,7 +400,7 @@ function wireFilterEvents(): void {
 // ── Sync filter controls to currentFilters state ──
 function syncFilterStateToControls(): void {
   const channelSel = document.getElementById("filter-channel") as HTMLSelectElement | null;
-  if (channelSel) channelSel.value = currentFilters.channel_id;
+  if (channelSel) channelSel.value = currentFilters.channel;
 
   const threadInput = document.getElementById("filter-thread") as HTMLInputElement | null;
   if (threadInput) threadInput.value = currentFilters.thread_id;
@@ -460,7 +460,7 @@ async function loadMessages(): Promise<void> {
     const params = new URLSearchParams();
     params.set("limit", String(currentLimit));
     params.set("offset", String(currentOffset));
-    params.set("channel_id", currentFilters.channel_id);
+    params.set("channel", currentFilters.channel);
     if (currentFilters.thread_id) params.set("thread_id", currentFilters.thread_id);
     if (currentFilters.role !== "all") params.set("role", currentFilters.role);
     if (currentFilters.provider !== "all") params.set("provider", currentFilters.provider);

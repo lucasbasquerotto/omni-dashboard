@@ -36,8 +36,8 @@ export interface ChannelData {
   id: string;
   name?: string;
   platform: string;
-  current_provider?: string;
-  current_model?: string;
+  provider?: string;
+  model?: string;
   metadata?: Record<string, unknown>;
   profiles?: string[];
   enabled?: boolean;
@@ -67,7 +67,7 @@ export interface KanbanTask {
   title: string;
   status: string;
   board?: string;
-  channel_id?: string;
+  channel?: string;
   thread_id?: string;
   assignee?: string;
   priority?: string;

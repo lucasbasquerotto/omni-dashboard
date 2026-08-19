@@ -17,7 +17,7 @@ export interface SystemStats {
 export interface Message {
   [key: string]: unknown;
   id: number;
-  channel_id: string | null;
+  channel: string | null;
   role: string;
   content: string | null;
   status: string;
@@ -34,7 +34,6 @@ export interface Message {
   model: string | null;
   processing_time_ms: number | null;
   token_usage: TokenUsage | null;
-  channel_name?: string;
   type: string | null;
   subtype: string | null;
   thread_status: string | null;
@@ -59,7 +58,7 @@ export interface OverviewRow {
   prompt_tokens: number;
   completion_tokens: number;
   created_at: string;
-  channel_name: string | null;
+  channel: string | null;
   model: string | null;
 }
 
@@ -227,7 +226,7 @@ export interface KanbanTask {
   title: string;
   body: string | null;
   assignee: string | null;
-  channel_id: string | null;
+  channel: string | null;
   profile: string | null;
   status: string;
   priority: number;
@@ -277,7 +276,7 @@ export interface CronJob {
   [key: string]: unknown;
   id: string;
   name: string;
-  schedule: string;
+  cron: string;
   prompt_preview: string;
   prompt?: string;
   skills: string[];
@@ -293,7 +292,7 @@ export interface CronJob {
   mode?: string;
   direct_task_type?: string;
   active?: boolean;
-  channel_id?: string;
+  channel?: string;
   last_run: string | null;
   next_run: string | null;
   last_run_at: string | null;
@@ -359,9 +358,9 @@ export interface ChannelData {
   platform: string | null;
   resource_identifier: string | null;
   closed: boolean;
-  current_profile: string | null;
-  current_provider: string | null;
-  current_model: string | null;
+  profile: string | null;
+  provider: string | null;
+  model: string | null;
   readonly: boolean;
   plan: boolean;
   template: string | null;
@@ -371,8 +370,7 @@ export interface ChannelData {
 
 export interface PlatformResourceId {
   id: string;
-  channel_id: string;
-  channel_name: string;
+  channel: string;
   resource_identifier: string | null;
   closed: boolean;
   profile: string | null;

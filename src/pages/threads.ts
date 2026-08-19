@@ -8,7 +8,7 @@ interface ThreadRow {
   id: string;
   status: string;
   cause: string;
-  channel_id: string;
+  channel: string;
   profile: string;
   provider: string | null;
   model: string | null;
@@ -19,7 +19,7 @@ interface ThreadRow {
   created_at: string;
   started_at: string | null;
   ended_at: string | null;
-  channel_name: string;
+  channel: string;
   channel_closed?: boolean;
   msg_count: number;
   iterations: number;
@@ -428,7 +428,7 @@ function renderRow(row: ThreadRow): string {
       <div role="cell"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></div>
       <div role="cell">${typeStr === "-" ? typeStr : `<span class="event-type-badge" title="Type: ${typeStr}" style="--type-color:${seq0TypeColor(row.cause_msg_type || "")};background:${seq0TypeColor(row.cause_msg_type || "")}22;border-color:${seq0TypeColor(row.cause_msg_type || "")}44;color:${seq0TypeColor(row.cause_msg_type || "")}">${typeStr}</span>`}</div>
       <div role="cell" style="font-size:0.8rem;color:var(--text-muted);font-style:italic;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${subtypeStr}</div>
-      <div role="cell"><span class="badge" style="${channelStyle(row.channel_closed)}"${row.channel_closed ? ' title="Channel closed"' : ""}>${escapeHtml(row.channel_name)}</span></div>
+      <div role="cell"><span class="badge" style="${channelStyle(row.channel_closed)}"${row.channel_closed ? ' title="Channel closed"' : ""}>${escapeHtml(row.channel)}</span></div>
       <div role="cell" class="cell-timestamp">${ts}</div>
       <div role="cell"><span class="badge" style="--type-color:${pmCol};background:${pmCol}22;border-color:${pmCol}44;color:${pmCol}">${row.plan ? "On" : "Off"}</span></div>
       <div role="cell" style="font-size:0.8rem;color:var(--text-muted)">

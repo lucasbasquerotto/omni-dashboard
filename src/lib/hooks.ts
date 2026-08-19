@@ -23,7 +23,7 @@ export interface Hook {
   prompt: string | null;
   action_id: string | null;
   profile: string | null;
-  channel_id: string | null;
+  channel: string | null;
   plan: boolean;
   template: string | null;
   enabled: boolean;

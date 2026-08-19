@@ -80,13 +80,13 @@ async function populateCreateChannelSelect(): Promise<void> {
     for (const ch of channels) {
       const opt = document.createElement("option");
       const chAny = ch as Record<string, string>;
-      opt.value = chAny.id || chAny.name || chAny.channel_id || "";
+      opt.value = chAny.id || chAny.name || "";
       opt.textContent = chAny.name || chAny.id || "";
       if (
         kanbanChannel &&
         (opt.value === (kanbanChannel as Record<string, string>).id ||
           opt.value === (kanbanChannel as Record<string, string>).name ||
-          opt.value === (kanbanChannel as Record<string, string>).channel_id)
+          opt.value === (kanbanChannel as Record<string, string>).channel)
       ) {
         opt.selected = true;
       }
@@ -272,7 +272,7 @@ export function renderKanban(container: HTMLElement): void {
     const priority = parseInt(
       (document.getElementById("task-create-priority") as HTMLSelectElement)?.value || "0",
     );
-    const channel_id =
+    const channel =
       (document.getElementById("task-create-channel") as HTMLSelectElement)?.value || undefined;
     const profile = (document.getElementById("task-create-profile") as HTMLSelectElement)?.value || undefined;
     const status = (document.getElementById("task-create-status") as HTMLSelectElement)?.value || "backlog";
@@ -284,7 +284,7 @@ export function renderKanban(container: HTMLElement): void {
         title,
         body,
         priority,
-        channel_id,
+        channel,
         profile,
         status,
         template,

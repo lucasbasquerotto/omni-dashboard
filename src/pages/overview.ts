@@ -444,7 +444,7 @@ function renderRecentRow(r: DashboardData["recent_activity"][0]): string {
   const url = `/messages?thread_id=${escapeHtml(r.thread_id || "")}`;
   return `<a href="${url}" class="dashboard-overview-row" role="row">
     <div role="cell"><span class="badge" style="${overviewStatusBadgeStyle(r.status || "unknown")}">${escapeHtml(r.status || "unknown")}</span></div>
-    <div role="cell"><span class="badge badge-neutral">${escapeHtml(r.channel_name || "\u2014")}</span></div>
+    <div role="cell"><span class="badge badge-neutral">${escapeHtml(r.channel || "\u2014")}</span></div>
     <div role="cell" class="cell-preview">${preview}</div>
     <div role="cell" class="cell-num">${r.processing_time_ms !== null ? r.processing_time_ms.toFixed(0) + "ms" : "\u2014"}</div>
     <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "\u2014"}</div>

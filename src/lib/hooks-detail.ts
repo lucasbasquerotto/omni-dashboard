@@ -81,7 +81,7 @@ export async function showHookModal(
     prompt: hook ? String(hookField<string>(hook, "prompt", "prompt") ?? "") : "",
     action_id: hook ? String(hookField<string>(hook, "action_id", "actionId") ?? "") : "",
     profile: hook ? String(hookField<string>(hook, "profile", "profile") ?? "") : "",
-    channel_id: hook ? String(hookField<string>(hook, "channel_id", "channelId") ?? "") : "",
+    channel: hook ? String((hook as any).channel ?? "") : "",
     plan: hook ? Boolean(hookField<boolean>(hook, "plan", "plan") ?? false) : false,
     template: hook ? String(hookField<string>(hook, "template", "template") ?? "") : "",
     enabled: hook ? Boolean(hookField<boolean>(hook, "enabled", "enabled") ?? true) : true,
@@ -206,7 +206,7 @@ export async function showHookModal(
               ${channels
                 .map(
                   (ch) =>
-                    `<option value="${ch.id}" ${String(cur.channel_id) === String(ch.id) ? "selected" : ""}>${escapeHtml(ch.name)}${ch.platform ? ` (${escapeHtml(ch.platform)})` : ""}</option>`,
+                    `<option value="${ch.id}" ${String(cur.channel) === String(ch.id) ? "selected" : ""}>${escapeHtml(ch.name)}${ch.platform ? ` (${escapeHtml(ch.platform)})` : ""}</option>`,
                 )
                 .join("")}
             </select>
@@ -371,7 +371,7 @@ export async function showHookModal(
       prompt,
       action_id,
       profile,
-      channel_id: channelVal || null,
+      channel: channelVal || null,
       plan,
       template,
       enabled,

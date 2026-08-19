@@ -105,7 +105,7 @@ export function renderMessageCard(msg: Message): string {
   const tokens = msg.token_usage
     ? (msg.token_usage.prompt_tokens || 0) + (msg.token_usage.completion_tokens || 0)
     : 0;
-  const channelStr = msg.channel_name ? escapeHtml(msg.channel_name) : "";
+  const channelStr = msg.channel ? escapeHtml(String(msg.channel)) : "";
 
   return `
     <div class="event-row" data-msg-id="${msg.id}">
