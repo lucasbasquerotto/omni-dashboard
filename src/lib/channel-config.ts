@@ -276,7 +276,10 @@ export function wireChannelConfigEditing(): void {
         await apiPost(`/plugins/providers/bundled/${encodeURIComponent(provider)}/refresh-models`, {});
         // Re-fetch the plugin list to get updated config_schema
         const freshResp = (await apiGet("/plugins")) as Record<string, unknown>;
-        const freshPlugins = (freshResp.data || freshResp).map(
+        const freshPlugins = (
+          (freshResp.data as Array<Record<string, unknown>> | undefined) ||
+          (freshResp as unknown as Array<Record<string, unknown>>)
+        ).map(
           (p: Record<string, unknown>): Record<string, unknown> => {
             const r: Record<string, unknown> = {};
             for (const k of Object.keys(p)) {
@@ -291,7 +294,7 @@ export function wireChannelConfigEditing(): void {
         if (!providerPlugin) throw new Error(`Provider "${provider}" not found`);
         const schema = [
           ...((providerPlugin.config_schema || []) as any[]),
-          ...((providerPlugin.manifest?.config_schema || []) as any[]),
+          ...(((providerPlugin.manifest as Record<string, unknown> | undefined)?.config_schema || []) as any[]),
         ];
         const modelField = schema.find((f: SettingDefinition) => f.key === "default_model");
         let models: string[] = [];

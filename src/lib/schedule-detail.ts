@@ -357,7 +357,7 @@ export async function loadScheduleThreads(scheduleId: string): Promise<void> {
 }
 
 // ── Create/Edit Modal ──
-export async function showCronModal(job: Record<string, unknown>, onReload: () => void): Promise<void> {
+export async function showCronModal(job: Record<string, unknown> | null, onReload: () => void): Promise<void> {
   const isEdit = job !== null;
 
   // Fetch available data

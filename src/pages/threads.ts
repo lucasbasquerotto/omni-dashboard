@@ -8,7 +8,6 @@ interface ThreadRow {
   id: string;
   status: string;
   cause: string;
-  channel: string;
   profile: string;
   provider: string | null;
   model: string | null;

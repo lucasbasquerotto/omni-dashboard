@@ -109,9 +109,10 @@ function renderActionRow(a: Action, i: number): string {
   // Build display name: use full_name
   const toolDisplay = ((): string => {
     const tool = availableTools.find((t) => t.full_name === a.tool_name);
+    const serverName = tool?.server_name;
     if (tool) return escapeHtml(tool.full_name);
     if (a.is_builtin) return "actions:" + escapeHtml(a.tool_name);
-    if (tool?.server_name) return escapeHtml(tool.server_name) + ":" + escapeHtml(a.tool_name);
+    if (serverName) return escapeHtml(serverName) + ":" + escapeHtml(a.tool_name);
     return escapeHtml(a.tool_name);
   })();
 

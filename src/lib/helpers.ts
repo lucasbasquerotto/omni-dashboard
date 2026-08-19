@@ -58,7 +58,7 @@ export async function getDefaultProfile(): Promise<string> {
     if (!res.ok) return "omni";
     const data = await res.json();
     _cachedDefaultProfile = data.settings?.default_profile || "omni";
-    return _cachedDefaultProfile;
+    return _cachedDefaultProfile || "omni";
   } catch {
     return "omni";
   }
