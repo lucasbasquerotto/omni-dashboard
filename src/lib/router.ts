@@ -17,6 +17,7 @@ import { renderChannels } from "../pages/channels";
 import { renderPlatforms } from "../pages/platforms";
 import { renderTools } from "../pages/tools";
 import { renderProviders } from "../pages/providers";
+import { renderModels } from "../pages/models";
 import { renderWorkflows } from "../pages/workflows";
 
 type PageRenderer = (container: HTMLElement) => void;
@@ -52,6 +53,7 @@ const routes: Route[] = [
   { name: "platforms", handler: renderPlatforms },
   { name: "tools", handler: renderTools },
   { name: "providers", handler: renderProviders },
+  { name: "models", handler: renderModels },
   { name: "actions", handler: renderActions },
 ];
 

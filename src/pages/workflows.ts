@@ -52,7 +52,7 @@ export function renderWorkflows(container: HTMLElement): void {
 let currentWorkflows: WorkflowEntry[] = [];
 let editingKey: string | null = null;
 let _defaultProfile = "omni";
-let _actions: { id: string; name: string }[] = [];
+const _actions: { id: string; name: string }[] = [];
 
 // ── Data loading ──
 
@@ -657,8 +657,7 @@ function roleEnabled(role: string): boolean {
 
 function collectRole(role: string): WorkflowRoleConfig {
   const cfg: WorkflowRoleConfig = {};
-  const mode =
-    document.querySelector<HTMLSelectElement>(`.wf-role-mode[data-role="${role}"]`)?.value ?? "";
+  const mode = document.querySelector<HTMLSelectElement>(`.wf-role-mode[data-role="${role}"]`)?.value ?? "";
   const actionId =
     document.querySelector<HTMLSelectElement>(`.wf-role-action[data-role="${role}"]`)?.value ?? "";
   const template =
@@ -738,7 +737,9 @@ async function handleSave(): Promise<void> {
     if (!roleEnabled(role)) continue;
     const cfg = collectRole(role);
     if (role === "executor" && isEmptyRole(cfg)) {
-      formError("The executor role is required — fill at least one executor field (e.g. template or mode=action).");
+      formError(
+        "The executor role is required — fill at least one executor field (e.g. template or mode=action).",
+      );
       return;
     }
     if ((role === "tester" || role === "reviewer") && !cfg.template && cfg.mode !== "action") {
