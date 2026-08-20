@@ -655,7 +655,7 @@ const ACTION_META: Record<ImportAction, { label: string; bg: string; border: str
 };
 
 const MODAL_CSS =
-  "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:3rem 1rem;overflow-y:auto;";
+  "position:fixed;top:0;left:0;right:0;bottom:0;background:#0d0d1a;z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:3rem 1rem;overflow-y:auto;";
 
 /**
  * The shared import modal. Fetches the URL, parses via `config.parse`, plans
@@ -679,7 +679,7 @@ export function showImportFlow(config: ImportFlowConfig, onDone?: () => void): v
           <input id="import-url" type="url" class="filter-input" style="width:100%;" placeholder="${config.urlPlaceholder}" />
         </label>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1.25rem;">
-          <button id="import-cancel" class="btn btn-ghost" style="border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
+          <button id="import-cancel" class="btn btn-danger" style="background:rgba(244,63,94,0.15);border:1px solid rgba(244,63,94,0.3);color:#fb7185;border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
           <button id="import-fetch" class="btn-primary" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#22d3ee;border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;font-weight:500;">Fetch &amp; Preview</button>
         </div>
       </div>
@@ -688,7 +688,7 @@ export function showImportFlow(config: ImportFlowConfig, onDone?: () => void): v
         <div id="import-list-head" style="font-size:0.85rem;color:var(--text-secondary);"></div>
         <div id="import-rows" style="display:flex;flex-direction:column;gap:0.5rem;max-height:46vh;overflow-y:auto;border:1px solid var(--glass-border,rgba(255,255,255,0.1));border-radius:8px;padding:0.75rem;"></div>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-          <button id="import-batch-cancel" class="btn btn-ghost" style="border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
+          <button id="import-batch-cancel" class="btn btn-danger" style="background:rgba(244,63,94,0.15);border:1px solid rgba(244,63,94,0.3);color:#fb7185;border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
           <button id="import-batch-confirm" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple,#a78bfa);border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;font-weight:500;">Confirm &amp; Execute</button>
         </div>
       </div>

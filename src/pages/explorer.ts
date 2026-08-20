@@ -122,6 +122,9 @@ export function renderExplorer(container: HTMLElement): void {
             <input type="file" id="file-upload-input" multiple style="display:none" />
           </div>
         </div>
+        <div class="explorer-tree" id="explorer-tree">
+          <div class="loading">Loading</div>
+        </div>
         <!-- Git Panel -->
         <div class="git-panel" id="git-panel" style="display:none;">
           <div class="git-header">
@@ -157,9 +160,6 @@ export function renderExplorer(container: HTMLElement): void {
               <div class="git-files-list" id="git-unstaged-list"></div>
             </div>
           </div>
-        </div>
-        <div class="explorer-tree" id="explorer-tree">
-          <div class="loading">Loading</div>
         </div>
       </div>
       <div class="content-panel">

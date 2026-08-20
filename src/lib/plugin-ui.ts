@@ -107,7 +107,7 @@ export function renderActionButtons(
   const showRemoteUpdate = isRemote && isCompilable && isInstalled;
 
   // Remove for everything non-builtin (hidden when Uninstall is shown instead)
-  const showRemove = !isBuiltin && !showUninstall;
+  const showRemove = !isBuiltin;
 
   // Render in fixed order: Install - Reinstall - Uninstall - Download - Update - Remove
   const buttons: string[] = [];
