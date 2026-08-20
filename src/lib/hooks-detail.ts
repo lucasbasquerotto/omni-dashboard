@@ -67,6 +67,12 @@ export async function showHookModal(
   } catch {
     /* ok */
   }
+  let templates: { profile: string; name: string; label: string }[] = [];
+  try {
+    templates = await apiGet<{ profile: string; name: string; label: string }[]>("/templates");
+  } catch {
+    /* ok */
+  }
 
   // Current values (snake_case with camelCase fallback)
   const cur = {
@@ -147,7 +153,7 @@ export async function showHookModal(
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem;margin-bottom:1rem;">
           <div>
             <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Trigger Count (>= 1)</label>
-            <input id="hook-count" type="number" min="1" step="1" class="filter-input" value="${cur.count}" style="width:100%;" />
+            <input id="hook-count" type="tel" inputmode="numeric" pattern="[0-9]*" class="filter-input" value="${cur.count}" style="width:100%;" />
             <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem;">Fire after this many matching events.</div>
           </div>
           <div>
@@ -216,7 +222,15 @@ export async function showHookModal(
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem;margin-bottom:1rem;">
           <div>
             <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Template</label>
-            <input id="hook-template" type="text" class="filter-input" value="${isEdit ? escapeHtml(cur.template) : ""}" placeholder="e.g. tasks/triage.md" style="width:100%;" />
+            <select id="hook-template" class="filter-select" style="width:100%;">
+              <option value="">- (None) -</option>
+              ${templates
+                .map(
+                  (t) =>
+                    `<option value="${escapeHtml(t.name)}" ${cur.template === t.name ? "selected" : ""}>${escapeHtml(t.name)}</option>`,
+                )
+                .join("")}
+            </select>
             <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem;">Template file injected into the agent prompt (agentic mode).</div>
           </div>
         </div>
@@ -255,6 +269,7 @@ export async function showHookModal(
     "hook-action",
     "hook-profile",
     "hook-channel",
+    "hook-template",
   ].forEach((id) => {
     enhanceSelectElement(modal.querySelector(`#${id}`) as HTMLSelectElement);
   });
@@ -291,6 +306,23 @@ export async function showHookModal(
     actionSection.style.display = isAction ? "block" : "none";
     promptSection.style.display = isAction ? "none" : "block";
   };
+
+  // 4d: re-resolve templates when profile changes
+  const profileSelect = modal.querySelector("#hook-profile") as HTMLSelectElement;
+  const templateSelect = modal.querySelector("#hook-template") as HTMLSelectElement;
+  profileSelect?.addEventListener("change", () => {
+    if (!templateSelect) return;
+    const prof = profileSelect.value;
+    const curTpl = templateSelect.value;
+    const filtered = templates.filter((t) => (prof ? t.profile === prof : true));
+    templateSelect.innerHTML =
+      `<option value="">- (None) -</option>` +
+      filtered
+        .map((t) => `<option value="${escapeHtml(t.name)}" ${curTpl === t.name ? "selected" : ""}>${escapeHtml(t.name)}</option>`)
+        .join("");
+    unenhanceSelect("hook-template");
+    enhanceSelectElement(templateSelect);
+  });
 
   scopeSelect.addEventListener("change", updateScopeHints);
   modeSelect.addEventListener("change", updateModeSections);
