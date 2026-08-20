@@ -141,14 +141,14 @@ function renderWorkflowList(entries: WorkflowEntry[]): string {
 function renderWorkflowCard(entry: WorkflowEntry): string {
   const wf = entry.workflow ?? {};
   const roles = wf.roles ?? {};
+  const reviewOnFailBadge = wf.review_on_fail
+    ? `<span class="wf-badge" title="review_on_fail: failed steps go to review instead of blocked">review on fail</span>`
+    : "";
   const clearBadge = wf.clear_executions_on_review
     ? `<span class="wf-badge" title="clear_executions_on_review">clear executions on review</span>`
     : "";
   const autoApproveBadge = wf.auto_approve
     ? `<span class="wf-badge" title="auto_approve: no reviewer — review-bound tasks go straight to done">auto-approve</span>`
-    : "";
-  const reviewOnFailBadge = wf.review_on_fail
-    ? `<span class="wf-badge" title="review_on_fail: failed steps go to review instead of blocked">review on fail</span>`
     : "";
   const summary = [
     wf.profile ? `profile ${wf.profile}` : null,
@@ -193,7 +193,7 @@ function renderWorkflowCard(entry: WorkflowEntry): string {
       <div class="card-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;">
         <div style="min-width:0;">
           <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
-            <span class="wf-key">${escapeHtml(entry.key)}</span> ${clearBadge}${autoApproveBadge}${reviewOnFailBadge}
+            <span class="wf-key">${escapeHtml(entry.key)}</span> ${reviewOnFailBadge}${clearBadge}${autoApproveBadge}
           </div>
           ${summary ? `<div class="wf-sub" style="color:#99a;font-size:.82rem;">${escapeHtml(summary)}</div>` : ""}
         </div>
@@ -396,6 +396,7 @@ function planOptions(current: string): string {
 // ── Form render ──
 
 function renderForm(key: string, wf: Workflow, roles: Record<string, WorkflowRoleConfig>): string {
+  const isCreate = editingKey === null;
   const v = (s?: string | number | boolean | null) =>
     escapeHtml(s === undefined || s === null ? "" : String(s));
   const wfProfile = wf.profile || "";
@@ -509,18 +510,20 @@ function renderForm(key: string, wf: Workflow, roles: Record<string, WorkflowRol
             </select>
           </label>
         </div>
-        <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.88rem;">
-          <input id="wf-clear-exec" type="checkbox" ${wf.clear_executions_on_review ? "checked" : ""}>
-          <span>Clear workflow execution counters when the task moves to review (<code>clear_executions_on_review</code>, default off)</span>
+        <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.9rem;font-size:.88rem;">
+          <input id="wf-review-on-fail" type="checkbox" ${(isCreate || wf.review_on_fail) && !wf.auto_approve ? "checked" : ""} ${wf.auto_approve ? "disabled" : ""}>
+          <span>Review on fail (<code>review_on_fail</code>): failed steps go to review instead of blocked (ignored while auto-approve is on, as if disabled)</span>
         </label>
-        <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.88rem;">
+<label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.88rem;">
+          <input id="wf-clear-exec" type="checkbox" ${isCreate || wf.clear_executions_on_review ? "checked" : ""}>
+          <span>Clear workflow execution counters when the task moves to review (<code>clear_executions_on_review</code>)</span>
+        </label>
+<label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.88rem;">
           <input id="wf-auto-approve" type="checkbox" ${wf.auto_approve ? "checked" : ""}>
           <span>Auto-approve (<code>auto_approve</code>): no reviewer — review-bound tasks go straight to <code>done</code>; <code>review_on_fail</code> ignored</span>
         </label>
-        <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.9rem;font-size:.88rem;">
-          <input id="wf-review-on-fail" type="checkbox" ${wf.review_on_fail && !wf.auto_approve ? "checked" : ""} ${wf.auto_approve ? "disabled" : ""}>
-          <span>Review on fail (<code>review_on_fail</code>): failed steps go to review instead of blocked (disabled while auto-approve is on)</span>
-        </label>
+        
+        
         <div style="margin-bottom:.5rem;font-weight:600;">Roles</div>
         ${roleSections}
         <div id="wf-form-error" style="display:none;color:#e55;font-size:.85rem;margin:.5rem 0;"></div>
