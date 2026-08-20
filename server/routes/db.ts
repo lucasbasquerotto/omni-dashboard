@@ -2,7 +2,7 @@
  * Database browser API — backed by the omniagent QUERY TOOL (read-only MCP).
  *
  * All DB access is proxied through POST /mcp/execute on the omniagent backend
- * (query_database, operation "query"). The dashboard server never connects to
+ * (search_database, arguments { sql }). The dashboard server never connects to
  * PostgreSQL directly: no DATABASE_URL, no pg client. Read-only validation is
  * applied here as defense in depth (SELECT/WITH only, no semicolons, no write
  * keywords); the query tool itself and its read-only DB user are the backstop.
@@ -82,7 +82,7 @@ interface McpExecuteResult {
 /**
  * Run a read-only query through the omniagent query tool:
  *   POST ${OMNIAGENT}/mcp/execute
- *   body: { name: "query_database", arguments: { operation: "query", sql } }
+ *   body: { name: "search_database", arguments: { sql } }
  * Returns the parsed row objects from the pretty-JSON `content` field.
  */
 async function runQueryTool(sql: string): Promise<Record<string, unknown>[]> {
@@ -92,8 +92,8 @@ async function runQueryTool(sql: string): Promise<Record<string, unknown>[]> {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        name: "query_database",
-        arguments: { operation: "query", sql },
+        name: "search_database",
+        arguments: { sql },
       }),
     });
   } catch (err) {
