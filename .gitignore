@@ -9,3 +9,9 @@ server-dist/
 
 # taskj patch artifacts (kanban task tool)
 .taskj-*.patch
+
+# scratch / push helper scripts (never commit these)
+.push*
+.task-*.py
+.task-*.patch
+.tmp_patch_*.py
