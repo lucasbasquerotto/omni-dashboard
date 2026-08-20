@@ -17,6 +17,7 @@ import {
   type WorkflowEntry,
 } from "./api";
 import { escapeHtml } from "./helpers";
+import { enhanceSelectElement } from "./dropdown";
 
 // ── localStorage persistence ──
 
@@ -185,6 +186,12 @@ export async function openBoardModal(
   const b = existing?.board ?? {};
   // Workflow options come from workflows.yml; empty file ⇒ single "(none)" option.
   const workflows = await fetchWorkflows();
+  let channels: unknown[] = [];
+  let profiles: { name: string }[] = [];
+  let templates: { name: string }[] = [];
+  try { channels = await apiGet<unknown[]>("/channels"); } catch { /* ok */ }
+  try { profiles = await apiGet<{ name: string }[]>("/profiles"); } catch { /* ok */ }
+  try { templates = await apiGet<{ name: string }[]>("/templates"); } catch { /* ok */ }
   const modal = document.createElement("div");
   modal.id = "board-modal";
   modal.style.cssText =
@@ -194,8 +201,8 @@ export async function openBoardModal(
       <h2 style="margin:0 0 1rem 0;font-size:1.1rem;">${mode === "create" ? "Create Board" : "Edit Board"}</h2>
       <div style="display:grid;gap:0.75rem;">
         ${fieldRow("board-form-key", "Name *", `<input type="text" id="board-form-key" value="${escapeHtml(boardKey ?? "")}" ${mode === "edit" ? "disabled" : ""} style="${inputStyle}" />`, "Board name (key). Tasks reference it via the task's board field.")}
-        ${fieldRow("board-form-channel", "Channel", `<input type="text" id="board-form-channel" value="${escapeHtml(b.channel ?? "")}" style="${inputStyle}" />`, "Channel name or id — fallback for tasks on this board.")}
-        ${fieldRow("board-form-profile", "Profile", `<input type="text" id="board-form-profile" value="${escapeHtml(b.profile ?? "")}" style="${inputStyle}" />`)}
+        ${fieldRow("board-form-channel", "Channel", `<select id="board-form-channel" style="${inputStyle}"><option value="">- None -</option>${channels.map((c) => `<option value="${escapeHtml(typeof c === "string" ? c : (c as { name?: string }).name ?? "")}" ${String(b.channel ?? "") === String(typeof c === "string" ? c : (c as { name?: string }).name ?? "") ? "selected" : ""}>${escapeHtml(typeof c === "string" ? c : (c as { name?: string }).name ?? "")}</option>`).join("")}</select>`, "Channel — fallback for tasks on this board.")}
+        ${fieldRow("board-form-profile", "Profile", `<select id="board-form-profile" style="${inputStyle}"><option value="">- None -</option>${profiles.map((pr) => `<option value="${escapeHtml(pr.name)}" ${String(b.profile ?? "") === pr.name ? "selected" : ""}>${escapeHtml(pr.name)}</option>`).join("")}</select>`)}
         ${fieldRow("board-form-workflow", "Workflow", renderWorkflowSelect(workflows, b.workflow), "Used when the task itself does not set a workflow.")}
         ${fieldRow(
           "board-form-plan",
@@ -206,8 +213,8 @@ export async function openBoardModal(
             <option value="false" ${b.plan === false ? "selected" : ""}>Off</option>
           </select>`,
         )}
-        ${fieldRow("board-form-template", "Template", `<input type="text" id="board-form-template" value="${escapeHtml(b.template ?? "")}" style="${inputStyle}" />`)}
-        ${fieldRow("board-form-priority", "Priority", `<input type="number" id="board-form-priority" value="${b.priority != null ? String(b.priority) : ""}" style="${inputStyle}" />`)}
+        ${fieldRow("board-form-template", "Template", `<select id="board-form-template" style="${inputStyle}"><option value="">- None -</option>${templates.map((t) => `<option value="${escapeHtml(t.name)}" ${String(b.template ?? "") === t.name ? "selected" : ""}>${escapeHtml(t.name)}</option>`).join("")}</select>`)}
+        ${fieldRow("board-form-priority", "Priority", `<select id="board-form-priority" style="${inputStyle}"><option value="">- None -</option>${[0,1,2,3,4,5].map((pr) => `<option value="${pr}" ${b.priority === pr ? "selected" : ""}>${pr}</option>`).join("")}</select>`)}
       </div>
       <div style="display:flex;gap:0.5rem;justify-content:space-between;margin-top:1rem;">
         <div style="display:flex;gap:0.5rem;">
@@ -225,6 +232,7 @@ export async function openBoardModal(
     </div>
   `;
   document.body.appendChild(modal);
+  modal.querySelectorAll("select").forEach((sel) => enhanceSelectElement(sel as HTMLSelectElement));
 
   const close = () => modal.remove();
   document.getElementById("board-form-cancel")?.addEventListener("click", close);
