@@ -49,6 +49,24 @@ describe("src/lib/kanban-boards.ts — board workflow select + display", () => {
     assert.ok(/boardMetaLabel\(currentMeta\)/.test(src), "label built from boardMetaLabel(currentMeta)");
   });
 
+  it("wireBoardControls enhances the board selector with the custom stylized select (Item 2)", () => {
+    // The kanban-page board selector (#kanban-board-select) must NOT remain a native
+    // <select> — wireBoardControls must pass it through enhanceSelectElement, the same
+    // custom dropdown treatment the Create Task modal / board modal fields use.
+    assert.ok(
+      /getElementById\("kanban-board-select"\)/.test(src),
+      "selector rendered as #kanban-board-select",
+    );
+    assert.ok(
+      /getElementById\("kanban-board-select"\)[\s\S]*enhanceSelectElement\(sel\)/.test(src),
+      "board selector must be enhanced via enhanceSelectElement(sel) in wireBoardControls",
+    );
+    assert.ok(
+      /import\s*\{[\s\S]*enhanceSelectElement[\s\S]*\}\s*from\s*"\.\/dropdown"/.test(src),
+      "enhanceSelectElement imported from ./dropdown",
+    );
+  });
+
   it("readBoardForm still reads the workflow select value via #board-form-workflow", () => {
     assert.ok(/readField\("board-form-workflow"\)/.test(src), "readBoardForm reads board-form-workflow");
   });

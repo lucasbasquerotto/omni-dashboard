@@ -5,7 +5,7 @@
  */
 import { apiGet } from "./api";
 import { escapeHtml, formatApiError, fixMissingSelectOptions } from "./helpers";
-import { enhanceSelectElement } from "./dropdown";
+import { enhanceSelectElement, unenhanceSelect } from "./dropdown";
 import { showToast } from "./utils";
 import {
   formatHookCounterJson,

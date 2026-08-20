@@ -337,6 +337,9 @@ export async function wireBoardControls(opts: {
   `;
 
   const sel = document.getElementById("kanban-board-select") as HTMLSelectElement | null;
+  // Item 2: the board selector must use the custom stylized select (reference
+  // the Create Task modal treatment) instead of a native <select>.
+  if (sel) enhanceSelectElement(sel);
   sel?.addEventListener("change", () => {
     const v = sel.value || null;
     setStoredBoard(v);
