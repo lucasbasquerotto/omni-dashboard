@@ -31,28 +31,37 @@ Detailed message viewer with extensive filtering:
 - Filters: Channel, Thread ID, Role (cause/agent/system/tool), Type (multi-select toggle buttons for prompt/response/reasoning/tool/tool_output/iteration/delegate_result/skill), Subtype (free-text), Provider, Model, Seq-0 only checkbox.
 - URL search param sync: filters persist in the URL.
 - Per-message display: color-coded role badges, timing and token display, expandable content with 3-line truncation.
-- Color-coded type and status badges.
-- Custom enhanced `<select>` dropdowns for theme consistency.
-- Pagination with both top and bottom nav bars.
+- Color-coded type a
 
 ### Memory (`/memory`)
-Memory management interface for the agent's persistent memory stores:
+Memory management:
 
-- **Memory/MEMORY.md panel**: View and edit the agent's operational memory (system-level persistent notes).
-- **User/USER.md panel**: View and edit the user profile (personal preferences, habits, environment facts).
-- **Hindsight Memory section**: Shows summaries and retention stats for the Hindsight vector memory system.
-- **Context Preview**: Shows the assembled context section [3] that gets injected into the agent's system prompt: displays retrieved wiki, memory, and recent thread context built from Qdrant and the database.
-- Each memory file is loaded from `profiles/<name>/memories/` on the server and saved back via the Settings API.
+- **Editors**: MEMORY.md and USER.md in-place editors with save.
+- **Hindsight stats**: Memory usage, message counts.
+- **Context preview**: Shows the assembled context section [3] that gets injected into the agent's system prompt: displays retrieved wiki, memory, and recent thread context built from Qdrant and the database.
+- **Upload/Download**: Upload or download the memory files.
 
 ### Kanban (`/kanban`)
-Kanban board with drag-and-drop cards across 7 columns:
+Kanban task board with board selector and role-based workflows:
 
-- **Columns**: Backlog (neutral), Todo (purple), Ready (warning/amber), In Progress (cyan), Review (blue), Done (emerald/success), Blocked (rose/error).
-- **Create Task Modal**: Title, Body, Priority (Low/Med/High/Critical), Status, Channel select (populated from DB), Profile select.
-- **Task Detail View** (`/kanban/:id`): Full task info with Edit modal, Archive/Unarchive toggle, Delete action, Move to status dropdown.
+- **Board selector** (top bar): custom enhanced `<select>` (via `lib/kanban-boards.ts`) listing boards from `boards.yml`; selection persisted in localStorage and synced to the URL (`?board=...`).
+- **Columns**: 7 status columns (Backlog, Todo, Ready, In Progress, Review, Done, Blocked) with drag-and-drop cards.
+- **Workflow display**: each board shows its configured workflow (`workflows.yml`); the board create/edit modal has a workflow select.
+- **Create Task Modal**: Title, Body, Priority, Status, and custom enhanced `<select>`s for Board, Workflow, Plan mode, Template, Channel, Profile (board/workflow/plan/template populate from the boards/workflows config; board required when `boards.yml` is present).
+- **Task Detail View** (`/kanban/:id`): Full task info with Edit modal, Archive/Unarchive toggle, Delete action, Move to status dropdown, subtask list.
 - **Drag & Drop**: Desktop only (native HTML5 drag). Cards are `draggable`, columns are drop targets with position-aware insertion via drop Y-coordinate.
-- **Archive Toggle**: Show/hide archived tasks.
+- **Archive Toggle**: Show/hide archived tasks (archived tasks are never dispatched).
 - Module-level `_dropdownListenerAttached` flag to prevent accumulated listeners on re-render.
+
+### Kanban History (`/kanban/:id/history`)
+Per-task workflow history: shows the steps each task traversed (todo → running → review → testing → done) with the workflow roles that ran.
+
+### Workflows (`/workflows`)
+Role-based kanban workflow editor backed by `config/workflows.yml`:
+
+- Lists workflows with their global settings (profile, provider, model, plan_mode, retries, `auto_approve`, `review_on_fail`, `clear_executions_on_review`).
+- Per-role **Mode** select (`agent` / `action`) + **Action** select (when mode=action) + per-role profile/provider/model/template/plan_mode/retries.
+- Changes are written to `workflows.yml` on save.
 
 ### Schedule (`/schedule`)
 Cron job list with mode indicators:
@@ -62,15 +71,22 @@ Cron job list with mode indicators:
 - **Detail View** (`/schedule/:id`): Full job detail with mode selector toggle, active/inactive switch, channel_id field.
 - JSONB fields (skills, context_from, enabled_toolsets) parsed via `parseJsonArray` helper.
 
+### Hooks (`/hooks`)
+Event-driven hooks manager backed by the hooks API (`config/tasks.yml` hook templates):
+
+- Lists hook task templates (thread_started / thread_finished / new_message events) with their channel, prompt, enabled state.
+- **Create/Edit modal** (custom enhanced selects for trigger event type and channel).
+- New hooks are registered as cron-scheduled tasks delivering events to the configured hook channel.
+
 ### Secrets (`/secrets`)
 Vault secrets manager for API keys and credentials:
 
-- Lists all secrets from HashiCorp Vault at the configured path (typically `kv/data/hermes`).
+- Lists all secrets from the secrets API.
 - Each secret shows key name with obfuscated value (••••••••).
 - **Eye toggle** to reveal/hide individual secret values: only shown on password-type fields.
 - **Add Secret** modal: key-value form with custom enhanced `<select>` for secret type.
 - **Delete** action with confirmation.
-- Secrets are fetched and stored via the OmniAgent Secrets API (`/api/secrets`).
+- Secrets are fetched and stored via the OmniAgent secrets API (`/api/secrets`).
 - **Plugin config references**: Secrets can be referenced from plugin config forms (Platforms, Tools, Providers) using the prefix `$secret:name`. The secret value is resolved at runtime: the YAML file stores only the reference, never the actual value. See [Plugin Config References](#-secretconfig-field-reference-toggle) below.
 
 ### Profiles (`/profiles`)
@@ -119,6 +135,14 @@ LLM provider configuration:
 - Models are rendered via the shared `plugin-config.ts` rendering system (same as Tools and Platforms).
 - Configuration is stored in OmniAgent's provider config and read from the root `config_schema`.
 
+### Models (`/models`)
+Provider/model overrides from `config/models.yml`:
+
+- Lists provider entries with their models list, api_mode, default_base_url, refresh_url, token budgets.
+- **Add/Edit/Delete** provider entries (written to `models.yml` via `PUT /api/models`).
+- **Import** a models.yml-like file (shared `lib/plugin-import.ts` modal).
+- **⟳ Refresh** fetches live model lists from a provider's `refresh_url` and writes them back to `models.yml`.
+
 ### Actions (`/actions`)
 Saved action management:
 
@@ -144,7 +168,16 @@ Filesystem browser for agent workspace:
 - **Search**: Debounced (300ms) search against Qdrant vector DB. Results sorted by relevance score.
 - **File Upload**: Drag-drop overlay with confirmation modal. Checks for existing files before upload.
 - **File Delete**: Confirmation modal before deletion.
+- **Git box**: bottom section showing git status (uncommitted/staged files) for the workspace repository.
 - Explorer collapse/expand toggle persisted in localStorage.
+
+### Database (`/database`)
+Read-only database browser/query runner:
+
+- **Table list** (left sidebar): all tables with row counts; click to view columns + first rows.
+- **Custom SELECT** box: run any read-only query (`LIMIT 25` appended automatically if missing), Ctrl+Enter to run.
+- Results with sortable columns, null styling, and pagination.
+- Backed by the OmniAgent `search_database` MCP tool (the DB page calls `POST /api/db/query` which proxies to it).
 
 ### Settings (`/settings`)
 Environment variable editor:
@@ -166,6 +199,7 @@ Environment variable editor:
 - Router at `src/lib/router.ts` maps routes to page renderer functions.
 - Pages are pure TypeScript modules that render into `#main-content` via `innerHTML`.
 - All styles in `src/style.css` (dark SaaS theme with CSS custom properties).
+- Custom enhanced `<select>` dropdowns in `src/lib/dropdown.ts` (dark-theme consistent styling) used across board/workflow/hook/template/channel forms.
 - Chart.js used for some charts; SVG-rendered charts in Overview are pure SVG.
 - Global file drag-drop in `src/index.ts`.
 
@@ -216,6 +250,8 @@ repo/
 │   │   ├── channel-config.ts      # Channel config form fields (name, profile, provider, model, planning mode selects)
 │   │   ├── channel-status.ts      # Channel status controls (open/close toggles, filter bar, status badges)
 │   │   ├── plugin-config.ts       # Shared plugin config rendering (used by Tools, Providers, Platforms)
+│   │   ├── plugin-import.ts       # Shared YAML-import modal (used by Models page)
+│   │   ├── kanban-boards.ts       # Kanban board selector (custom enhanced <select>, localStorage + URL sync) + wireBoardControls
 │   │   ├── kanban-board.ts        # Kanban board rendering (drag-drop columns, card rendering)
 │   │   ├── kanban-detail.ts       # Kanban task detail view (edit modal, archive, delete, status move)
 │   │   ├── kanban-subtasks.ts     # Kanban subtask rendering within task detail
@@ -226,17 +262,22 @@ repo/
 │       ├── threads.ts             # Threads list (filter by status/cause/ID, real <a> rows, pagination)
 │       ├── messages.ts            # Message viewer (8 filters, URL sync, custom selects, expandable content)
 │       ├── memory.ts              # Memory management (MEMORY.md/USER.md editors, Hindsight stats, context preview)
-│       ├── kanban.ts              # Kanban board (7 columns, drag-drop, create/edit/detail modals, archive)
+│       ├── kanban.ts              # Kanban board (7 columns, drag-drop, board selector, create/edit/detail modals, archive)
+│       ├── kanban-history.ts      # Kanban task workflow history (steps traversed per task)
+│       ├── workflows.ts           # Role-based workflow editor (config/workflows.yml: modes, auto_approve, review_on_fail)
 │       ├── schedule.ts            # Schedule page (cron job list + detail view)
-│       ├── secrets.ts             # Vault secrets manager (key-value viewer, eye toggle, add/delete)
+│       ├── hooks.ts               # Event-driven hooks manager (thread_started/thread_finished/new_message)
+│       ├── secrets.ts             # Secrets manager (key-value viewer, eye toggle, add/delete)
 │       ├── profiles.ts            # Profiles management (provider/model config, tool access, channel usage)
 │       ├── channels.ts            # Channels management (open/close, status badges, filter controls)
 │       ├── platforms.ts           # Platforms with subscription management (subscribe/unsubscribe channels)
 │       ├── tools.ts               # MCP tool registry viewer (name, description, input schema per tool)
 │       ├── providers.ts           # LLM provider configuration (base URL, models, API mode, enable/disable)
+│       ├── models.ts              # models.yml provider/model overrides (CRUD, import, refresh)
 │       ├── actions.ts             # Saved action manager (create, run, edit, delete MCP tool actions)
 │       ├── prompt.ts              # Prompt preview tool (channel selector, prompt textarea, plan toggle)
-│       ├── explorer.ts            # Filesystem browser (file tree, markdown viewer, search, upload/delete)
+│       ├── explorer.ts            # Filesystem browser (file tree, markdown viewer, search, upload/delete, git box)
+│       ├── database.ts            # Read-only DB browser (table list, custom SELECT via search_database)
 │       └── settings.ts            # Settings editor (env vars, per-row confirm/cancel, secret toggle)
 └── server/
     ├── index.ts                   # Express setup, static file serving, SPA fallback
@@ -247,13 +288,14 @@ repo/
         ├── threads.ts             # Thread list with pagination + filters endpoint
         ├── messages.ts            # Message events + filters (channels, roles, types, providers, models)
         ├── memory.ts              # Memory read/write endpoints (MEMORY.md, USER.md, context preview)
-        ├── kanban.ts              # Kanban CRUD (board, tasks CRUD, status/position updates)
+        ├── kanban.ts              # Kanban CRUD (boards, tasks CRUD, status/position updates, workflow select)
         ├── schedule.ts            # Cron job list + detail
         ├── settings.ts            # Settings proxy to OmniAgent API
         ├── channels.ts            # Channels list from DB
         ├── profiles.ts            # Profiles list from DB
         ├── platforms.ts           # Platforms + subscription management from DB
         ├── plugins.ts             # Plugin management endpoints (list, get, enable, disable, config)
+        ├── db.ts                  # Read-only query endpoint (proxies to OmniAgent search_database MCP tool)
         ├── wiki-search.ts         # Wiki search via Qdrant vector DB
         ├── uploads.ts             # File upload/delete/check with multer
         └── fs.ts                  # Filesystem browse/read/download
@@ -289,6 +331,7 @@ repo/
 - Test files in `tests/` directory.
 - Run with `npm run test` or `npm run test:unit`.
 - Uses Node.js built-in test runner.
+- Regression coverage for kanban UI behavior (board selector custom select, workflow modal selects, hooks triggers) lives in `tests/` (e.g. `kanban-workflow.test.ts`) and is exercised from omni-deployer as GROUP 49.
 
 ---
 
@@ -306,7 +349,7 @@ The server reads the following environment variables:
 | `PORT` | `3001` | Server listen port |
 
 The dashboard container connects to:
-- **OmniAgent HTTP API** at `http://omniagent:8080` (for settings and prompt-preview).
+- **OmniAgent HTTP API** at `http://omniagent:8080` (for settings, prompt-preview, hooks, models, DB query proxy).
 - **Qdrant** at `http://qdrant:6333` (for wiki search).
 - Note: Dashboard cannot reach sibling containers via `localhost`: uses Docker internal networking.
 
@@ -361,12 +404,16 @@ All endpoints are under `/api/`:
 | `/api/messages/filters` | GET | Available filter values (channels, roles, types, etc.) |
 | `/api/messages/events` | GET | Paginated messages with all filters |
 | `/api/kanban/board` | GET | Kanban board (columns with tasks) |
-| `/api/kanban/tasks` | POST | Create kanban task |
+| `/api/kanban/boards` | GET | List boards (from boards.yml) |
+| `/api/kanban/tasks` | POST | Create kanban task (board/workflow/plan/template/channel/profile fields) |
 | `/api/kanban/tasks/:id` | GET | Task detail |
 | `/api/kanban/tasks/:id` | PATCH | Update task fields |
 | `/api/kanban/tasks/:id` | DELETE | Delete task |
 | `/api/kanban/tasks/:id/status` | PATCH | Move task between columns |
 | `/api/kanban/tasks/:id/position` | PATCH | Reorder task within/between columns |
+| `/api/kanban/tasks/:id/history` | GET | Workflow history for a task |
+| `/api/workflows` | GET | List role-based workflows (config/workflows.yml) |
+| `/api/workflows` | PUT | Update workflows.yml |
 | `/api/schedule` | GET | List cron jobs |
 | `/api/schedule/:id` | GET | Cron job detail |
 | `/api/settings` | GET | All env settings (proxied to OmniAgent) |
@@ -377,6 +424,15 @@ All endpoints are under `/api/`:
 | `/api/platforms` | GET | List all platforms with subscriptions |
 | `/api/platforms/:platform/subscribe` | POST | Add channel subscription |
 | `/api/platforms/:platform/subscribe/:subId` | DELETE | Remove channel subscription |
+| `/api/hooks` | GET | List hook task templates |
+| `/api/hooks` | POST | Create hook |
+| `/api/hooks/:id` | PUT | Update hook |
+| `/api/hooks/:id` | DELETE | Delete hook |
+| `/api/models` | GET | List models.yml entries |
+| `/api/models` | PUT | Write models.yml |
+| `/api/models/import` | POST | Import a models.yml-like file |
+| `/api/models/refresh` | POST | Refresh model lists from provider refresh_url |
+| `/api/db/query` | POST | Read-only SQL query (proxied to OmniAgent `search_database` MCP tool) |
 | `/api/wiki-search` | POST | Search wiki via Qdrant |
 | `/api/uploads` | POST | Upload files |
 | `/api/uploads/list` | GET | List uploaded files |
