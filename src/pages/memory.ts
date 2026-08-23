@@ -62,28 +62,6 @@ export async function renderMemory(container: HTMLElement): Promise<void> {
         </div>
       </div>
 
-      <!-- Block 4: SOUL text -->
-      <div class="card" style="max-width:100%;">
-        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
-          <span class="card-title">💫 SOUL</span>
-          <button id="mem-soul-edit-btn" class="icon-btn" title="Edit SOUL" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--text-muted);padding:0.25rem;border-radius:4px;">✏️</button>
-        </div>
-        <div class="card-body">
-          <pre id="mem-soul-text" class="code-block" style="max-height:300px;max-width:100%;overflow-x:auto;overflow-y:auto;font-size:0.8rem;line-height:1.5;margin:0 0 0.75rem 0;word-break:break-word;white-space:pre-wrap;">Loading...</pre>
-          <textarea id="mem-soul-editor" style="display:none;width:100%;min-height:200px;font-family:monospace;font-size:0.8rem;padding:0.5rem;border:1px solid var(--glass-border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);resize:vertical;margin:0 0 0.75rem 0;box-sizing:border-box;"></textarea>
-          <div id="mem-soul-edit-actions" style="display:none;gap:0.5rem;margin-bottom:0.75rem;">
-            <button id="mem-soul-save-btn" class="btn btn-primary" style="font-size:0.8rem;padding:0.375rem 0.75rem;">💾 Save</button>
-            <button id="mem-soul-cancel-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.375rem 0.75rem;">Cancel</button>
-            <span id="mem-soul-edit-status" style="font-size:0.75rem;color:var(--text-muted);"></span>
-          </div>
-          <div style="display:flex;align-items:center;gap:0.5rem;">
-            <button id="mem-soul-upload-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.375rem 0.75rem;">📁 Upload .md</button>
-            <span id="mem-soul-status" style="font-size:0.75rem;color:var(--text-muted);"></span>
-            <input type="file" id="mem-soul-file-input" accept=".md,.txt" style="display:none" />
-          </div>
-        </div>
-      </div>
-
       <!-- Block 5: Channel Context (stats + context preview + message search) -->
       <div class="card" style="max-width:100%;">
         <div class="card-header"><span class="card-title">🔗 Channel Context</span></div>
@@ -151,24 +129,10 @@ export async function renderMemory(container: HTMLElement): Promise<void> {
     if (input.files && input.files[0]) void uploadMemoryFile(input.files[0], "memory");
   });
 
-  // Wire SOUL upload
-  document.getElementById("mem-soul-upload-btn")!.addEventListener("click", () => {
-    (document.getElementById("mem-soul-file-input") as HTMLInputElement).click();
-  });
-  document.getElementById("mem-soul-file-input")!.addEventListener("change", (e) => {
-    const input = e.target as HTMLInputElement;
-    if (input.files && input.files[0]) void uploadMemoryFile(input.files[0], "soul");
-  });
-
   // Wire MEMORY edit
   document.getElementById("mem-memory-edit-btn")!.addEventListener("click", () => startEdit("memory"));
   document.getElementById("mem-memory-save-btn")!.addEventListener("click", () => saveEdit("memory"));
   document.getElementById("mem-memory-cancel-btn")!.addEventListener("click", () => cancelEdit("memory"));
-
-  // Wire SOUL edit
-  document.getElementById("mem-soul-edit-btn")!.addEventListener("click", () => startEdit("soul"));
-  document.getElementById("mem-soul-save-btn")!.addEventListener("click", () => saveEdit("soul"));
-  document.getElementById("mem-soul-cancel-btn")!.addEventListener("click", () => cancelEdit("soul"));
 
   // Wire message search with debounce
   let msgDebounce: ReturnType<typeof setTimeout>;
@@ -230,7 +194,7 @@ async function onProfileChange(): Promise<void> {
 }
 
 async function loadAllBlocks(): Promise<void> {
-  await Promise.all([loadStats(), loadSystemPrompt(), loadMemoryText(), loadSoulText()]);
+  await Promise.all([loadStats(), loadSystemPrompt(), loadMemoryText()]);
 }
 
 // ── Channel select ──
@@ -319,7 +283,7 @@ async function loadSystemPrompt(): Promise<void> {
   const el = document.getElementById("mem-system-prompt")!;
   try {
     // Use the prompt proxy (GET) to get the raw system prompt TEMPLATE
-    // without MEMORY/SOUL content filled in (those have their own cards)
+    // without MEMORY content filled in (that has its own card)
     const res = await fetch(`${API_BASE}/prompt/default`);
     if (res.ok) {
       const contentType = res.headers.get("content-type") || "";
@@ -340,7 +304,7 @@ async function loadSystemPrompt(): Promise<void> {
   }
 }
 
-// ── Block 3 & 4: Memory / Soul text ──
+// ── Block 3: Memory text ──
 
 async function loadMemoryText(): Promise<void> {
   const el = document.getElementById("mem-memory-text")!;
@@ -353,19 +317,8 @@ async function loadMemoryText(): Promise<void> {
   }
 }
 
-async function loadSoulText(): Promise<void> {
-  const el = document.getElementById("mem-soul-text")!;
-  el.textContent = "Loading...";
-  try {
-    const data = await apiGet<any>(`/memory/text/${encodeURIComponent(_currentProfile)}/soul`);
-    el.textContent = data.content || "(empty)";
-  } catch {
-    el.textContent = "(not set or failed to load)";
-  }
-}
-
-async function uploadMemoryFile(file: File, type: "memory" | "soul"): Promise<void> {
-  const statusEl = document.getElementById(type === "memory" ? "mem-memory-status" : "mem-soul-status")!;
+async function uploadMemoryFile(file: File, type: "memory"): Promise<void> {
+  const statusEl = document.getElementById("mem-memory-status")!;
   statusEl.textContent = "Uploading...";
   try {
     const formData = new FormData();
@@ -381,8 +334,7 @@ async function uploadMemoryFile(file: File, type: "memory" | "soul"): Promise<vo
     }
     const data = await res.json();
     statusEl.textContent = `✅ Uploaded (${data.size} chars)`;
-    if (type === "memory") await loadMemoryText();
-    else await loadSoulText();
+    await loadMemoryText();
     setTimeout(() => {
       statusEl.textContent = "";
     }, 3000);
@@ -393,7 +345,7 @@ async function uploadMemoryFile(file: File, type: "memory" | "soul"): Promise<vo
 
 // ── Edit helpers ──
 
-function startEdit(type: "memory" | "soul"): void {
+function startEdit(type: "memory"): void {
   const pre = document.getElementById(`mem-${type}-text`)!;
   const textarea = document.getElementById(`mem-${type}-editor`) as HTMLTextAreaElement;
   const actions = document.getElementById(`mem-${type}-edit-actions`)!;
@@ -409,7 +361,7 @@ function startEdit(type: "memory" | "soul"): void {
   (uploadBtn as HTMLElement).style.display = "none";
 }
 
-function cancelEdit(type: "memory" | "soul"): void {
+function cancelEdit(type: "memory"): void {
   const pre = document.getElementById(`mem-${type}-text`)!;
   const textarea = document.getElementById(`mem-${type}-editor`) as HTMLTextAreaElement;
   const actions = document.getElementById(`mem-${type}-edit-actions`)!;
@@ -423,13 +375,13 @@ function cancelEdit(type: "memory" | "soul"): void {
   statusEl.textContent = "";
 }
 
-async function saveEdit(type: "memory" | "soul"): Promise<void> {
+async function saveEdit(type: "memory"): Promise<void> {
   const textarea = document.getElementById(`mem-${type}-editor`) as HTMLTextAreaElement;
   const statusEl = document.getElementById(`mem-${type}-edit-status`)!;
   const content = textarea.value;
 
   // Check character limits
-  const maxCharsKey = type === "memory" ? "MEMORY_MAX_CHARS" : "SOUL_MAX_CHARS";
+  const maxCharsKey = "MEMORY_MAX_CHARS";
   try {
     const settingsData = await apiGet<any>("/settings");
     const allSettings =
@@ -465,8 +417,7 @@ async function saveEdit(type: "memory" | "soul"): Promise<void> {
     }
     statusEl.textContent = "✅ Saved!";
     cancelEdit(type);
-    if (type === "memory") await loadMemoryText();
-    else await loadSoulText();
+    await loadMemoryText();
     setTimeout(() => {
       statusEl.textContent = "";
     }, 3000);
