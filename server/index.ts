@@ -208,6 +208,14 @@ app.post("/api/reload", (req, res) => {
   void fetchAndForward(req, res, `${OMNIAGENT}/api/reload`);
 });
 
+// Models (config/models.yml): omniagent serves these WITH the /api prefix —
+// preserve it (the generic proxy below strips /api, which would 404).
+app.all(/^\/api\/models(?:\/.*)?$/, async (req, res) => {
+  const queryStr = req.url.includes("?") ? req.url.substring(req.url.indexOf("?")) : "";
+  const targetUrl = `${OMNIAGENT}${req.path}${queryStr}`;
+  await fetchAndForward(req, res, targetUrl);
+});
+
 // ────────────────────────────────────────────────────────────────────────────
 // Generic proxy: all other /api/* routes go to OmniAgent with /api prefix stripped
 // ────────────────────────────────────────────────────────────────────────────

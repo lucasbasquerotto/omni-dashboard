@@ -362,3 +362,26 @@ export async function wireBoardControls(opts: {
     });
   });
 }
+
+/**
+ * Populate a plain <select> with the workflows.yml keys (used by the
+ * create-task modal). No-op when the element or the workflow list is missing.
+ */
+export async function populateWorkflowSelect(
+  selectId: string,
+  selected: string | null = null,
+): Promise<void> {
+  const select = document.getElementById(selectId) as HTMLSelectElement | null;
+  if (!select) return;
+  const workflows = await fetchWorkflows();
+  const options = workflowSelectOptions(workflows, selected);
+  select.innerHTML = '<option value="">(none)</option>';
+  for (const o of options) {
+    if (o.value === "") continue;
+    const opt = document.createElement("option");
+    opt.value = o.value;
+    opt.textContent = o.label;
+    if (o.selected) opt.selected = true;
+    select.appendChild(opt);
+  }
+}

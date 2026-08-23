@@ -3,6 +3,7 @@
  * Delegates to lib/schedule-list.ts and lib/schedule-detail.ts.
  */
 import { loadCronJobs } from "../lib/schedule-list";
+import { showSchedulesImportModal } from "../lib/config-import";
 
 // ── State ──
 let _activeOnly = true;
@@ -31,6 +32,7 @@ export function renderSchedule(container: HTMLElement): void {
       <div style="display:flex;align-items:center;gap:0.75rem;">
         <span id="schedule-count" style="font-size:0.85rem;color:var(--text-muted);"></span>
         <button id="toggle-all-filter" class="btn-filter" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;color:var(--text-secondary);">Show All</button>
+        <button id="schedule-import-btn" class="btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#22d3ee;border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">Import</button>
         <button id="create-cron-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Create Schedule</button>
       </div>
     </div>
@@ -58,6 +60,11 @@ export function renderSchedule(container: HTMLElement): void {
   document.getElementById("create-cron-btn")?.addEventListener("click", async () => {
     const { showCronModal } = await import("../lib/schedule-detail");
     void showCronModal(null, () => loadCronJobs(_activeOnly, () => {}));
+  });
+
+  // Wire Import button (tasks.yml `schedules:` section)
+  document.getElementById("schedule-import-btn")?.addEventListener("click", () => {
+    showSchedulesImportModal(() => void loadCronJobs(_activeOnly, () => {}));
   });
 
   document.getElementById("toggle-all-filter")?.addEventListener("click", () => {

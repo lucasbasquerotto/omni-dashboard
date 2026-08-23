@@ -1,5 +1,6 @@
 import { showToast } from "../lib/utils";
 import { apiGet, apiPut, type SettingCategory } from "../lib/api";
+import { showSettingsImportModal } from "../lib/config-import";
 import { enhanceSelect, enhanceSelectElement, syncSelectDisplay } from "../lib/dropdown";
 import { escapeHtml, formatApiError } from "../lib/helpers";
 import { copyButtonHTML, toggleButtonHTML } from "../lib/secret-buttons";
@@ -11,9 +12,13 @@ export function renderSettings(container: HTMLElement): void {
         <h1 class="page-title">Settings</h1>
         <p class="page-subtitle">System configuration and environment variables</p>
       </div>
+      <button id="settings-import-btn" class="btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#22d3ee;border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">Import</button>
     </div>
     <div id="settings-content"><div class="loading" style="padding:3rem;text-align:center;">Loading settings...</div></div>
   `;
+  document.getElementById("settings-import-btn")?.addEventListener("click", () => {
+    showSettingsImportModal(() => void loadSettings());
+  });
   void loadSettings();
 }
 

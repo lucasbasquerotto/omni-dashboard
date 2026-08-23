@@ -5953,3 +5953,23 @@ a.thread-row {
   font-size: 0.9rem;
   line-height: 1.4;
 }
+
+/* ── Database page: center-area layout (pinned paginators + centered states) ── */
+.db-center-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.db-center-area > .loading,
+.db-center-area > .empty-state {
+  margin: auto; /* centered between the top and bottom paginators */
+  text-align: center;
+}
+.db-center-area > .table-scroll {
+  width: 100%;
+  align-self: stretch;
+  justify-content: flex-start;
+}

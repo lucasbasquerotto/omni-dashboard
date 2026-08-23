@@ -1,7 +1,7 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/api";
 import { enhanceSelectElement } from "../lib/dropdown";
 import { escapeHtml, fixMissingSelectOptions } from "../lib/helpers";
-
+import { showActionsImportModal } from "../lib/config-import";
 // ── Types ──
 interface Action {
   id: string;
@@ -33,6 +33,7 @@ export function renderActions(container: HTMLElement): void {
         <h1 class="page-title">Actions</h1>
         <p class="page-subtitle">Saved tool invocations: run without calling the agent</p>
       </div>
+      <button id="actions-import-btn" class="btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#22d3ee;border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;margin-right:0.5rem;">Import</button>
       <button id="btn-create-action" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ New Action</button>
     </div>
     <div class="card">
@@ -47,6 +48,9 @@ export function renderActions(container: HTMLElement): void {
 
   document.getElementById("btn-create-action")!.addEventListener("click", () => {
     void showActionModal(null);
+  });
+  document.getElementById("actions-import-btn")?.addEventListener("click", () => {
+    showActionsImportModal(() => void loadActions());
   });
 
   void loadActions();

@@ -14,7 +14,6 @@ import {
   renderModelSelect,
   renderPlanSelect,
   renderTemplateInput,
-  planBadge,
   _templates,
 } from "./channel-config";
 
@@ -105,8 +104,6 @@ export function renderChannelsPage(channels: ChannelData[], defaultProfile: stri
       <div class="card-header">
         <span class="card-title">${escapeHtml(ch.name)}</span>
         ${ch.readonly ? '<span style="flex:1;text-align:center;"><span class="channel-status-badge badge-neutral">Permanent</span></span>' : '<span style="flex:1;"></span>'}
-        <span class="channel-status-badge" style="--type-color:#8b5cf6;background:rgba(139,92,246,0.12);border-color:rgba(139,92,246,0.3);color:#8b5cf6;font-size:0.7rem;padding:0.125rem 0.5rem;">${planBadge(ch.plan)}</span>
-        <span class="channel-status-badge ${ch.closed ? "badge-error" : "badge-success"}">${ch.closed ? "Closed" : "Open"}</span>
       </div>
       <div class="card-body">
         <div class="setting-row">

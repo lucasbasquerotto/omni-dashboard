@@ -310,8 +310,9 @@ async function loadThreads(): Promise<void> {
     params.set("offset", String(currentOffset));
     if (currentStatus !== "all") params.set("status", currentStatus);
     if (currentCause !== "all") params.set("cause", currentCause);
-    if (currentThreadId) params.set("thread_id", currentThreadId);
-    if (currentParentId) params.set("parent_id", currentParentId);
+    // omniagent /threads filters by `id` (numeric thread id), not `thread_id`
+    if (currentThreadId && /^\d+$/.test(currentThreadId)) params.set("id", currentThreadId);
+    if (currentParentId && /^\d+$/.test(currentParentId)) params.set("parent_id", currentParentId);
 
     const data = await apiGet<ThreadsResponse>(`/threads?${params.toString()}`);
 

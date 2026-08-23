@@ -80,15 +80,17 @@ export function renderDatabase(container: HTMLElement): void {
               </div>
             </div>
             <div id="db-error" class="error-state" hidden></div>
-            <div id="db-loading" class="loading" hidden>Loading…</div>
             <div id="db-pagination-top" class="events-nav db-pagination" hidden></div>
-            <div id="db-table-wrap" class="table-scroll" hidden>
-              <table class="data-table" role="grid">
-                <thead id="db-thead"></thead>
-                <tbody id="db-tbody"></tbody>
-              </table>
+            <div class="db-center-area" id="db-center-area">
+              <div id="db-loading" class="loading" hidden>Loading…</div>
+              <div id="db-table-wrap" class="table-scroll" hidden>
+                <table class="data-table" role="grid">
+                  <thead id="db-thead"></thead>
+                  <tbody id="db-tbody"></tbody>
+                </table>
+              </div>
+              <div id="db-empty" class="empty-state" hidden></div>
             </div>
-            <div id="db-empty" class="empty-state" hidden></div>
             <div id="db-pagination-bottom" class="events-nav db-pagination" hidden></div>
           </div>
         </div>

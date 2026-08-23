@@ -5,6 +5,7 @@
 import { apiGet, toCamelCase, type ChannelData, type PluginData } from "../lib/api";
 import { enhanceSelect, syncSelectDisplay } from "../lib/dropdown";
 import { escapeHtml, fixMissingSelectOptions, formatApiError, getDefaultProfile } from "../lib/helpers";
+import { showChannelsImportModal } from "../lib/config-import";
 import {
   _profiles,
   _providers,
@@ -52,6 +53,7 @@ export function renderChannels(container: HTMLElement): void {
         </select>
       </div>
       <div class="filter-actions" style="margin-left:auto;">
+        <button id="channels-import-btn" class="btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#22d3ee;border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">Import</button>
         <button id="refresh-channels-btn" class="btn btn-secondary">↻ Refresh</button>
         <button id="reset-channels-filter" class="btn btn-secondary">✕ Reset</button>
       </div>
@@ -62,6 +64,7 @@ export function renderChannels(container: HTMLElement): void {
   `;
   setChannelFilters({ channelId: "", platform: "all", status: "all" });
   applyFiltersFromUrl();
+  wireChannelsImport();
   void loadChannels();
 }
 
@@ -177,3 +180,14 @@ function wireChannels(): void {
   wireChannelConfigEditing();
   wireChannelToggleButtons(() => loadChannels());
 }
+
+// ── Import (channels.yml) ──
+
+export function wireChannelsImport(): void {
+  document.getElementById("channels-import-btn")?.addEventListener("click", () => {
+    showChannelsImportModal(() => void loadChannels());
+  });
+}
+
+// Wire Import button after render (called from renderChannels)
+// (kept inline in renderChannels via the button id; this hook is optional)

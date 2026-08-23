@@ -4,6 +4,7 @@
  * lib/hooks-detail.ts.
  */
 import { loadHooks } from "../lib/hooks-list";
+import { showHooksImportModal } from "../lib/config-import";
 
 // ── Main render ──
 
@@ -16,6 +17,7 @@ export function renderHooks(container: HTMLElement): void {
       </div>
       <div style="display:flex;align-items:center;gap:0.75rem;">
         <span id="hooks-count" style="font-size:0.85rem;color:var(--text-muted);"></span>
+        <button id="hooks-import-btn" class="btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#22d3ee;border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">Import</button>
         <button id="create-hook-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Create Hook</button>
       </div>
     </div>
@@ -31,6 +33,11 @@ export function renderHooks(container: HTMLElement): void {
   document.getElementById("create-hook-btn")?.addEventListener("click", async () => {
     const { showHookModal } = await import("../lib/hooks-detail");
     void showHookModal(null, () => loadHooks());
+  });
+
+  // Wire Import button (tasks.yml `hooks:` section)
+  document.getElementById("hooks-import-btn")?.addEventListener("click", () => {
+    showHooksImportModal(() => void loadHooks());
   });
 
   void loadHooks();

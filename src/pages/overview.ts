@@ -247,7 +247,7 @@ function renderBarChart(hourly: HourlyBucket[]): string {
   const labels = daily
     .map((d, i) => {
       const x = padding.left + gap + i * (barWidth + gap) + barWidth / 2;
-      return `<text x="${x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="9">${d.label}</text>`;
+      return `<text x="${x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="12">${d.label}</text>`;
     })
     .join("");
 
@@ -338,7 +338,7 @@ function renderLineChart(tokenTrend: DailyTokens[]): string {
     const val = Math.round(i * yStep);
     const y = padding.top + chartH - (val / maxVal) * chartH;
     return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="${COLORS.border}" stroke-width="1"/>
-      <text x="${padding.left - 6}" y="${y + 4}" text-anchor="end" fill="${COLORS.textSecondary}" font-size="9">${formatTokens(val)}</text>`;
+      <text x="${padding.left - 6}" y="${y + 4}" text-anchor="end" fill="${COLORS.textSecondary}" font-size="12">${formatTokens(val)}</text>`;
   }).join("");
 
   // Points and polyline
@@ -352,7 +352,7 @@ function renderLineChart(tokenTrend: DailyTokens[]): string {
       ${yGrid}
       <circle cx="${x}" cy="${y}" r="4" fill="${COLORS.cyan}" opacity="0.9"/>
       <text x="${x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="9">${formatDate(tokenTrend[0].day)}</text>
-      <text x="${x}" y="${y - 10}" text-anchor="middle" fill="${COLORS.cyan}" font-size="10">${formatTokens(val)}</text>
+      <text x="${x}" y="${y - 10}" text-anchor="middle" fill="${COLORS.cyan}" font-size="12">${formatTokens(val)}</text>
     </svg>`;
   }
 
@@ -378,7 +378,7 @@ function renderLineChart(tokenTrend: DailyTokens[]): string {
   const labels = points
     .map((p, i) => {
       if (i % 3 !== 0 && i !== points.length - 1) return "";
-      return `<text x="${p.x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="9">${formatDate(p.label)}</text>`;
+      return `<text x="${p.x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="12">${formatDate(p.label)}</text>`;
     })
     .join(" ");
 
