@@ -6,6 +6,7 @@
 import { loadBoard } from "../lib/kanban-board";
 import { getStoredBoard, setStoredBoard, wireBoardControls, fetchBoards, boardMetaLabel } from "../lib/kanban-boards";
 import { createTaskModalHTML, wireCreateTaskModal } from "../lib/kanban-create";
+import { enhanceSelect } from "../lib/dropdown";
 
 // ── State ──
 let showArchived = false;
@@ -143,6 +144,12 @@ export function renderKanban(container: HTMLElement): void {
     });
   };
   setupBoardControls();
+  // Board selector: custom stylized select, same enhancement as the other
+  // pages. wireBoardControls renders the <select> asynchronously (and
+  // enhances it); this page-level call is idempotent (guarded in
+  // dropdown.ts) and keeps the enhancement explicit on the page path.
+  const selectId = "kanban-board-select";
+  enhanceSelect(selectId);
   void updateBoardTitleMeta(currentBoard);
   void loadBoard(showArchived, currentBoard);
 }
