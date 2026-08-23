@@ -50,3 +50,36 @@ describe("Models page API usage (pages/models.ts)", () => {
     assert.match(modelsSrc, /model_config|modelConfig|models/);
   });
 });
+
+// ── Item 3: server /api/models proxy must preserve the /api prefix ──
+// omniagent serves models at /api/models (WITH the prefix); the generic
+// proxy strips /api, which is what caused "Failed to load models.yml: 404".
+
+describe("Models server proxy (server/index.ts, item 3)", () => {
+  const serverSrc = readFileSync(join(here, "..", "server", "index.ts"), "utf-8");
+  // NOTE: the Express regex literal in the source escapes the slashes, so the
+  // file text is `app.all(/^\/api\/models(?:\/.*)?$/, ...)` — search for that
+  // exact (backslash-containing) text, not a bare "api/models".
+  const routeStart = "app.all(/^\\/api\\/models";
+
+  it("registers the /api/models proxy before the generic proxy", () => {
+    assert.ok(
+      serverSrc.includes(routeStart + "(?:\\/.*)?$/, async (req, res) => {"),
+      "a dedicated /api/models route must exist",
+    );
+    const modelsIdx = serverSrc.indexOf(routeStart);
+    const genericIdx = serverSrc.indexOf("Generic proxy");
+    assert.ok(modelsIdx !== -1 && genericIdx !== -1 && modelsIdx < genericIdx, "must be registered before the generic proxy");
+  });
+
+  it("forwards the full /api/models path to omniagent (prefix preserved)", () => {
+    assert.ok(
+      serverSrc.includes("const targetUrl = `${OMNIAGENT}${req.path}${queryStr}`;"),
+      "the proxy must forward req.path unchanged (keeps /api/models)",
+    );
+    assert.ok(
+      serverSrc.includes("omniagent serves these WITH the /api prefix"),
+      "comment documents why the prefix is preserved",
+    );
+  });
+});

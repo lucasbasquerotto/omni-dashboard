@@ -69,3 +69,36 @@ describe("Database page fixes", () => {
     );
   });
 });
+
+// ── Item 4: pinned paginators + centered loading/empty states ──
+// Top paginator pinned at the top, bottom paginator pinned at the bottom,
+// and the loading/empty content vertically centered between them.
+
+describe("Database page layout (db-center-area, item 4)", () => {
+  it("wraps loading/table/empty in a center area between the two paginators", () => {
+    const topIdx = page.indexOf('id="db-pagination-top"');
+    const centerIdx = page.indexOf('class="db-center-area" id="db-center-area"');
+    const loadingIdx = page.indexOf('id="db-loading"');
+    const emptyIdx = page.indexOf('id="db-empty"');
+    const bottomIdx = page.indexOf('id="db-pagination-bottom"');
+    assert.ok(
+      [topIdx, centerIdx, loadingIdx, emptyIdx, bottomIdx].every((i) => i !== -1),
+      "all five slots must exist",
+    );
+    assert.ok(
+      topIdx < centerIdx && centerIdx < loadingIdx && loadingIdx < emptyIdx && emptyIdx < bottomIdx,
+      "order must be: top paginator → center area (loading, empty) → bottom paginator",
+    );
+  });
+
+  it("center area fills the box and centers its content; paginators pin top/bottom", () => {
+    assert.ok(css.includes(".db-center-area {"), "db-center-area style block exists");
+    assert.ok(css.includes("flex: 1;"), "center area expands to fill remaining height");
+    assert.ok(css.includes("justify-content: center;"), "center area centers content vertically");
+    assert.ok(
+      css.includes(".db-center-area > .loading,\n.db-center-area > .empty-state {"),
+      "loading and empty states share the centering rule",
+    );
+    assert.ok(css.includes("margin: auto;"), "centered between the top and bottom paginators");
+  });
+});
