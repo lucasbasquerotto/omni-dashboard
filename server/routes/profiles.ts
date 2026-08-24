@@ -1,11 +1,13 @@
 import { Router } from "express";
-import { readdirSync, existsSync, readFileSync, writeFileSync, statSync, mkdirSync } from "fs";
+import { existsSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 
 const OMNI_DIR = process.env.OMNI_DIR;
 if (!OMNI_DIR) {
   throw new Error("OMNI_DIR environment variable must be set");
 }
+
+const OMNIAGENT = process.env.OMNIAGENT_URL || "http://omniagent:8080";
 
 export const profilesRouter = Router();
 
@@ -15,28 +17,8 @@ function getProfilesDir(): string {
   return join(OMNI_DIR!, "profiles");
 }
 
-function getConfigPath(name: string): string {
-  return join(getProfilesDir(), name, "config.json");
-}
-
 function getSkillsDir(name: string): string {
   return join(getProfilesDir(), name, "skills");
-}
-
-function listFsProfiles(): string[] {
-  const dir = getProfilesDir();
-  if (!existsSync(dir)) return [];
-  try {
-    return readdirSync(dir).filter((f) => {
-      try {
-        return statSync(join(dir, f)).isDirectory();
-      } catch {
-        return false;
-      }
-    });
-  } catch {
-    return [];
-  }
 }
 
 function readProfileSkills(name: string): string[] {
@@ -48,28 +30,6 @@ function readProfileSkills(name: string): string[] {
     );
   } catch {
     return [];
-  }
-}
-
-function readProfileConfig(name: string): {
-  provider: string | null;
-  model: string | null;
-  allowed_tools?: string[];
-} {
-  const configPath = getConfigPath(name);
-  if (!existsSync(configPath)) {
-    return { provider: null, model: null, allowed_tools: undefined };
-  }
-  try {
-    const raw = readFileSync(configPath, "utf-8");
-    const cfg = JSON.parse(raw);
-    return {
-      provider: cfg.provider ?? null,
-      model: cfg.model ?? null,
-      allowed_tools: Array.isArray(cfg.allowed_tools) ? cfg.allowed_tools : undefined,
-    };
-  } catch {
-    return { provider: null, model: null, allowed_tools: undefined };
   }
 }
 
@@ -104,8 +64,7 @@ async function refreshToolMappings(): Promise<void> {
   const now = Date.now();
   if (now - toolMapLastFetch < TOOL_MAP_TTL && Object.keys(DISPLAY_TO_RAW).length > 0) return;
   try {
-    const omniagentUrl = process.env.OMNIAGENT_URL || "http://omniagent:8080";
-    const response = await fetch(`${omniagentUrl}/mcp/tools`);
+    const response = await fetch(`${OMNIAGENT}/mcp/tools`);
     if (!response.ok) return;
     const data = (await response.json()) as
       | { tools?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> }
@@ -150,26 +109,52 @@ function toDisplayNames(tools: string[] | null): string[] {
   return tools.map((t) => RAW_TO_DISPLAY[t] || t);
 }
 
+/**
+ * Profile definitions are DECLARED in `{OMNI_DIR}/config/profiles.yml` —
+ * the single source of truth (omniagent owns read/write/validation). This
+ * router delegates every storage operation to the omniagent /profiles API
+ * (which mirrors the channels.yml pattern) and keeps only the dashboard
+ * enrichment: MCP tool display↔raw mapping, tool lists and filesystem
+ * skills (profile FILES live in profiles/<name>/, the declaration in yml).
+ */
+
+interface OmniProfile {
+  name: string;
+  provider?: string | null;
+  model?: string | null;
+  plan?: boolean | null;
+  template?: string | null;
+  allowed_tools?: string[] | null;
+  skills?: string[];
+}
+
+/** GET {OMNIAGENT}/profiles → declared profiles (bare array). */
+async function omniProfiles(): Promise<OmniProfile[]> {
+  const res = await fetch(`${OMNIAGENT}/profiles`);
+  if (!res.ok) throw new Error(`omniagent /profiles returned ${res.status}`);
+  const data = (await res.json()) as OmniProfile[] | { data?: OmniProfile[] };
+  const list = Array.isArray(data) ? data : data?.data || [];
+  return list;
+}
+
 // ── Routes ──
 
-// GET /api/profiles
+// GET /api/profiles — YAML-declared profiles (incl. YAML-only profiles with
+// no directory), enriched with the tool map + filesystem skills.
 profilesRouter.get("/", async (_req, res) => {
   try {
-    const names = listFsProfiles();
+    const profiles = await omniProfiles();
     const allTools = await getAllTools();
     const allToolDetails = await getAllToolDetails();
-    const result = names.map((name) => {
-      const config = readProfileConfig(name);
-      return {
-        name,
-        provider: config.provider,
-        model: config.model,
-        allowed_tools: toDisplayNames(config.allowed_tools as any),
-        skills: readProfileSkills(name),
-        all_tools: allTools,
-        all_tool_details: allToolDetails, // for toolset grouping in frontend
-      };
-    });
+    const result = profiles.map((p) => ({
+      name: p.name,
+      provider: p.provider ?? null,
+      model: p.model ?? null,
+      allowed_tools: toDisplayNames((p.allowed_tools as string[] | null) ?? []),
+      skills: readProfileSkills(p.name),
+      all_tools: allTools,
+      all_tool_details: allToolDetails, // for toolset grouping in frontend
+    }));
     res.json(result);
   } catch (err) {
     console.error("[profiles] GET error:", err);
@@ -177,7 +162,8 @@ profilesRouter.get("/", async (_req, res) => {
   }
 });
 
-// POST /api/profiles: create a new profile
+// POST /api/profiles: create a new profile (upsert into config/profiles.yml
+// via the omniagent API — NO profiles/<name>/config.json is written).
 profilesRouter.post("/", async (req, res) => {
   try {
     const { name, provider, model } = req.body as any;
@@ -204,28 +190,36 @@ profilesRouter.post("/", async (req, res) => {
       }
     }
 
-    // Check if profile already exists
-    const configDir = join(getProfilesDir(), trimmedName);
-    if (existsSync(configDir)) {
+    // Check if the profile is already declared (409, mirrors the old
+    // filesystem-exists check).
+    const declared = await omniProfiles();
+    if (declared.some((p) => p.name === trimmedName)) {
       res.status(409).json({ error: `Profile '${trimmedName}' already exists` });
       return;
     }
 
-    // Create directory and config.json
-    mkdirSync(configDir, { recursive: true });
-    const config = {
-      provider: provider && typeof provider === "string" && provider.trim() ? provider.trim() : null,
-      model: model && typeof model === "string" && model.trim() ? model.trim() : null,
-      allowed_tools: [],
-    };
-    writeFileSync(getConfigPath(trimmedName), JSON.stringify(config, null, 2) + "\n");
+    const fwd = await fetch(`${OMNIAGENT}/profiles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: trimmedName,
+        provider: provider && typeof provider === "string" && provider.trim() ? provider.trim() : null,
+        model: model && typeof model === "string" && model.trim() ? model.trim() : null,
+      }),
+    });
+    if (!fwd.ok) {
+      const text = await fwd.text();
+      res.status(fwd.status).json({ error: text || "Failed to create profile" });
+      return;
+    }
 
     res.status(201).json({
       success: true,
       profile: {
         name: trimmedName,
-        provider: config.provider,
-        model: config.model,
+        provider:
+          provider && typeof provider === "string" && provider.trim() ? provider.trim() : null,
+        model: model && typeof model === "string" && model.trim() ? model.trim() : null,
         allowed_tools: [],
         skills: [],
         all_tools: await getAllTools(),
@@ -237,46 +231,61 @@ profilesRouter.post("/", async (req, res) => {
   }
 });
 
-// PATCH /api/profiles/:name: update profile config.json fields
-profilesRouter.patch("/:name", (req, res) => {
+// PATCH /api/profiles/:name: update profile fields in config/profiles.yml
+// (YAML-only profiles with no directory are perfectly patchable).
+profilesRouter.patch("/:name", async (req, res) => {
   try {
     const { name } = req.params;
-    const { provider, model, allowed_tools } = req.body as any;
+    const { provider, model, allowed_tools, plan, template } = req.body as any;
 
-    // Ensure profile directory exists
-    const configPath = getConfigPath(name);
-    const configDir = join(getProfilesDir(), name);
-    if (!existsSync(configDir)) {
-      res.status(404).json({ error: `Profile '${name}' not found on filesystem` });
-      return;
-    }
-
-    // Read existing config or start fresh
-    let config: { provider: string | null; model: string | null; allowed_tools?: string[] } = {
-      provider: null,
-      model: null,
-    };
-    if (existsSync(configPath)) {
-      try {
-        config = JSON.parse(readFileSync(configPath, "utf-8"));
-      } catch {
-        config = { provider: null, model: null };
-      }
-    }
-
-    // Merge updates
-    if (provider !== undefined) config.provider = provider || null;
-    if (model !== undefined) config.model = model || null;
+    const body: Record<string, unknown> = {};
+    if (provider !== undefined) body.provider = provider || null;
+    if (model !== undefined) body.model = model || null;
+    if (plan !== undefined) body.plan = plan;
+    if (template !== undefined) body.template = template || null;
     if (allowed_tools !== undefined) {
       // Convert display names to raw names for storage
-      config.allowed_tools =
-        Array.isArray(allowed_tools) && allowed_tools.length > 0 ? toRawNames(allowed_tools) : []; // reset to empty (no tools allowed)
+      body.allowed_tools =
+        Array.isArray(allowed_tools) && allowed_tools.length > 0 ? toRawNames(allowed_tools) : [];
     }
 
-    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+    const fwd = await fetch(`${OMNIAGENT}/profiles/${encodeURIComponent(name)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!fwd.ok) {
+      const text = await fwd.text();
+      res.status(fwd.status).json({ error: text || "Failed to update profile" });
+      return;
+    }
     res.json({ success: true });
   } catch (err) {
     console.error("[profiles] PATCH error:", err);
     res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+// POST /api/profiles/import: forward an external profiles.yml-structured
+// document to the omniagent import endpoint (server-side validation + atomic
+// merge into config/profiles.yml), returning its success/imported/updated
+// payload verbatim.
+profilesRouter.post("/import", async (req, res) => {
+  try {
+    const { yaml } = (req.body ?? {}) as any;
+    if (!yaml || typeof yaml !== "string" || !yaml.trim()) {
+      res.status(400).json({ error: "Import body must contain a `yaml` field with the profiles.yml document" });
+      return;
+    }
+    const fwd = await fetch(`${OMNIAGENT}/profiles/import`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ yaml }),
+    });
+    const text = await fwd.text();
+    res.status(fwd.status).set("Content-Type", "application/json").send(text);
+  } catch (err) {
+    console.error("[profiles] import error:", err);
+    res.status(500).json({ error: "Failed to import profiles" });
   }
 });

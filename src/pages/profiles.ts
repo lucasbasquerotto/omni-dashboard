@@ -17,6 +17,7 @@ export function renderProfiles(container: HTMLElement): void {
         <p class="page-subtitle">LLM profiles: provider, model, and tool configuration</p>
       </div>
       <button id="create-profile-btn" class="btn-primary" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Create Profile</button>
+      <button id="profiles-import-btn" class="btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#22d3ee;border-radius:6px;padding:0.375rem 0.9rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;margin-left:0.5rem;">Import</button>
     </div>
     <div id="profiles-content">
       <div class="loading" style="padding:3rem;text-align:center;">Loading profiles...</div>
@@ -525,6 +526,13 @@ function wireProfiles(): void {
     createBtn.addEventListener("click", () => showCreateProfileModal());
   }
 
+  // ── Import button (mirrors the plugins/channels import UX) ──
+  const importBtn = document.getElementById("profiles-import-btn");
+  if (importBtn && !importBtn.getAttribute("data-wired")) {
+    importBtn.setAttribute("data-wired", "1");
+    importBtn.addEventListener("click", () => showProfilesImportModal());
+  }
+
   // ── Profile model refresh buttons ──
   document.querySelectorAll(".channel-refresh-btn[id^='prof-model-refresh-']").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -588,6 +596,86 @@ function wireProfiles(): void {
         (btn as HTMLElement).style.opacity = "1";
       }
     });
+  });
+}
+
+// ── Profiles Import Modal ──
+// Posts a profiles.yml-structured document (pasted YAML or a fetched URL) to
+// the /profiles/import endpoint (server-side validation + atomic merge into
+// config/profiles.yml), then reloads the profile list so newly imported
+// profiles appear (including YAML-only profiles with no directory).
+
+function showProfilesImportModal(): void {
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="modal" style="max-width:640px">
+      <div class="modal-header">
+        <h2>Import profiles</h2>
+        <button class="modal-close" id="profiles-import-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-section">
+          <label class="filter-label">profiles.yml URL (optional)</label>
+          <input class="filter-input" id="profiles-import-url" type="text" placeholder="https://raw.githubusercontent.com/user/repo/main/config/profiles.yml" style="width:100%;" />
+        </div>
+        <div class="settings-section" style="margin-top:0.75rem;">
+          <label class="filter-label">Or paste a profiles.yml document</label>
+          <textarea class="filter-input" id="profiles-import-yaml" rows="12" placeholder="profiles:
+  research:
+    provider: opencode-go
+    model: deepseek-v4-flash
+    plan: true
+    template: researcher
+    allowed_tools:
+      - search_messages" style="width:100%;font-family:monospace;font-size:0.8rem;"></textarea>
+          <div class="text-muted" style="font-size:0.75rem;margin-top:0.25rem;">
+            The document must follow the profiles.yml structure (top-level <code>profiles:</code> map).
+            Entries with the same name as an existing profile are overwritten; new names are added.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="profiles-import-cancel">Cancel</button>
+        <button class="btn btn-primary" id="profiles-import-save">Import</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+
+  const close = () => backdrop.remove();
+  backdrop.querySelector("#profiles-import-modal-close")?.addEventListener("click", close);
+  backdrop.querySelector("#profiles-import-cancel")?.addEventListener("click", close);
+
+  const urlInput = backdrop.querySelector("#profiles-import-url") as HTMLInputElement;
+  const yamlInput = backdrop.querySelector("#profiles-import-yaml") as HTMLTextAreaElement;
+  const saveBtn = backdrop.querySelector("#profiles-import-save") as HTMLButtonElement;
+
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Importing...";
+    try {
+      let text = yamlInput.value;
+      const url = urlInput.value.trim();
+      if (!text.trim() && url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Failed to fetch URL: ${res.status} ${res.statusText}`);
+        text = await res.text();
+      }
+      if (!text.trim()) throw new Error("Paste a profiles.yml document or provide a URL");
+      const result = await apiPost<{ data?: { message?: string }; message?: string }>(
+        "/profiles/import",
+        { yaml: text },
+      );
+      const msg = result?.data?.message || result?.message || "Profiles imported";
+      showToast(msg, "success");
+      close();
+      void loadProfiles();
+    } catch (e) {
+      showToast("Import failed: " + formatApiError(e), "error");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Import";
+    }
   });
 }
 
