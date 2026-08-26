@@ -82,7 +82,7 @@ function renderSecretRow(s: SecretEntry): string {
   const inputHtml = `
     <div class="setting-secret-wrapper" style="flex:1;">
       <input type="${isPassword ? "password" : "text"}" id="${inputId}" class="filter-input setting-input setting-secret-input"
-        value="${escapeHtml(value)}"
+        value="${escapeHtml(value)}" readonly
         data-name="${escapeHtml(name)}" data-original="${escapeHtml(value)}" style="flex:1;" />
       ${
         isPassword
@@ -117,6 +117,7 @@ function renderSecretRow(s: SecretEntry): string {
         </svg>
       </button>
     </div>
+    <button type="button" class="secret-edit-btn" title="Edit secret" data-name="${escapeHtml(name)}" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.75rem;line-height:1.4;">✎ Edit</button>
     <button type="button" class="secret-versions-btn" title="View version history" data-name="${escapeHtml(name)}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0.25rem;font-size:0.9rem;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -216,6 +217,22 @@ function wireSecrets(): void {
     });
   });
 
+  // Edit buttons: unlock the value input for editing (readonly by default)
+  document.querySelectorAll(".secret-edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const name = btn.getAttribute("data-name");
+      if (!name) return;
+      const input = document.querySelector(
+        `.setting-input[data-name="${CSS.escape(name)}"]`,
+      ) as HTMLInputElement | null;
+      if (!input) return;
+      input.readOnly = false;
+      input.focus();
+      const actionsEl = document.querySelector(`#actions-${CSS.escape(name)}`) as HTMLElement | null;
+      if (actionsEl) actionsEl.style.display = "flex";
+    });
+  });
+
   // Change detection
   document.querySelectorAll(".setting-input").forEach((el) => {
     const input = el as HTMLInputElement;
@@ -263,6 +280,7 @@ function wireSecrets(): void {
       if (input) {
         const original = input.getAttribute("data-original") || "";
         input.value = original;
+        input.readOnly = true;
       }
       const actionsEl = document.querySelector(`#actions-${CSS.escape(name)}`) as HTMLElement | null;
       if (actionsEl) actionsEl.style.display = "none";
@@ -299,6 +317,7 @@ async function saveSecret(name: string, value: string): Promise<void> {
     ) as HTMLInputElement | null;
     if (input) {
       input.setAttribute("data-original", value);
+      input.readOnly = true;
     }
     changedSecrets.delete(name);
     const actionsEl = document.querySelector(`#actions-${CSS.escape(name)}`) as HTMLElement | null;

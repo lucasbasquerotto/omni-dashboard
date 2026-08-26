@@ -1,5 +1,5 @@
 import { apiGet, toCamelCase, type PluginData } from "./api";
-import { enhanceSelectElement, enhanceSelect, syncSelectDisplay } from "./dropdown";
+import { enhanceSelectElement, enhanceSelect, syncSelectDisplay, syncSelectDisplayEl } from "./dropdown";
 import { formatApiError } from "./helpers";
 import { getCurrentConfig, dirtyCheckSaveButton, wireRefToggles } from "./plugin-config";
 import { renderPluginCard, wirePluginButtons, showInstallModal } from "./plugin-ui";
@@ -426,6 +426,13 @@ function wirePage(type: PluginPageType): void {
           el.value = saved[key] !== undefined ? String(saved[key]) : "";
         }
       });
+      // Sync enhanced custom dropdowns (native select values were restored
+      // above, but the visible triggers would still show old selections).
+      formEl
+        .querySelectorAll("select.ref-name-select, select.plugin-config-input[data-key]")
+        .forEach((el) => {
+          if (el.tagName === "SELECT") syncSelectDisplayEl(el as HTMLSelectElement);
+        });
       // Re-evaluate dirty state
       dirtyCheckSaveButton(formEl, pluginName, savedConfigs);
     });

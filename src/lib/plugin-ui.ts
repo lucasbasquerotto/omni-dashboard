@@ -4,6 +4,7 @@ import { showToast } from "./utils";
 import { apiDelete, apiPost, type PluginData } from "./api";
 import { escapeHtml, formatApiError } from "./helpers";
 import { renderConfigField as renderConfigFieldV2, dirtyCheckSaveButton } from "./plugin-config";
+import { syncSelectDisplayEl } from "./dropdown";
 import type { ConfigField } from "./api";
 
 export type PluginPageType = "tool" | "platform" | "provider";
@@ -459,6 +460,11 @@ export function wirePluginButtons(
               el.value = "";
             }
           });
+          // Sync the enhanced custom-select display: the native select value
+          // was restored above, but the visible dropdown trigger would still
+          // show the previously selected option.
+          const refNameSelect = container.querySelector(".ref-name-select") as HTMLSelectElement | null;
+          if (refNameSelect) syncSelectDisplayEl(refNameSelect);
         });
         // Update dirty check
         dirtyCheckSaveButton(card, pluginName, savedConfigs!);

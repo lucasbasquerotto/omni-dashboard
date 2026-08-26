@@ -14,6 +14,7 @@ import { apiGet, apiPost, apiPut } from "../lib/api";
 import { escapeHtml, formatApiError } from "../lib/helpers";
 import { showToast } from "../lib/utils";
 import { showModelsImportModal } from "../lib/plugin-import";
+import { enhanceSelectElement } from "../lib/dropdown";
 
 // ── Types (mirror of omniagent src/models_yaml.rs) ──
 
@@ -111,6 +112,24 @@ function providerSubtitle(p: ProviderOverride): string {
   return bits.join(" · ") || "provider definition";
 }
 
+function renderModelConfigInline(mc: Record<string, ModelConfig> | undefined): string {
+  if (!mc || Object.keys(mc).length === 0) return "";
+  const lines = Object.entries(mc)
+    .map(([model, cfg]) => {
+      const parts: string[] = [];
+      if (cfg.api_mode) parts.push(`api_mode: ${cfg.api_mode}`);
+      if (cfg.supports_reasoning !== undefined) parts.push(`supports_reasoning: ${cfg.supports_reasoning}`);
+      if (cfg.token_budget_soft !== undefined) parts.push(`soft: ${cfg.token_budget_soft}`);
+      if (cfg.token_budget_hard !== undefined) parts.push(`hard: ${cfg.token_budget_hard}`);
+      if (cfg.max_tokens !== undefined) parts.push(`max_tokens: ${cfg.max_tokens}`);
+      if (cfg.max_tokens_on_truncation !== undefined) parts.push(`max_tok_trunc: ${cfg.max_tokens_on_truncation}`);
+      const detail = parts.length ? parts.join(", ") : "(no overrides)";
+      return `<div style="padding-left:1rem;"><code style="background:rgba(255,255,255,0.05);padding:0.0625rem 0.25rem;border-radius:2px;font-size:0.75rem;">${escapeHtml(model)}</code>: <span style="color:var(--text-muted);font-size:0.78rem;">${escapeHtml(detail)}</span></div>`;
+    })
+    .join("");
+  return `<div style="margin-top:0.25rem;"><span style="color:var(--text-muted);">model_config:</span>${lines}</div>`;
+}
+
 function renderProviders(file: ModelsFile): string {
   const names = Object.keys(file.providers).sort();
   if (names.length === 0) {
@@ -124,7 +143,6 @@ function renderProviders(file: ModelsFile): string {
       const p = file.providers[name];
       if (editName === name) return renderEditor(name, p);
       const models = (p.models || []).join(", ");
-      const mc = p.model_config ? Object.keys(p.model_config) : [];
       return `
         <div class="channel-card" data-provider-card="${escapeHtml(name)}" style="border:1px solid var(--glass-border,rgba(255,255,255,0.1));border-radius:10px;padding:1rem;margin-bottom:0.75rem;">
           <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
@@ -132,23 +150,13 @@ function renderProviders(file: ModelsFile): string {
               <div style="font-weight:600;font-size:1rem;">${escapeHtml(name)}</div>
               <div style="font-size:0.8rem;color:var(--text-muted);word-break:break-all;">${escapeHtml(providerSubtitle(p))}</div>
             </div>
-            ${
-              p.refresh_url
-                ? `<button class="channel-refresh-btn" data-provider="${escapeHtml(name)}" title="Refresh models (writes models.yml)" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);border-radius:6px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.85rem;color:#22d3ee;">⟳ Refresh</button>`
-                : ""
-            }
-            <button class="channel-edit-btn save" data-edit-provider="${escapeHtml(name)}" title="Edit" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:#a78bfa;border-radius:6px;padding:0.25rem 0.6rem;cursor:pointer;font-size:0.8rem;">✎ Edit</button>
-            <button class="channel-edit-btn cancel" data-delete-provider="${escapeHtml(name)}" title="Delete provider" style="background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.25);color:#fb7185;border-radius:6px;padding:0.25rem 0.6rem;cursor:pointer;font-size:0.8rem;">🗑</button>
+            <button class="btn btn-sm channel-refresh-btn" data-provider="${escapeHtml(name)}" title="Refresh models (writes models.yml)" style="border-radius:4px;padding:0.2rem 0.5rem;font-size:0.75rem;line-height:1.4;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#22d3ee;cursor:pointer;">⟳ Refresh</button>
+            <button class="btn btn-sm" data-edit-provider="${escapeHtml(name)}" title="Edit" style="border-radius:4px;padding:0.2rem 0.5rem;font-size:0.75rem;line-height:1.4;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);cursor:pointer;">✎ Edit</button>
+            <button class="btn btn-sm" data-delete-provider="${escapeHtml(name)}" title="Delete provider" style="border-radius:4px;padding:0.2rem 0.5rem;font-size:0.75rem;line-height:1.4;background:rgba(244,63,94,0.15);border:1px solid rgba(244,63,94,0.3);color:#fb7185;cursor:pointer;">🗑 Delete</button>
           </div>
           <div style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-secondary);">
             ${models ? `<div><span style="color:var(--text-muted);">models:</span> ${escapeHtml(models)}</div>` : ""}
-            ${
-              mc.length
-                ? `<div style="margin-top:0.25rem;"><span style="color:var(--text-muted);">model_config:</span> ${escapeHtml(
-                    mc.join(", "),
-                  )}</div>`
-                : ""
-            }
+            ${renderModelConfigInline(p.model_config)}
           </div>
         </div>`;
     })
@@ -187,7 +195,7 @@ function selectRow(
     </div>`;
 }
 
-function renderModelConfigEditor(provider: string, mc: Record<string, ModelConfig> | undefined): string {
+function renderModelConfigEditor(_provider: string, mc: Record<string, ModelConfig> | undefined): string {
   const entries = Object.entries(mc || {});
   const rows = entries
     .map(([model, cfg]) => {
@@ -214,7 +222,7 @@ function renderModelConfigEditor(provider: string, mc: Record<string, ModelConfi
       ${rows || '<div style="font-size:0.78rem;color:var(--text-muted);">No per-model config yet.</div>'}
       <div style="display:flex;gap:0.4rem;align-items:center;margin-top:0.4rem;">
         <input type="text" id="m-new-mc-model" class="filter-input" placeholder="model name" style="width:10rem;" />
-        <button type="button" id="m-add-mc" data-provider="${escapeHtml(provider)}" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);color:#a78bfa;border-radius:6px;padding:0.25rem 0.6rem;cursor:pointer;font-size:0.78rem;">+ model config</button>
+        <button type="button" id="m-add-mc" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);color:#a78bfa;border-radius:6px;padding:0.25rem 0.6rem;cursor:pointer;font-size:0.78rem;">+ model config</button>
       </div>
     </div>`;
 }
@@ -236,8 +244,8 @@ function renderEditor(name: string, p: ProviderOverride): string {
         <div style="flex:1;">
           <div style="font-weight:600;">Editing provider: ${escapeHtml(name)}</div>
         </div>
-        <button class="channel-edit-btn save" id="m-save" data-provider="${escapeHtml(name)}" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80;border-radius:6px;padding:0.25rem 0.7rem;cursor:pointer;font-size:0.8rem;">✓ Save</button>
-        <button class="channel-edit-btn cancel" id="m-cancel" style="background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.25);color:var(--text-secondary);border-radius:6px;padding:0.25rem 0.7rem;cursor:pointer;font-size:0.8rem;">✕ Cancel</button>
+        <button class="btn btn-primary" id="m-save" data-provider="${escapeHtml(name)}">✓ Save</button>
+        <button class="btn btn-secondary" id="m-cancel">✕ Cancel</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem;">
         ${fieldRow("plugin", "plugin", pluginVal, "true | false | plugin name")}
@@ -315,9 +323,17 @@ function wireRows(): void {
       }
     });
   });
-  document.querySelectorAll<HTMLElement>("[data-provider]").forEach((btn) => {
+  document.querySelectorAll<HTMLElement>(".channel-refresh-btn[data-provider]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const provider = btn.getAttribute("data-provider")!;
+      const prov = currentFile.providers[provider];
+      if (!prov?.refresh_url) {
+        showToast(
+          `No refresh_url configured for "${provider}" — add one in Edit to enable model refresh`,
+          "error",
+        );
+        return;
+      }
       btn.textContent = "⟳";
       btn.style.opacity = "0.5";
       try {
@@ -417,6 +433,10 @@ function collectEditor(name: string): ProviderOverride | null {
 }
 
 function wireEditor(name: string): void {
+  // Editor selects use the app's custom styled dropdown component
+  document.querySelectorAll<HTMLSelectElement>("#m-api_mode, #m-supports_reasoning").forEach((el) => {
+    enhanceSelectElement(el);
+  });
   document.getElementById("m-cancel")?.addEventListener("click", () => {
     editName = null;
     const content = document.getElementById("models-content")!;

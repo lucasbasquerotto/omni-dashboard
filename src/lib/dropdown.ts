@@ -26,10 +26,10 @@ export function enhanceSelect(selectId: string): void {
 
 /**
  * Sync the custom dropdown display for a select element after programmatically
- * changing its value. Ensures the visible trigger text matches the new value.
+ * changing its value or options. Ensures the visible trigger text and the
+ * selected state match the native select's current value.
  */
-export function syncSelectDisplay(selectId: string): void {
-  const select = document.getElementById(selectId) as HTMLSelectElement | null;
+export function syncSelectDisplayEl(select: HTMLSelectElement): void {
   if (!select) return;
   const wrapper = select.nextElementSibling as HTMLElement | null;
   if (!wrapper || !wrapper.classList.contains("custom-select")) return;
@@ -39,6 +39,14 @@ export function syncSelectDisplay(selectId: string): void {
   wrapper.querySelectorAll(".select-option").forEach((o) => {
     o.classList.toggle("selected", o.getAttribute("data-value") === select.value);
   });
+}
+
+/**
+ * Sync the custom dropdown display for a select by ID (see syncSelectDisplayEl).
+ */
+export function syncSelectDisplay(selectId: string): void {
+  const select = document.getElementById(selectId) as HTMLSelectElement | null;
+  if (select) syncSelectDisplayEl(select);
 }
 
 /**

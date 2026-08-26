@@ -1,6 +1,6 @@
 import { escapeHtml } from "./helpers";
 import { apiGet } from "./api";
-import { enhanceSelectElement } from "./dropdown";
+import { enhanceSelectElement, syncSelectDisplayEl } from "./dropdown";
 import { copyButtonHTML, toggleButtonHTML } from "./secret-buttons";
 import type { ConfigField } from "./api";
 
@@ -524,16 +524,10 @@ export function wireRefToggles(): void {
           if (name === secretName) opt.selected = true;
           select.appendChild(opt);
         }
-        // Sync enhanced select display after populating options
-        if (container) {
-          // Use nextElementSibling to get the specific enhanced wrapper for THIS select,
-          // NOT container.querySelector which picks the FIRST custom-select (ref-type's wrapper).
-          const enhancedSelect = select.nextElementSibling as HTMLElement | null;
-          if (enhancedSelect && enhancedSelect.classList.contains("custom-select")) {
-            const textEl = enhancedSelect.querySelector(".select-trigger-text") as HTMLElement | null;
-            if (textEl) textEl.textContent = secretName || "Select secret...";
-          }
-        }
+        // Sync the enhanced custom-select display after populating options
+        // (the wrapper is the select's nextElementSibling; syncSelectDisplayEl
+        // reads the currently selected option, which we set above).
+        syncSelectDisplayEl(select);
       });
     } catch {
       // Secrets not available: leave selects with placeholder only
@@ -568,6 +562,8 @@ export function wireRefToggles(): void {
       if (wrapper && wrapper.classList.contains("custom-select")) {
         wrapper.style.display = wasVisible ? "block" : "none";
       }
+      // Keep the visible trigger in sync with the current value
+      syncSelectDisplayEl(select);
     }
   });
   // ── Provider→Model auto-populate ──
@@ -656,5 +652,9 @@ function updateHiddenFromRef(e: Event): void {
     hiddenInput.value = prefix + (nameInput ? nameInput.value : "");
     hiddenInput.dispatchEvent(new Event("input", { bubbles: true }));
     hiddenInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  // Keep the enhanced custom-select trigger in sync with the native select
+  if (isSecret && nameInput && (nameInput as HTMLSelectElement).tagName === "SELECT") {
+    syncSelectDisplayEl(nameInput as HTMLSelectElement);
   }
 }

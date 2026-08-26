@@ -2,11 +2,20 @@
 
 /**
  * Escape HTML special characters in a string.
+ *
+ * Escapes &, <, > AND quotes so the result is safe both in text content and
+ * inside HTML attribute values (value="..." / data-original="..."). The old
+ * DOM-based implementation left `"` unescaped, which truncated attribute
+ * values at the first double quote (e.g. secret values containing a quote
+ * were displayed/round-tripped truncated).
  */
 export function escapeHtml(str: string): string {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /**
