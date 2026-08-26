@@ -83,3 +83,33 @@ describe("Models server proxy (server/index.ts, item 3)", () => {
     );
   });
 });
+
+
+// ── Models page UI/styling + refresh behavior (9bce18c) ──
+describe("Models page UI (pages/models.ts, 9bce18c)", () => {
+  const mSrc = readFileSync(join(src, "pages", "models.ts"), "utf-8");
+
+  it("editor selects use the app custom dropdown component (enhanceSelectElement), not native selects", () => {
+    assert.ok(
+      /import\s*\{[^}]*enhanceSelectElement[^}]*\}\s*from\s*["']\.\.\/lib\/dropdown["']/.test(mSrc),
+      "must import enhanceSelectElement from ../lib/dropdown",
+    );
+    assert.ok(mSrc.includes('"#m-api_mode, #m-supports_reasoning"'), "must enhance the editor api_mode/supports_reasoning selects");
+  });
+
+  it("Save/Cancel buttons use the app standard button classes", () => {
+    assert.ok(/class="btn btn-primary"[^>]*id="m-save"/.test(mSrc), "Save must use .btn.btn-primary");
+    assert.ok(/class="btn btn-secondary"[^>]*id="m-cancel"/.test(mSrc), "Cancel must use .btn.btn-secondary");
+  });
+
+  it("refresh wiring is scoped to .channel-refresh-btn and guards on refresh_url", () => {
+    assert.ok(mSrc.includes(".channel-refresh-btn[data-provider]"), "refresh must be wired via .channel-refresh-btn[data-provider]");
+    assert.ok(mSrc.includes("refresh_url"), "refresh must check refresh_url before calling the API");
+    assert.ok(!/id="m-add-mc"[^>]*data-provider=/.test(mSrc), '"+ model config" must NOT be wired as a refresh button (data-provider removed)');
+  });
+
+  it("per-model config is rendered inline in each provider card (renderModelConfigInline)", () => {
+    assert.ok(/function\s+renderModelConfigInline\s*\(/.test(mSrc), "must define renderModelConfigInline");
+    assert.ok(mSrc.includes("renderModelConfigInline(p.model_config)"), "must render p.model_config inline");
+  });
+});

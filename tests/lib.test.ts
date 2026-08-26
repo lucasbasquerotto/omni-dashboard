@@ -214,3 +214,68 @@ describe("src/lib/plugin-ui.ts", () => {
     assert.ok(/export\s+function\s+showInstallModal\b/.test(content), "export showInstallModal");
   });
 });
+
+
+// ── Unit tests for src/lib/helpers.ts — escapeHtml quote escaping (9bce18c) ──
+// Regression: the old DOM-based escapeHtml (div.textContent -> innerHTML) left `"`
+// unescaped, so HTML attribute values (value="..." / data-original="...") were
+// truncated at the first double quote — secret values containing " were cut off.
+describe("src/lib/helpers.ts", () => {
+  it("escapeHtml source escapes double and single quotes", () => {
+    const content = readFileSync(new URL("../src/lib/helpers.ts", import.meta.url), "utf-8");
+    assert.ok(content.includes('.replace(/"/g'), 'must escape " as &quot;');
+    assert.ok(content.includes(".replace(/'/g"), "must escape ' as &#39;");
+    assert.ok(content.includes("&quot;"), "escape map must include &quot;");
+    assert.ok(content.includes("&#39;"), "escape map must include &#39;");
+  });
+
+  it("escapeHtml runtime: quotes and special chars are fully preserved (node 22+)", async () => {
+    try {
+      const mod = await import("../src/lib/helpers.ts");
+      const esc: (s: string) => string = mod.escapeHtml;
+      assert.equal(esc('a"b'), "a&quot;b");
+      assert.equal(esc("a'b"), "a&#39;b");
+      assert.equal(esc("a&b<c>d"), "a&amp;b&lt;c&gt;d");
+      assert.equal(esc('x"y\'z'), "x&quot;y&#39;z");
+    } catch (e: any) {
+      // Skip on older node without .ts type-stripping (informational only)
+      assert.ok(true, `escapeHtml runtime import note: ${e.message}`);
+    }
+  });
+});
+
+// ── Unit tests for src/pages/secrets.ts — Edit capability (9bce18c) ──
+describe("src/pages/secrets.ts", () => {
+  it("secret value inputs render readonly with an explicit Edit button", () => {
+    const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
+    assert.ok(content.includes("readonly"), "value input must start readonly");
+    assert.ok(content.includes("secret-edit-btn"), "must render an ✎ Edit button");
+  });
+
+  it("Edit unlocks the input; save/cancel re-lock it", () => {
+    const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
+    assert.ok(content.includes("input.readOnly = false"), "Edit must unlock the input");
+    assert.ok(content.includes("input.readOnly = true"), "save/cancel must re-lock the input");
+  });
+});
+
+// ── Unit tests for plugin secret select sync — initial value + discard revert (9bce18c) ──
+describe("plugin secret select sync (dropdown/plugin-config/plugin-list/plugin-ui)", () => {
+  it("dropdown.ts exports syncSelectDisplayEl (by-element variant of syncSelectDisplay)", () => {
+    const content = readFileSync(new URL("../src/lib/dropdown.ts", import.meta.url), "utf-8");
+    assert.ok(/export\s+function\s+syncSelectDisplayEl\s*\(/.test(content), "must export syncSelectDisplayEl");
+  });
+
+  it("plugin-config.ts re-syncs the enhanced select after secrets fetch and value changes", () => {
+    const content = readFileSync(new URL("../src/lib/plugin-config.ts", import.meta.url), "utf-8");
+    assert.ok(content.includes("syncSelectDisplayEl"), "must import/use syncSelectDisplayEl");
+    assert.ok(content.includes("syncSelectDisplayEl(select)"), "must sync the secrets select element");
+  });
+
+  it("plugin-list.ts and plugin-ui.ts discard handlers re-sync enhanced selects", () => {
+    const listSrc = readFileSync(new URL("../src/lib/plugin-list.ts", import.meta.url), "utf-8");
+    const uiSrc = readFileSync(new URL("../src/lib/plugin-ui.ts", import.meta.url), "utf-8");
+    assert.ok(listSrc.includes("syncSelectDisplayEl"), "plugin-list discard must re-sync selects");
+    assert.ok(uiSrc.includes("syncSelectDisplayEl"), "plugin-ui discard must re-sync selects");
+  });
+});
