@@ -322,3 +322,51 @@ describe("Threads page merged-into badge", () => {
     assert.ok(/stopPropagation/.test(content));
   });
 });
+
+// ── Kanban task tags on the dashboard (task_18cfb485d7601e5e) ──
+
+describe("Kanban task tags on the dashboard", () => {
+  it("KanbanTask type carries an optional tags array (api.ts)", () => {
+    const content = readFileSync(new URL("../src/lib/api.ts", import.meta.url), "utf-8");
+    assert.ok(/tags\?:\s*string\[\];/.test(content));
+  });
+
+  it("board cards render colored tag badges derived from the tag name (kanban-board.ts)", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+    assert.ok(/export function tagColor\(tag: string\): string/.test(content));
+    assert.ok(/String\(Math\.abs\(h\) % 360\)/.test(content)); // deterministic hue per tag name
+    assert.ok(/function renderTaskTags\(task: KanbanTask\): string/.test(content));
+    assert.ok(/class="kanban-card-tags"/.test(content)); // badges container div
+    assert.ok(/background:hsl\(\$\{hue\},55%,24%\)/.test(content)); // colored badge style
+    assert.ok(/escapeHtml\(t\)/.test(content)); // XSS-safe tag label
+    assert.ok(/renderTaskTags\(task\)/.test(content)); // embedded in every task card
+  });
+});
+
+describe("Kanban history events for tags and dependencies", () => {
+  it("tag add/remove render colored badges with 'was Tagged' / 'had Tag Removed' texts", () => {
+    const content = readFileSync(new URL("../src/pages/kanban-history.ts", import.meta.url), "utf-8");
+    assert.ok(/function tagBadge\(tag: string\): string/.test(content));
+    assert.ok(/case "tag_added":\s*\{/.test(content));
+    assert.ok(/was Tagged \$\{tag \? tagBadge\(tag\)/.test(content));
+    assert.ok(/case "tag_removed":\s*\{/.test(content));
+    assert.ok(/had Tag Removed/.test(content));
+  });
+
+  it("dependency add/remove render target id + title texts", () => {
+    const content = readFileSync(new URL("../src/pages/kanban-history.ts", import.meta.url), "utf-8");
+    assert.ok(/case "dependency_added":\s*\{/.test(content));
+    assert.ok(/gained a dependency on/.test(content));
+    assert.ok(/depends_on_id/.test(content));
+    assert.ok(/case "dependency_removed":\s*\{/.test(content));
+    assert.ok(/lost a dependency on/.test(content));
+  });
+
+  it("action filter dropdown exposes the four new actions", () => {
+    const content = readFileSync(new URL("../src/pages/kanban-history.ts", import.meta.url), "utf-8");
+    assert.ok(/value="tag_added">Tag Added<\/option>/.test(content));
+    assert.ok(/value="tag_removed">Tag Removed<\/option>/.test(content));
+    assert.ok(/value="dependency_added">Dependency Added<\/option>/.test(content));
+    assert.ok(/value="dependency_removed">Dependency Removed<\/option>/.test(content));
+  });
+});
