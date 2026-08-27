@@ -27,6 +27,7 @@ interface ThreadRow {
   cause_msg_type: string | null;
   cause_msg_subtype: string | null;
   parent_id: number | null;
+  merged_into_thread_id: number | null;
 }
 
 interface ThreadsResponse {
@@ -395,6 +396,17 @@ async function loadThreads(): Promise<void> {
         }
       });
     });
+    // Wire merged-into links (skipped thread -> target running thread)
+    document.querySelectorAll(".merged-into-link").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const target = el.getAttribute("data-target");
+        if (target) {
+          window.location.href = `/threads?thread_id=${encodeURIComponent(target)}`;
+        }
+      });
+    });
   } catch (e) {
     listEl.innerHTML = `<div class="error-state">Failed to load threads: ${formatApiError(e)}</div>`;
   }
@@ -424,7 +436,7 @@ function renderRow(row: ThreadRow): string {
   return `
     <a href="${url}" class="thread-row" role="row">
       <div role="cell" style="text-align:center;"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code>${row.parent_id ? `<br><div style="display:flex;flex-direction:column;align-items:center;gap:0.125rem;">${parentIdStr}</div>` : ""}</div>
-      <div role="cell"><div style="display:flex;flex-direction:column;align-items:center;gap:0.25rem;"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span>${row.status === "pending" || row.status === "processing" ? `<button class="thread-stop-btn" data-thread-id="${escapeHtml(row.id)}" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#ef4444;border-radius:6px;padding:0.3rem 0.85rem;cursor:pointer;font-size:0.78rem;line-height:1.4;font-weight:500;" title="Stop this thread">Stop</button>` : ""}</div></div>
+      <div role="cell"><div style="display:flex;flex-direction:column;align-items:center;gap:0.25rem;"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span>${row.status === "pending" || row.status === "processing" ? `<button class="thread-stop-btn" data-thread-id="${escapeHtml(row.id)}" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#ef4444;border-radius:6px;padding:0.3rem 0.85rem;cursor:pointer;font-size:0.78rem;line-height:1.4;font-weight:500;" title="Stop this thread">Stop</button>` : ""}${mergedIntoBadge(row)}</div></div>
       <div role="cell"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></div>
       <div role="cell">${typeStr === "-" ? typeStr : `<span class="event-type-badge" title="Type: ${typeStr}" style="--type-color:${seq0TypeColor(row.cause_msg_type || "")};background:${seq0TypeColor(row.cause_msg_type || "")}22;border-color:${seq0TypeColor(row.cause_msg_type || "")}44;color:${seq0TypeColor(row.cause_msg_type || "")}">${typeStr}</span>`}</div>
       <div role="cell" style="font-size:0.8rem;color:var(--text-muted);font-style:italic;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${subtypeStr}</div>
@@ -445,6 +457,17 @@ function renderRow(row: ThreadRow): string {
       <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "-"}</div>
     </a>
   `;
+}
+
+
+/**
+ * For skipped threads whose prompt was appended into another running thread
+ * (sub-prompt merging), render a link to that target thread on the Threads page.
+ */
+function mergedIntoBadge(row: ThreadRow): string {
+  if (row.status !== "skipped" || !row.merged_into_thread_id) return "";
+  const target = String(row.merged_into_thread_id);
+  return `<button type="button" class="merged-into-link" data-target="${escapeHtml(target)}" title="Merged into thread #${escapeHtml(target)}" style="background:none;border:none;padding:0;margin:0;color:#38bdf8;cursor:pointer;font-size:0.75rem;line-height:1.4;font-weight:500;text-decoration:underline;">→ merged into thread #${escapeHtml(target)}</button>`;
 }
 
 // ── Seq-0 type badge colors ──
