@@ -48,6 +48,16 @@ function statusSpan(boardId: string | null): string {
   return `<span class="badge ${cls}" style="font-size:0.75rem;padding:0.125rem 0.45rem;">${escapeHtml(label)}</span>`;
 }
 
+/** Render a colored tag badge (color derived from the tag name). */
+function tagBadge(tag: string): string {
+  let h = 5381;
+  for (let i = 0; i < tag.length; i++) {
+    h = ((h << 5) + h + tag.charCodeAt(i)) | 0;
+  }
+  const hue = String(Math.abs(h) % 360);
+  return `<span class="kanban-tag" style="display:inline-block;background:hsl(${hue},55%,24%);color:hsl(${hue},95%,80%);border:1px solid hsl(${hue},60%,42%);border-radius:10px;padding:0.05rem 0.5rem;font-size:0.72rem;font-weight:600;line-height:1.4;margin-left:0.15rem;">${escapeHtml(tag)}</span>`;
+}
+
 /** Render a linkable task ID with status-colored border. */
 function taskIdLink(taskId: string, status: string | null): string {
   const cls = statusBadge(status || "backlog");
@@ -55,7 +65,8 @@ function taskIdLink(taskId: string, status: string | null): string {
 }
 
 /** Build the Event description based on action + board fields. */
-function formatEvent(action: string, initial: string | null, final: string | null): string {
+function formatEvent(r: HistoryRow): string {
+  const { action, initial_board: initial, final_board: final } = r;
   switch (action) {
     case "created":
       return `was Created ${final ? `in ${statusSpan(final)}` : ""}`;
@@ -76,6 +87,26 @@ function formatEvent(action: string, initial: string | null, final: string | nul
       return "was Moved";
     case "edited":
       return "was Edited";
+    case "tag_added": {
+      const tag = typeof r.previous_values?.tag === "string" ? r.previous_values.tag : "";
+      return `was Tagged ${tag ? tagBadge(tag) : ""}`;
+    }
+    case "tag_removed": {
+      const tag = typeof r.previous_values?.tag === "string" ? r.previous_values.tag : "";
+      return `had Tag Removed ${tag ? tagBadge(tag) : ""}`;
+    }
+    case "dependency_added": {
+      const depId =
+        typeof r.previous_values?.depends_on_id === "string" ? r.previous_values.depends_on_id : "";
+      const title = typeof r.previous_values?.title === "string" ? r.previous_values.title : "";
+      return `gained a dependency on ${depId ? `<code style="font-family:monospace;font-size:0.78rem;">${escapeHtml(depId)}</code>` : ""}${title ? ` (${escapeHtml(title)})` : ""}`;
+    }
+    case "dependency_removed": {
+      const depId =
+        typeof r.previous_values?.depends_on_id === "string" ? r.previous_values.depends_on_id : "";
+      const title = typeof r.previous_values?.title === "string" ? r.previous_values.title : "";
+      return `lost a dependency on ${depId ? `<code style="font-family:monospace;font-size:0.78rem;">${escapeHtml(depId)}</code>` : ""}${title ? ` (${escapeHtml(title)})` : ""}`;
+    }
     default:
       return escapeHtml(action);
   }
@@ -175,6 +206,10 @@ export function renderKanbanHistory(container: HTMLElement): void {
           <option value="archived">Archived</option>
           <option value="unarchived">Unarchived</option>
           <option value="deleted">Deleted</option>
+          <option value="tag_added">Tag Added</option>
+          <option value="tag_removed">Tag Removed</option>
+          <option value="dependency_added">Dependency Added</option>
+          <option value="dependency_removed">Dependency Removed</option>
         </select>
       </div>
       <div class="filter-actions">
@@ -294,7 +329,7 @@ async function loadHistory(): Promise<void> {
                 <td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:var(--text-primary);vertical-align:middle;">
                   <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem;">
                     ${taskIdLink(r.kanban_task_id, taskStatus)}
-                    <span style="color:var(--text-secondary);font-size:0.82rem;">${formatEvent(r.action, r.initial_board, r.final_board)}</span>
+                    <span style="color:var(--text-secondary);font-size:0.82rem;">${formatEvent(r)}</span>
                     ${r.previous_values ? `<button class="kh-json-btn" data-row-index="${rows.indexOf(r)}" style="background:none;border:none;cursor:pointer;color:var(--accent-cyan);font-size:0.9rem;padding:0 0.25rem;line-height:1;" title="Show previous values as JSON">📋</button>` : ""}
                   </div>
                 </td>

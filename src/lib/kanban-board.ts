@@ -95,6 +95,27 @@ export function renderColumn(id: string, title: string, tasks: KanbanTask[]): st
   `;
 }
 
+// ── Tag colors (deterministic per tag name) ──
+/** Stable hue [0,360) derived from the tag name (djb2 hash). */
+export function tagColor(tag: string): string {
+  let h = 5381;
+  for (let i = 0; i < tag.length; i++) {
+    h = ((h << 5) + h + tag.charCodeAt(i)) | 0;
+  }
+  return String(Math.abs(h) % 360);
+}
+
+function renderTaskTags(task: KanbanTask): string {
+  const tags = Array.isArray(task.tags) ? task.tags : [];
+  if (tags.length === 0) return "";
+  return `<div class="kanban-card-tags" style="margin-top:0.3rem;display:flex;flex-wrap:wrap;gap:0.2rem;">${tags
+    .map((t) => {
+      const hue = tagColor(t);
+      return `<span class="kanban-tag" style="display:inline-block;background:hsl(${hue},55%,24%);color:hsl(${hue},95%,80%);border:1px solid hsl(${hue},60%,42%);border-radius:10px;padding:0.05rem 0.5rem;font-size:0.68rem;font-weight:600;line-height:1.4;">${escapeHtml(t)}</span>`;
+    })
+    .join("")}</div>`;
+}
+
 export function renderTaskCard(task: KanbanTask): string {
   const priorityLabel = task.priority >= 3 ? "High" : task.priority >= 1 ? "Med" : "Low";
   const priorityClass =
@@ -112,6 +133,7 @@ export function renderTaskCard(task: KanbanTask): string {
         <span class="kanban-task-id" style="font-size:0.7rem;color:var(--text-muted);font-family:monospace;">${task.display_id || task.id}</span>
       </div>
       <div class="kanban-card-title">${escapeHtml(task.title)}</div>
+      ${renderTaskTags(task)}
       ${task.body ? `<div class="kanban-card-body">${escapeHtml(task.body).slice(0, 120)}${task.body.length > 120 ? "..." : ""}</div>` : ""}
       <div class="kanban-card-footer">
         ${task.assignee ? `<span class="kanban-assignee">@${escapeHtml(task.assignee)}</span>` : ""}

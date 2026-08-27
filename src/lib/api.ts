@@ -236,6 +236,7 @@ export interface KanbanTask {
   board?: string;
   archived?: boolean;
   plan?: boolean;
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }
