@@ -370,3 +370,59 @@ describe("Kanban history events for tags and dependencies", () => {
     assert.ok(/value="dependency_removed">Dependency Removed<\/option>/.test(content));
   });
 });
+
+// ── Overview page widgets (task_18cfbf1ea5841a89) ──
+
+describe("Overview page widgets", () => {
+  it("api.ts declares the token-trend 3-series breakdown + kanban snapshot types", () => {
+    const content = readFileSync(new URL("../src/lib/api.ts", import.meta.url), "utf-8");
+    assert.ok(/input_cache_hit:\s*number;/.test(content));
+    assert.ok(/input_cache_miss:\s*number;/.test(content));
+    assert.ok(/output_tokens:\s*number;/.test(content));
+    assert.ok(/interface KanbanSnapshotEntry/.test(content));
+    assert.ok(/kanban_snapshot:\s*KanbanSnapshotEntry\[\];/.test(content));
+  });
+
+  it("Token Trend renders a stacked block chart with exactly 3 series (cache hit / cache miss / output)", () => {
+    const content = readFileSync(new URL("../src/pages/overview.ts", import.meta.url), "utf-8");
+    assert.ok(/function renderTokenTrendChart\(/.test(content));
+    assert.ok(/id="chart-token"/.test(content));
+    assert.ok(/Input \(cache hit\)/.test(content));
+    assert.ok(/Input \(cache miss\)/.test(content));
+    assert.ok(/name: "Output"/.test(content));
+    // The old line chart must be gone
+    assert.ok(!/renderLineChart/.test(content));
+    assert.ok(!/chart-line/.test(content));
+  });
+
+  it("Token Trend x-axis renders real dates (Invalid Date guard)", () => {
+    const content = readFileSync(new URL("../src/pages/overview.ts", import.meta.url), "utf-8");
+    assert.ok(/T00:00:00Z/.test(content)); // dateStr normalization
+    assert.ok(/isNaN\(d\.getTime\(\)\)/.test(content)); // fallback instead of "Invalid Date"
+  });
+
+  it("Kanban Snapshot rows link to the task detail page with board/task/status/tags/date columns", () => {
+    const content = readFileSync(new URL("../src/pages/overview.ts", import.meta.url), "utf-8");
+    assert.ok(/function renderKanbanSnapshotRow/.test(content));
+    assert.ok(/\/kanban\/\$\{encodeURIComponent\(k\.task_id\)\}/.test(content));
+    assert.ok(/role="columnheader">Board<\/div>/.test(content));
+    assert.ok(/role="columnheader">Task<\/div>/.test(content));
+    assert.ok(/role="columnheader">Status<\/div>/.test(content));
+    assert.ok(/role="columnheader">Tags<\/div>/.test(content));
+    assert.ok(/role="columnheader" style="text-align:right">Date<\/div>/.test(content));
+  });
+
+  it("Top Tools render real tool names with counts (no Unknown)", () => {
+    const content = readFileSync(new URL("../src/pages/overview.ts", import.meta.url), "utf-8");
+    assert.ok(/escapeHtml\(t\.tool\)/.test(content));
+    assert.ok(/No tools used in 7 days/.test(content));
+  });
+
+  it("All 4 KPI stat cards have a short description instead of '-'", () => {
+    const content = readFileSync(new URL("../src/pages/overview.ts", import.meta.url), "utf-8");
+    assert.ok(/New threads created today/.test(content));
+    assert.ok(/Average time to completion/.test(content));
+    assert.ok(/Tokens consumed today/.test(content));
+    assert.ok(/Channels with activity in 24h/.test(content));
+  });
+});
