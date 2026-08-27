@@ -297,3 +297,28 @@ describe("Kanban boards lib", () => {
     assert.ok(/board\?: string;/.test(content));
   });
 });
+
+// ── Threads page: merged-into badge for skipped threads (task_18cfafb9cf566e31) ──
+
+describe("Threads page merged-into badge", () => {
+  it("threads.ts declares merged_into_thread_id on ThreadRow", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    assert.ok(/merged_into_thread_id:\s*number\s*\|\s*null;/.test(content));
+  });
+
+  it("mergedIntoBadge renders ONLY for skipped threads with a recorded target (acceptance 3)", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    // Early return when status is not skipped OR no target is recorded
+    assert.ok(/row\.status\s*!==\s*"skipped"\s*\|\|\s*!row\.merged_into_thread_id/.test(content));
+    assert.ok(/function\s+mergedIntoBadge/.test(content));
+  });
+
+  it("badge links to the target thread on the Threads page (acceptance 1+2)", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    assert.ok(/→ merged into thread #/.test(content));
+    assert.ok(/\/threads\?thread_id=/.test(content));
+    assert.ok(/merged-into-link/.test(content));
+    assert.ok(/encodeURIComponent\(target\)/.test(content));
+    assert.ok(/stopPropagation/.test(content));
+  });
+});
