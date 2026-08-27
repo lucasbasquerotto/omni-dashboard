@@ -48,6 +48,42 @@ interface ChangedSecret {
 }
 const changedSecrets = new Map<string, ChangedSecret>();
 
+// Real (unmasked) secret values by name. Values are deliberately NOT embedded
+// in data-* HTML attributes: per the HTML parsing spec, attribute values
+// normalize newlines to spaces, which would corrupt multiline secrets (e.g.
+// PEM keys) on round-trip. The Map is the single source of truth for the real
+// value; the rendered textarea shows either the real value or a masked
+// (bullet-per-line) representation that preserves the line structure.
+const secretRealValues = new Map<string, string>();
+
+// Mask a multiline value with bullets, one per character per line, so the
+// line structure (and thus the shape of a PEM key) stays visible while hidden.
+function maskSecretValue(value: string): string {
+  return value
+    .split("\n")
+    .map((line) => "•".repeat(line.length))
+    .join("\n");
+}
+
+function isSecretMasked(el: HTMLElement): boolean {
+  return el.dataset.masked === "true";
+}
+
+// Reveal a masked secret textarea (swap the bullets back to the real value).
+function revealSecret(el: HTMLTextAreaElement): void {
+  if (isSecretMasked(el)) {
+    el.value = secretRealValues.get(el.dataset.name || "") || "";
+    el.dataset.masked = "false";
+  }
+}
+
+// Mask a secret textarea (swap the real value for the bullet representation).
+function maskSecret(el: HTMLTextAreaElement): void {
+  const real = secretRealValues.get(el.dataset.name || "") || "";
+  el.value = maskSecretValue(real);
+  el.dataset.masked = "true";
+}
+
 // ── Load ──
 
 async function loadSecrets(): Promise<void> {
@@ -67,6 +103,9 @@ async function loadSecrets(): Promise<void> {
 }
 
 function renderSecretsPage(secrets: SecretEntry[]): string {
+  // Register real values before rendering so a (masked) textarea can always
+  // recover the unmasked value from the Map rather than from an attribute.
+  secrets.forEach((s) => secretRealValues.set(s.name, s.current_value));
   return secrets.map((s) => renderSecretRow(s)).join("");
 }
 
@@ -79,11 +118,17 @@ function renderSecretRow(s: SecretEntry): string {
 
   const isPassword = fieldType === "password";
 
+  // Multiline-safe display: a <textarea> shows newlines natively (a single
+  // line <input> collapses them). Password-type secrets render masked by
+  // default (bullets per line); the real value lives in secretRealValues.
+  const displayValue = isPassword ? maskSecretValue(value) : value;
+
   const inputHtml = `
     <div class="setting-secret-wrapper" style="flex:1;">
-      <input type="${isPassword ? "password" : "text"}" id="${inputId}" class="filter-input setting-input setting-secret-input"
-        value="${escapeHtml(value)}" readonly
-        data-name="${escapeHtml(name)}" data-original="${escapeHtml(value)}" style="flex:1;" />
+      <textarea id="${inputId}" class="filter-input setting-input setting-secret-input setting-secret-textarea"
+        readonly data-name="${escapeHtml(name)}" data-fieldtype="${isPassword ? "password" : "text"}"
+        data-masked="${isPassword ? "true" : "false"}" spellcheck="false"
+        style="flex:1;min-height:2.5rem;resize:vertical;white-space:pre;overflow:auto;">${escapeHtml(displayValue)}</textarea>
       ${
         isPassword
           ? `<button type="button" class="setting-secret-copy" title="Copy to clipboard" data-target="${inputId}">
@@ -171,15 +216,16 @@ function formatDate(ts: string): string {
 // ── Wiring ──
 
 function wireSecrets(): void {
-  // Secret copy to clipboard
+  // Secret copy to clipboard (copies the REAL value even while masked)
   document.querySelectorAll(".setting-secret-copy").forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetId = btn.getAttribute("data-target");
       if (!targetId) return;
-      const input = document.getElementById(targetId) as HTMLInputElement | null;
+      const input = document.getElementById(targetId) as HTMLTextAreaElement | null;
       if (!input) return;
+      const real = secretRealValues.get(input.dataset.name || "") || input.value;
       navigator.clipboard
-        .writeText(input.value)
+        .writeText(real)
         .then(() => {
           const original = btn.innerHTML;
           btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -194,38 +240,33 @@ function wireSecrets(): void {
     });
   });
 
-  // Secret toggle (eye icon)
+  // Secret toggle (eye icon): textareas mask/unmask via bullet lines.
   document.querySelectorAll(".setting-secret-toggle").forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetId = btn.getAttribute("data-target");
       if (!targetId) return;
-      const input = document.getElementById(targetId) as HTMLInputElement | null;
-      if (!input) return;
-      const isPassword = input.type === "password";
-      input.type = isPassword ? "text" : "password";
-      btn.setAttribute("title", isPassword ? "Hide" : "Toggle visibility");
-      btn.innerHTML = isPassword
-        ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-            <line x1="1" y1="1" x2="23" y2="23"/>
-          </svg>`
-        : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>`;
+      const el = document.getElementById(targetId) as HTMLTextAreaElement | null;
+      if (!el) return;
+      if (el.tagName === "TEXTAREA") {
+        if (isSecretMasked(el)) revealSecret(el);
+        else maskSecret(el);
+      } else {
+        el.type = el.type === "password" ? "text" : "password";
+      }
+      btn.setAttribute("title", isSecretMasked(el) ? "Toggle visibility" : "Hide");
     });
   });
 
-  // Edit buttons: unlock the value input for editing (readonly by default)
+  // Edit buttons: unlock the value textarea for editing (readonly by default)
   document.querySelectorAll(".secret-edit-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const name = btn.getAttribute("data-name");
       if (!name) return;
       const input = document.querySelector(
         `.setting-input[data-name="${CSS.escape(name)}"]`,
-      ) as HTMLInputElement | null;
+      ) as HTMLTextAreaElement | null;
       if (!input) return;
+      revealSecret(input); // show the real value before editing
       input.readOnly = false;
       input.focus();
       const actionsEl = document.querySelector(`#actions-${CSS.escape(name)}`) as HTMLElement | null;
@@ -233,14 +274,15 @@ function wireSecrets(): void {
     });
   });
 
-  // Change detection
+  // Change detection (only meaningful while the real value is visible)
   document.querySelectorAll(".setting-input").forEach((el) => {
-    const input = el as HTMLInputElement;
+    const input = el as HTMLTextAreaElement;
     const name = input.getAttribute("data-name");
     if (!name) return;
 
     const handler = () => {
-      const original = input.getAttribute("data-original") || "";
+      if (isSecretMasked(input)) return; // masked bullet display is not an edit
+      const original = secretRealValues.get(name) || "";
       const currentVal = input.value;
       const actionsEl = document.querySelector(`#actions-${CSS.escape(name)}`) as HTMLElement | null;
 
@@ -276,10 +318,16 @@ function wireSecrets(): void {
       changedSecrets.delete(name);
       const input = document.querySelector(
         `.setting-input[data-name="${CSS.escape(name)}"]`,
-      ) as HTMLInputElement | null;
+      ) as HTMLTextAreaElement | null;
       if (input) {
-        const original = input.getAttribute("data-original") || "";
-        input.value = original;
+        const original = secretRealValues.get(name) || "";
+        if (input.dataset.fieldtype === "password") {
+          input.value = maskSecretValue(original);
+          input.dataset.masked = "true";
+        } else {
+          input.value = original;
+          input.dataset.masked = "false";
+        }
         input.readOnly = true;
       }
       const actionsEl = document.querySelector(`#actions-${CSS.escape(name)}`) as HTMLElement | null;
@@ -312,11 +360,18 @@ function wireSecrets(): void {
 async function saveSecret(name: string, value: string): Promise<void> {
   try {
     await apiPut(`/secrets/${encodeURIComponent(name)}`, { value });
+    secretRealValues.set(name, value);
     const input = document.querySelector(
       `.setting-input[data-name="${CSS.escape(name)}"]`,
-    ) as HTMLInputElement | null;
+    ) as HTMLTextAreaElement | null;
     if (input) {
-      input.setAttribute("data-original", value);
+      if (input.dataset.fieldtype === "password") {
+        input.value = maskSecretValue(value);
+        input.dataset.masked = "true";
+      } else {
+        input.value = value;
+        input.dataset.masked = "false";
+      }
       input.readOnly = true;
     }
     changedSecrets.delete(name);
@@ -379,10 +434,14 @@ async function showVersionsModal(name: string): Promise<void> {
       return;
     }
 
+    // Real values per version field id (multiline-safe: not in attributes).
+    const realValues: Record<string, string> = {};
+
     listEl.innerHTML = versions
       .map((v, i) => {
         const isLatest = i === 0;
         const fieldId = `ver-${v.id}`;
+        realValues[fieldId] = v.value;
         return `
           <div style="margin-bottom:0.75rem;${i > 0 ? "border-top:1px solid var(--glass-border);padding-top:0.75rem;" : ""}">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.375rem;">
@@ -390,7 +449,7 @@ async function showVersionsModal(name: string): Promise<void> {
               <span style="font-size:0.8rem;color:var(--text-muted);">${escapeHtml(formatDate(v.created_at))}</span>
             </div>
             <div class="setting-secret-wrapper">
-              <input type="password" id="${fieldId}" class="filter-input setting-input" value="${escapeHtml(v.value)}" readonly style="flex:1;font-size:0.8rem;" />
+              <textarea id="${fieldId}" class="filter-input setting-input setting-secret-textarea" readonly data-masked="true" spellcheck="false" style="flex:1;font-size:0.8rem;min-height:2.5rem;resize:vertical;white-space:pre;overflow:auto;">${escapeHtml(maskSecretValue(v.value))}</textarea>
               <button type="button" class="setting-secret-toggle" title="Toggle visibility" data-target="${fieldId}">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -403,14 +462,20 @@ async function showVersionsModal(name: string): Promise<void> {
       })
       .join("");
 
-    // Wire version eye toggles
+    // Wire version eye toggles (mask/unmask via bullet lines)
     listEl.querySelectorAll(".setting-secret-toggle").forEach((btn) => {
       btn.addEventListener("click", () => {
         const targetId = btn.getAttribute("data-target");
         if (!targetId) return;
-        const input = document.getElementById(targetId) as HTMLInputElement | null;
+        const input = document.getElementById(targetId) as HTMLTextAreaElement | null;
         if (!input) return;
-        input.type = input.type === "password" ? "text" : "password";
+        if (input.dataset.masked === "true") {
+          input.value = realValues[targetId] || "";
+          input.dataset.masked = "false";
+        } else {
+          input.value = maskSecretValue(realValues[targetId] || "");
+          input.dataset.masked = "true";
+        }
       });
     });
   } catch (e) {
@@ -446,8 +511,8 @@ function showCreateModal(): void {
         </div>
         <div style="margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Value <span style="color:var(--accent-rose);">*</span></label>
-          <div class="setting-secret-wrapper">
-            <input id="new-secret-value" type="password" class="filter-input" placeholder="Enter secret value" style="width:100%;flex:1;" />
+          <div class="setting-secret-wrapper" style="align-items:flex-start;">
+            <textarea id="new-secret-value" class="filter-input setting-secret-textarea" placeholder="Enter secret value — multiline supported (e.g. paste a PEM private key)" style="width:100%;min-height:120px;resize:vertical;white-space:pre;overflow:auto;" autocomplete="off" spellcheck="false" data-masked="false"></textarea>
             <span id="new-secret-toggle-wrap">
               <button type="button" class="setting-secret-toggle" title="Toggle visibility" data-target="new-secret-value">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -480,19 +545,46 @@ function showCreateModal(): void {
   const typeSelect = backdrop.querySelector("#new-secret-type") as HTMLSelectElement;
   enhanceSelectElement(typeSelect);
 
-  // Wire secret toggle in create modal
-  backdrop.querySelector(".setting-secret-toggle")?.addEventListener("click", () => {
-    const input = document.getElementById("new-secret-value") as HTMLInputElement | null;
-    if (!input) return;
-    input.type = input.type === "password" ? "text" : "password";
+  const valueInput = backdrop.querySelector("#new-secret-value") as HTMLTextAreaElement;
+  const toggleWrap = backdrop.querySelector("#new-secret-toggle-wrap") as HTMLElement;
+
+  // Real value captured while unmasked (a textarea cannot mask via type=password).
+  let createRealValue = "";
+
+  const applyCreateMask = (masked: boolean) => {
+    if (masked) {
+      createRealValue = valueInput.value;
+      valueInput.value = maskSecretValue(createRealValue);
+      valueInput.dataset.masked = "true";
+    } else {
+      valueInput.value = createRealValue;
+      valueInput.dataset.masked = "false";
+    }
+  };
+
+  // Editing while masked: reveal so typed/pasted content is not swallowed by
+  // the bullet mask (pasted multiline content replaces the bullets wholesale).
+  valueInput.addEventListener("input", () => {
+    if (valueInput.dataset.masked === "true") {
+      const typed = valueInput.value;
+      const bullets = maskSecretValue(createRealValue);
+      valueInput.dataset.masked = "false";
+      valueInput.value = typed === bullets ? createRealValue : typed;
+      createRealValue = valueInput.value;
+    } else {
+      createRealValue = valueInput.value;
+    }
   });
 
-  // Wire type change to update value field type and toggle eye icon
-  const valueInput = backdrop.querySelector("#new-secret-value") as HTMLInputElement;
-  const toggleWrap = backdrop.querySelector("#new-secret-toggle-wrap") as HTMLElement;
+  // Wire secret toggle in create modal (mask/unmask)
+  backdrop.querySelector(".setting-secret-toggle")?.addEventListener("click", () => {
+    applyCreateMask(valueInput.dataset.masked !== "true");
+  });
+
+  // Wire type change: password → masked + eye icon; text → visible, no icon
   typeSelect.addEventListener("change", () => {
     const isPassword = typeSelect.value === "password";
-    valueInput.type = isPassword ? "password" : "text";
+    applyCreateMask(isPassword);
     toggleWrap.style.display = isPassword ? "inline" : "none";
   });
 
@@ -503,7 +595,7 @@ function showCreateModal(): void {
   createBtn.addEventListener("click", async () => {
     const name = (document.getElementById("new-secret-name") as HTMLInputElement).value.trim();
     const fieldType = typeSelect.value;
-    const value = valueInput.value;
+    const value = valueInput.dataset.masked === "true" ? createRealValue : valueInput.value;
 
     if (!name) {
       showStatus(statusEl, "Name is required", "error");

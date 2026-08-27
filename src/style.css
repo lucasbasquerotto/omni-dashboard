@@ -5973,3 +5973,9 @@ a.thread-row {
   align-self: stretch;
   justify-content: flex-start;
 }
+
+/* Multiline secret fields (PEM keys, JSON blobs): monospace + readable line height */
+.setting-secret-textarea {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  line-height: 1.4;
+}

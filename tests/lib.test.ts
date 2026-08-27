@@ -279,3 +279,56 @@ describe("plugin secret select sync (dropdown/plugin-config/plugin-list/plugin-u
     assert.ok(uiSrc.includes("syncSelectDisplayEl"), "plugin-ui discard must re-sync selects");
   });
 });
+
+
+// ── Multiline secret support (regression) ──
+describe("src/pages/secrets.ts — multiline secret fields", () => {
+  it("secret value fields render as <textarea> (multiline), not single-line inputs", () => {
+    const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
+    assert.ok(/<textarea/.test(content), "secret fields must render as <textarea>");
+    assert.ok(content.includes("new-secret-value"), "create modal must include the value textarea");
+    assert.ok(
+      content.includes("multiline supported"),
+      "create modal placeholder should advertise multiline support",
+    );
+  });
+
+  it("multiline values are NOT embedded in HTML attributes (newline normalization would corrupt them)", () => {
+    const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
+    assert.ok(content.includes("secretRealValues"), "real values must be kept in the secretRealValues Map");
+    assert.ok(
+      !content.includes('data-original="${escapeHtml(value)}"'),
+      "raw value must not be placed in a data-* attribute",
+    );
+    assert.ok(
+      content.includes("secretRealValues.set(name, value)"),
+      "save must update the real-value Map",
+    );
+  });
+
+  it("provides bullet-per-line masking for password-type multiline secrets", () => {
+    const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
+    assert.ok(content.includes("function maskSecretValue"), "must define maskSecretValue helper");
+    assert.ok(
+      content.includes('"•".repeat(line.length)'),
+      "mask must preserve line structure with one bullet per char",
+    );
+  });
+
+  it("mask/unmask toggle and edit reveal operate on the textarea", () => {
+    const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
+    assert.ok(content.includes("function revealSecret"), "must define revealSecret");
+    assert.ok(content.includes("function maskSecret"), "must define maskSecret");
+    assert.ok(content.includes('el.tagName === "TEXTAREA"'), "toggle must handle textareas");
+    assert.ok(content.includes("revealSecret(input)"), "Edit must reveal the real value first");
+  });
+
+  it("versions modal renders multiline values as masked textareas", () => {
+    const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
+    assert.ok(content.includes("realValues[fieldId] = v.value"), "versions keep real values in a local map");
+    assert.ok(
+      /ver-\$\{v\.id\}[\s\S]*<textarea/.test(content),
+      "version values must render as <textarea>",
+    );
+  });
+});
