@@ -86,7 +86,14 @@ export interface StatusCount {
 
 export interface DailyTokens {
   day: string;
+  /** Total tokens (input + output) for the day. */
   tokens: number;
+  /** Input tokens served from cache (cache hit). */
+  input_cache_hit: number;
+  /** Input tokens that missed the cache. */
+  input_cache_miss: number;
+  /** Output (completion) tokens. */
+  output_tokens: number;
 }
 
 export interface ChannelHealthRow {
@@ -102,6 +109,17 @@ export interface ToolUsage {
   count: number;
 }
 
+/** One row of the Overview "Kanban Snapshot": a recent kanban status change. */
+export interface KanbanSnapshotEntry {
+  board: string;
+  task_id: string;
+  title: string;
+  /** Status after the change. */
+  status: string;
+  tags: string[];
+  changed_at: string;
+}
+
 export interface DashboardData {
   kpis: DashboardKpis;
   threads_over_time: HourlyBucket[];
@@ -110,7 +128,8 @@ export interface DashboardData {
   recent_activity: OverviewRow[];
   channel_health: ChannelHealthRow[];
   top_tools: ToolUsage[];
-  // Kanban snapshot is fetched separately
+  /** Most recent kanban status changes, newest first. */
+  kanban_snapshot: KanbanSnapshotEntry[];
 }
 
 export interface Channel {

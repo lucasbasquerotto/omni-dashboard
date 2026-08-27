@@ -7,7 +7,7 @@ import {
   type DailyTokens,
   type ChannelHealthRow,
   type ToolUsage,
-  type KanbanBoardResponse,
+  type KanbanSnapshotEntry,
 } from "../lib/api";
 import { escapeHtml, formatApiError } from "../lib/helpers";
 
@@ -72,21 +72,8 @@ async function loadDashboard(): Promise<void> {
   try {
     const data = await apiGet<DashboardData>("/overview/dashboard");
 
-    // Fetch kanban snapshot separately: direct from /api/kanban/board
-    let kanbanSnapshot: { id: string; status: string; count: number }[] = [];
-    try {
-      const kanbanData = await apiGet<KanbanBoardResponse>("/kanban/board");
-      kanbanSnapshot = (kanbanData.columns || []).map((col) => ({
-        id: col.id,
-        status: col.title,
-        count: col.tasks?.length || 0,
-      }));
-    } catch {
-      /* kanban may not be available */
-    }
-
-    content.innerHTML = renderDashboard(data, kanbanSnapshot);
-    wireDashboard(data, kanbanSnapshot);
+    content.innerHTML = renderDashboard(data);
+    wireDashboard(data);
   } catch (e) {
     content.innerHTML = `<div class="error-state" style="padding:3rem;text-align:center;">Failed to load: ${formatApiError(e)}</div>`;
   }
@@ -94,22 +81,16 @@ async function loadDashboard(): Promise<void> {
 
 // ── Dashboard HTML ──
 
-function renderDashboard(
-  data: DashboardData,
-  kanbanSnapshot: { id: string; status: string; count: number }[],
-): string {
+function renderDashboard(data: DashboardData): string {
   return `
     ${renderKpiRow(data.kpis)}
     ${renderChartRow(data.threads_over_time, data.status_distribution, data.token_trend)}
     ${renderTableRow(data.recent_activity, data.channel_health)}
-    ${renderBottomBar(data.top_tools, kanbanSnapshot)}
+    ${renderBottomBar(data.top_tools, data.kanban_snapshot || [])}
   `;
 }
 
-function wireDashboard(
-  data: DashboardData,
-  _kanbanSnapshot: { id: string; status: string; count: number }[],
-): void {
+function wireDashboard(data: DashboardData): void {
   // Wire bar chart
   const barChartEl = document.getElementById("chart-bar");
   if (barChartEl) barChartEl.innerHTML = renderBarChart(data.threads_over_time);
@@ -118,9 +99,9 @@ function wireDashboard(
   const donutChartEl = document.getElementById("chart-donut");
   if (donutChartEl) donutChartEl.innerHTML = renderDonutChart(data.status_distribution);
 
-  // Wire line chart
-  const lineChartEl = document.getElementById("chart-line");
-  if (lineChartEl) lineChartEl.innerHTML = renderLineChart(data.token_trend);
+  // Wire token trend (stacked bar) chart
+  const tokenChartEl = document.getElementById("chart-token");
+  if (tokenChartEl) tokenChartEl.innerHTML = renderTokenTrendChart(data.token_trend);
 }
 // ── Row 1: KPI Cards ──
 
@@ -128,42 +109,42 @@ function renderKpiRow(kpis: DashboardKpis): string {
   const pctThreads =
     kpis.threads_yesterday > 0
       ? (((kpis.threads_today - kpis.threads_yesterday) / kpis.threads_yesterday) * 100).toFixed(1)
-      : "-";
+      : null;
   const pctTime =
     kpis.avg_response_yesterday > 0
       ? (
           ((kpis.avg_response_time - kpis.avg_response_yesterday) / kpis.avg_response_yesterday) *
           100
         ).toFixed(1)
-      : "-";
+      : null;
   const pctTokens =
     kpis.tokens_yesterday > 0
       ? (((kpis.tokens_today - kpis.tokens_yesterday) / kpis.tokens_yesterday) * 100).toFixed(1)
-      : "-";
-  const threadsTrend =
-    pctThreads !== "-" ? (Number(pctThreads) >= 0 ? "+" : "") + pctThreads + "% vs yesterday" : "-";
-  const timeTrend = pctTime !== "-" ? (Number(pctTime) >= 0 ? "+" : "") + pctTime + "% vs yesterday" : "-";
-  const tokensTrend =
-    pctTokens !== "-" ? (Number(pctTokens) >= 0 ? "+" : "") + pctTokens + "% vs yesterday" : "-";
+      : null;
+  const trendText = (pct: string | null): string => {
+    if (pct === null) return "";
+    const sign = Number(pct) >= 0 ? "+" : "";
+    return ` &middot; ${sign}${pct}% vs yesterday`;
+  };
 
   return `
     <div class="dashboard-kpi-row">
       <div class="stat-card purple">
         <div class="stat-card-label">Threads Today</div>
         <div class="stat-card-value">${kpis.threads_today.toLocaleString()}</div>
-        <div class="stat-card-sub">${threadsTrend}</div>
+        <div class="stat-card-sub">New threads created today${trendText(pctThreads)}</div>
         <svg class="stat-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </div>
       <div class="stat-card cyan">
         <div class="stat-card-label">Avg Response Time</div>
         <div class="stat-card-value">${formatDuration(kpis.avg_response_time)}</div>
-        <div class="stat-card-sub">${timeTrend}</div>
+        <div class="stat-card-sub">Average time to completion${trendText(pctTime)}</div>
         <svg class="stat-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
       </div>
       <div class="stat-card amber">
         <div class="stat-card-label">Token Consumption</div>
         <div class="stat-card-value">${formatTokens(kpis.tokens_today)}</div>
-        <div class="stat-card-sub">${tokensTrend}</div>
+        <div class="stat-card-sub">Tokens consumed today${trendText(pctTokens)}</div>
         <svg class="stat-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       </div>
       <div class="stat-card emerald">
@@ -195,7 +176,7 @@ function renderChartRow(
       </div>
       <div class="card dashboard-chart-card">
         <div class="card-header"><span class="card-title">Token Trend (14 days)</span></div>
-        <div class="card-body"><div id="chart-line" class="chart-container"><div class="loading">Loading...</div></div></div>
+        <div class="card-body"><div id="chart-token" class="chart-container"><div class="loading">Loading...</div></div></div>
       </div>
     </div>
   `;
@@ -317,19 +298,32 @@ function renderDonutChart(statusDist: StatusCount[]): string {
   </div>`;
 }
 
-// ── SVG Line Chart ──
+// ── SVG Token Trend Chart (stacked bar / block graph, 14 days) ──
+//
+// Each day is a block stacked from three parts:
+//   1. input tokens (cache hit)  — emerald
+//   2. input tokens (cache miss) — amber
+//   3. output tokens             — cyan
+// The x-axis labels use the real per-day date (no "Invalid Date").
 
-function renderLineChart(tokenTrend: DailyTokens[]): string {
+function renderTokenTrendChart(tokenTrend: DailyTokens[]): string {
   if (!tokenTrend || tokenTrend.length === 0) return '<div class="empty-state">No data</div>';
 
   const width = 600;
   const height = 180;
-  const padding = { top: 10, right: 10, bottom: 24, left: 44 };
+  const padding = { top: 10, right: 10, bottom: 26, left: 48 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
-  const values = tokenTrend.map((d) => d.tokens);
-  const maxVal = Math.max(...values, 1);
+  // Per-day series (guard against missing breakdown fields)
+  const days = tokenTrend.map((d) => ({
+    label: d.day,
+    cacheHit: Math.max(Number(d.input_cache_hit) || 0, 0),
+    cacheMiss: Math.max(Number(d.input_cache_miss) || 0, 0),
+    output: Math.max(Number(d.output_tokens) || 0, 0),
+  }));
+
+  const maxVal = Math.max(...days.map((d) => d.cacheHit + d.cacheMiss + d.output), 1);
 
   // Y-axis ticks
   const yTicks = 4;
@@ -341,64 +335,56 @@ function renderLineChart(tokenTrend: DailyTokens[]): string {
       <text x="${padding.left - 6}" y="${y + 4}" text-anchor="end" fill="${COLORS.textSecondary}" font-size="12">${formatTokens(val)}</text>`;
   }).join("");
 
-  // Points and polyline
-  if (tokenTrend.length === 1) {
-    // Single point: just show a dot
-    const x = padding.left + chartW / 2;
-    const y = padding.top + chartH / 2;
-    const val = values[0];
-    return `<svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
-      <rect x="0" y="0" width="${width}" height="${height}" fill="none"/>
-      ${yGrid}
-      <circle cx="${x}" cy="${y}" r="4" fill="${COLORS.cyan}" opacity="0.9"/>
-      <text x="${x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="9">${formatDate(tokenTrend[0].day)}</text>
-      <text x="${x}" y="${y - 10}" text-anchor="middle" fill="${COLORS.cyan}" font-size="12">${formatTokens(val)}</text>
-    </svg>`;
-  }
+  const barWidth = Math.min(34, (chartW / days.length) * 0.6);
+  const gap = (chartW - barWidth * days.length) / (days.length + 1);
 
-  const stepX = chartW / (tokenTrend.length - 1);
-  const points = tokenTrend.map((d, i) => {
-    const x = padding.left + i * stepX;
-    const y = padding.top + chartH - (d.tokens / maxVal) * chartH;
-    return { x, y, label: formatDate(d.day), val: d.tokens };
-  });
+  const stackOrder: { key: "cacheHit" | "cacheMiss" | "output"; color: string; name: string }[] = [
+    { key: "output", color: COLORS.cyan, name: "Output" },
+    { key: "cacheMiss", color: COLORS.amber, name: "Input (cache miss)" },
+    { key: "cacheHit", color: COLORS.emerald, name: "Input (cache hit)" },
+  ];
 
-  const polyline = points.map((p) => `${p.x},${p.y}`).join(" ");
-  const dots = points
-    .map((p, i) => {
-      // Show dots only every ~3 points or last
-      if (i % 3 !== 0 && i !== points.length - 1) return "";
-      return `<circle cx="${p.x}" cy="${p.y}" r="3" fill="${COLORS.cyan}" opacity="0.9">
-      <title>${p.label}: ${formatTokens(p.val)}</title>
-    </circle>`;
+  const blocks = days
+    .map((d, i) => {
+      const x = padding.left + gap + i * (barWidth + gap);
+      let yCursor = padding.top + chartH;
+      return stackOrder
+        .map((s) => {
+          const h = (d[s.key] / maxVal) * chartH;
+          yCursor -= h;
+          return `<rect x="${x}" y="${yCursor}" width="${barWidth}" height="${Math.max(h, 0.5)}" fill="${s.color}" opacity="0.9">
+        <title>${s.name}: ${d[s.key].toLocaleString()} tokens</title>
+      </rect>`;
+        })
+        .join("");
     })
     .join("");
 
-  // Labels every ~3 days
-  const labels = points
-    .map((p, i) => {
-      if (i % 3 !== 0 && i !== points.length - 1) return "";
-      return `<text x="${p.x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="12">${formatDate(p.label)}</text>`;
+  // X-axis labels: every ~3rd day plus the last — real dates, no double-formatting
+  const labels = days
+    .map((d, i) => {
+      if (i % 3 !== 0 && i !== days.length - 1) return "";
+      const x = padding.left + gap + i * (barWidth + gap) + barWidth / 2;
+      return `<text x="${x}" y="${height - 6}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="12">${formatDate(d.label)}</text>`;
     })
     .join(" ");
 
-  // Area fill
-  const areaPoints = `${points[0].x},${padding.top + chartH} ${polyline} ${points[points.length - 1].x},${padding.top + chartH}`;
+  // Legend
+  const legend = [...stackOrder]
+    .reverse()
+    .map(
+      (s) =>
+        `<span class="token-legend-item"><span class="token-legend-dot" style="background:${s.color}"></span>${s.name}</span>`,
+    )
+    .join("");
 
   return `<svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
     <rect x="0" y="0" width="${width}" height="${height}" fill="none"/>
     ${yGrid}
-    <polygon points="${areaPoints}" fill="url(#lineGrad)" opacity="0.15"/>
-    <polyline points="${polyline}" fill="none" stroke="${COLORS.cyan}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    ${dots}
+    ${blocks}
     ${labels}
-    <defs>
-      <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${COLORS.cyan}" stop-opacity="0.4"/>
-        <stop offset="100%" stop-color="${COLORS.cyan}" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-  </svg>`;
+  </svg>
+  <div class="token-legend">${legend}</div>`;
 }
 
 // ── Row 3: Tables ──
@@ -466,10 +452,7 @@ function renderHealthRow(ch: ChannelHealthRow): string {
 
 // ── Row 4: Bottom Bar ──
 
-function renderBottomBar(
-  tools: ToolUsage[],
-  kanban: { id: string; status: string; count: number }[],
-): string {
+function renderBottomBar(tools: ToolUsage[], kanban: KanbanSnapshotEntry[]): string {
   const toolsHtml =
     tools.length === 0
       ? '<div class="empty-state">No tools used in 7 days</div>'
@@ -480,11 +463,10 @@ function renderBottomBar(
 
   const kanbanHtml =
     kanban.length === 0
-      ? '<div class="empty-state">No kanban data</div>'
-      : `<div class="table-scroll"><table class="data-table">
-        <thead><tr><th>Status</th><th class="cell-num">Count</th></tr></thead>
-        <tbody>${kanban.map((k) => `<tr><td><span class="badge ${kanbanBadgeClass(k.id)}">${escapeHtml(k.status)}</span></td><td class="cell-num">${k.count}</td></tr>`).join("")}</tbody>
-      </table></div>`;
+      ? '<div class="empty-state">No kanban status changes yet</div>'
+      : `<div class="table-scroll"><div class="data-table" role="table"><div role="rowgroup"><div class="thread-header" role="row">
+          <div role="columnheader">Board</div><div role="columnheader">Task</div><div role="columnheader">Status</div><div role="columnheader">Tags</div><div role="columnheader" style="text-align:right">Date</div>
+        </div></div><div role="rowgroup">${kanban.map((k) => renderKanbanSnapshotRow(k)).join("")}</div></div></div>`;
 
   return `
     <div class="dashboard-bottom-row">
@@ -498,6 +480,23 @@ function renderBottomBar(
       </div>
     </div>
   `;
+}
+
+function renderKanbanSnapshotRow(k: KanbanSnapshotEntry): string {
+  const taskUrl = `/kanban/${encodeURIComponent(k.task_id)}`;
+  const tags = Array.isArray(k.tags)
+    ? k.tags
+        .map((t) => `<span class="badge badge-neutral" style="margin-right:0.2rem;">${escapeHtml(t)}</span>`)
+        .join("")
+    : "";
+  const date = k.changed_at ? formatDate(k.changed_at.slice(0, 10)) : "\u2014";
+  return `<a href="${taskUrl}" class="dashboard-overview-row" role="row">
+    <div role="cell"><span class="badge badge-neutral">${escapeHtml(k.board || "\u2014")}</span></div>
+    <div role="cell" class="cell-preview">${escapeHtml(k.title || "\u2014")}</div>
+    <div role="cell"><span class="badge ${kanbanBadgeClass(k.status)}">${escapeHtml(k.status || "unknown")}</span></div>
+    <div role="cell">${tags || '<span class="cell-muted">\u2014</span>'}</div>
+    <div role="cell" class="cell-timestamp">${date}</div>
+  </a>`;
 }
 
 // ── Helpers ──
@@ -518,6 +517,7 @@ function formatTokens(n: number): string {
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + (dateStr.length === 10 ? "T00:00:00Z" : ""));
+  if (isNaN(d.getTime())) return dateStr || "\u2014";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
