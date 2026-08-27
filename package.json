@@ -10,12 +10,13 @@
     "build:server": "tsc -p tsconfig.server.json",
     "build": "npm run build:frontend && npm run build:server",
     "preview": "vite preview",
-    "test": "node --import tsx --test tests/*.test.ts",
-    "test:unit": "node --import tsx --test tests/lib.test.ts tests/routes.test.ts tests/pages.test.ts",
+    "test": "NODE_OPTIONS=\"--import=./ts-loader.mjs\" node --test tests/*.test.ts",
+    "test:unit": "NODE_OPTIONS=\"--import=./ts-loader.mjs\" node --test tests/lib.test.ts tests/routes.test.ts tests/pages.test.ts",
     "lint": "eslint src/ server/ tests/",
     "lint:fix": "eslint src/ server/ tests/ --fix",
     "format": "prettier --write \"src/**/*.ts\" \"server/**/*.ts\" \"tests/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"server/**/*.ts\" \"tests/**/*.ts\""
+    "format:check": "prettier --check \"src/**/*.ts\" \"server/**/*.ts\" \"tests/**/*.ts\"",
+    "prepare": "husky"
   },
   "dependencies": {
     "chart.js": "^4.4.0",
@@ -34,8 +35,8 @@
     "eslint": "^10.5.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
+    "husky": "^9.1.7",
     "prettier": "^3.8.4",
-    "tsx": "^4.19.0",
     "typescript": "^5.8.0",
     "typescript-eslint": "^8.61.1",
     "vite": "^6.3.0"

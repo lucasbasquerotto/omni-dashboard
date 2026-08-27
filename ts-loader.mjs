@@ -5,8 +5,16 @@
 // Node >= 22.18). This loader transpiles .ts on the fly with esbuild (already
 // a dependency via vite), so `node --test` works on any Node >= 20.6 when the
 // test scripts pass `--import ./ts-loader.mjs`.
+//
+// The module self-registers via `module.register()`: on Node 20, `--import`
+// alone does not attach exported loader hooks (only `--loader` does, which is
+// deprecated on Node >= 22), so `register()` makes the same loader work on
+// both Node 20 and Node >= 22.
 import { readFileSync } from "node:fs";
+import { register } from "node:module";
 import { transformSync } from "esbuild";
+
+register("./ts-loader.mjs", import.meta.url);
 
 export async function load(url, context, nextLoad) {
   if (url.endsWith(".ts") || url.endsWith(".tsx") || url.endsWith(".mts")) {
