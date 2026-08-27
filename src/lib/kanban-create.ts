@@ -228,10 +228,7 @@ export function closeCreateModal(): void {
 }
 
 /** Wire the Create Task button, modal cancel/submit, and enhanced selects. */
-export function wireCreateTaskModal(opts: {
-  getBoard: () => string | null;
-  onCreated: () => void;
-}): void {
+export function wireCreateTaskModal(opts: { getBoard: () => string | null; onCreated: () => void }): void {
   document.getElementById("create-task-btn")?.addEventListener("click", async () => {
     const modal = document.getElementById("create-task-modal");
     if (!modal) return;
@@ -250,8 +247,7 @@ export function wireCreateTaskModal(opts: {
     if (!title) return;
 
     const body =
-      (document.getElementById("task-create-body") as HTMLTextAreaElement | null)?.value.trim() ||
-      undefined;
+      (document.getElementById("task-create-body") as HTMLTextAreaElement | null)?.value.trim() || undefined;
     const priority = parseInt(
       (document.getElementById("task-create-priority") as HTMLSelectElement | null)?.value || "0",
     );
@@ -259,10 +255,12 @@ export function wireCreateTaskModal(opts: {
       (document.getElementById("task-create-channel") as HTMLSelectElement | null)?.value || undefined;
     const profile =
       (document.getElementById("task-create-profile") as HTMLSelectElement | null)?.value || undefined;
-    const status = (document.getElementById("task-create-status") as HTMLSelectElement | null)?.value || "backlog";
+    const status =
+      (document.getElementById("task-create-status") as HTMLSelectElement | null)?.value || "backlog";
     const template =
       (document.getElementById("task-create-template") as HTMLSelectElement | null)?.value || undefined;
-    const board = (document.getElementById("task-create-board") as HTMLSelectElement | null)?.value || undefined;
+    const board =
+      (document.getElementById("task-create-board") as HTMLSelectElement | null)?.value || undefined;
     const workflow =
       (document.getElementById("task-create-workflow") as HTMLSelectElement | null)?.value || undefined;
 

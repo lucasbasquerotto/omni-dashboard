@@ -192,10 +192,13 @@ export function renderTemplateInput(
         data-channel-id="${channelId}" data-field="template" data-original="${escapeHtml(current)}">
         <option value="">- (None) -</option>
         ${(templates || [])
-        .slice()
-        .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name))
-        .map((t: { name: string }) => `<option value="${escapeHtml(t.name)}" ${t.name === current ? "selected" : ""}>${escapeHtml(t.name)}</option>`)
-        .join("")}
+          .slice()
+          .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name))
+          .map(
+            (t: { name: string }) =>
+              `<option value="${escapeHtml(t.name)}" ${t.name === current ? "selected" : ""}>${escapeHtml(t.name)}</option>`,
+          )
+          .join("")}
       </select>
       <button type="button" class="channel-edit-btn save" data-channel-id="${channelId}" data-field="template" style="display:none;" title="Save">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
@@ -283,22 +286,21 @@ export function wireChannelConfigEditing(): void {
         const freshPlugins = (
           (freshResp.data as Array<Record<string, unknown>> | undefined) ||
           (freshResp as unknown as Array<Record<string, unknown>>)
-        ).map(
-          (p: Record<string, unknown>): Record<string, unknown> => {
-            const r: Record<string, unknown> = {};
-            for (const k of Object.keys(p)) {
-              r[k.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = p[k];
-            }
-            return r;
-          },
-        );
+        ).map((p: Record<string, unknown>): Record<string, unknown> => {
+          const r: Record<string, unknown> = {};
+          for (const k of Object.keys(p)) {
+            r[k.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = p[k];
+          }
+          return r;
+        });
         const providerPlugin = freshPlugins.find(
           (fp: Record<string, unknown>) => fp.pluginType === "provider" && fp.name === provider,
         );
         if (!providerPlugin) throw new Error(`Provider "${provider}" not found`);
         const schema = [
           ...((providerPlugin.config_schema || []) as any[]),
-          ...(((providerPlugin.manifest as Record<string, unknown> | undefined)?.config_schema || []) as any[]),
+          ...(((providerPlugin.manifest as Record<string, unknown> | undefined)?.config_schema ||
+            []) as any[]),
         ];
         const modelField = schema.find((f: SettingDefinition) => f.key === "default_model");
         let models: string[] = [];

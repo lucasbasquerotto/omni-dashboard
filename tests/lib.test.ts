@@ -215,7 +215,6 @@ describe("src/lib/plugin-ui.ts", () => {
   });
 });
 
-
 // ── Unit tests for src/lib/helpers.ts — escapeHtml quote escaping (9bce18c) ──
 // Regression: the old DOM-based escapeHtml (div.textContent -> innerHTML) left `"`
 // unescaped, so HTML attribute values (value="..." / data-original="...") were
@@ -236,7 +235,7 @@ describe("src/lib/helpers.ts", () => {
       assert.equal(esc('a"b'), "a&quot;b");
       assert.equal(esc("a'b"), "a&#39;b");
       assert.equal(esc("a&b<c>d"), "a&amp;b&lt;c&gt;d");
-      assert.equal(esc('x"y\'z'), "x&quot;y&#39;z");
+      assert.equal(esc("x\"y'z"), "x&quot;y&#39;z");
     } catch (e: any) {
       // Skip on older node without .ts type-stripping (informational only)
       assert.ok(true, `escapeHtml runtime import note: ${e.message}`);
@@ -263,7 +262,10 @@ describe("src/pages/secrets.ts", () => {
 describe("plugin secret select sync (dropdown/plugin-config/plugin-list/plugin-ui)", () => {
   it("dropdown.ts exports syncSelectDisplayEl (by-element variant of syncSelectDisplay)", () => {
     const content = readFileSync(new URL("../src/lib/dropdown.ts", import.meta.url), "utf-8");
-    assert.ok(/export\s+function\s+syncSelectDisplayEl\s*\(/.test(content), "must export syncSelectDisplayEl");
+    assert.ok(
+      /export\s+function\s+syncSelectDisplayEl\s*\(/.test(content),
+      "must export syncSelectDisplayEl",
+    );
   });
 
   it("plugin-config.ts re-syncs the enhanced select after secrets fetch and value changes", () => {
@@ -279,7 +281,6 @@ describe("plugin secret select sync (dropdown/plugin-config/plugin-list/plugin-u
     assert.ok(uiSrc.includes("syncSelectDisplayEl"), "plugin-ui discard must re-sync selects");
   });
 });
-
 
 // ── Multiline secret support (regression) ──
 describe("src/pages/secrets.ts — multiline secret fields", () => {
@@ -300,10 +301,7 @@ describe("src/pages/secrets.ts — multiline secret fields", () => {
       !content.includes('data-original="${escapeHtml(value)}"'),
       "raw value must not be placed in a data-* attribute",
     );
-    assert.ok(
-      content.includes("secretRealValues.set(name, value)"),
-      "save must update the real-value Map",
-    );
+    assert.ok(content.includes("secretRealValues.set(name, value)"), "save must update the real-value Map");
   });
 
   it("provides bullet-per-line masking for password-type multiline secrets", () => {
@@ -326,9 +324,6 @@ describe("src/pages/secrets.ts — multiline secret fields", () => {
   it("versions modal renders multiline values as masked textareas", () => {
     const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
     assert.ok(content.includes("realValues[fieldId] = v.value"), "versions keep real values in a local map");
-    assert.ok(
-      /ver-\$\{v\.id\}[\s\S]*<textarea/.test(content),
-      "version values must render as <textarea>",
-    );
+    assert.ok(/ver-\$\{v\.id\}[\s\S]*<textarea/.test(content), "version values must render as <textarea>");
   });
 });

@@ -33,9 +33,12 @@ describe("server proxy route (server/index.ts)", () => {
 
   it("registers GET /api/fetch-remote before the generic proxy", () => {
     assert.match(serverSrc, /app\.get\("\/api\/fetch-remote"/);
-    const localIdx = serverSrc.indexOf('/api/fetch-remote');
+    const localIdx = serverSrc.indexOf("/api/fetch-remote");
     const genericIdx = serverSrc.indexOf("Generic proxy");
-    assert.ok(localIdx !== -1 && genericIdx !== -1 && localIdx < genericIdx, "fetch-remote must be registered before the generic proxy");
+    assert.ok(
+      localIdx !== -1 && genericIdx !== -1 && localIdx < genericIdx,
+      "fetch-remote must be registered before the generic proxy",
+    );
   });
 
   it("only allows http(s) URLs", () => {
@@ -122,10 +125,7 @@ platforms:
   it("throws Invalid YAML for an entry missing url", async () => {
     const mod = await loadImport();
     if (!mod) return;
-    assert.throws(
-      () => mod.parseRemoteYml("tools:\n  broken:\n    path: tools/broken\n"),
-      /missing "url"/,
-    );
+    assert.throws(() => mod.parseRemoteYml("tools:\n  broken:\n    path: tools/broken\n"), /missing "url"/);
   });
 
   it("throws Invalid YAML for empty documents", async () => {
@@ -369,7 +369,14 @@ describe("executeImportBatch", () => {
       },
     };
     await mod.executeImportBatch(
-      [{ name: "x", action: "remove", spec: { url: "https://x/x.git", path: "platforms/x" }, source: "remote" }],
+      [
+        {
+          name: "x",
+          action: "remove",
+          spec: { url: "https://x/x.git", path: "platforms/x" },
+          source: "remote",
+        },
+      ],
       "platform",
       executor,
     );
@@ -405,7 +412,9 @@ describe("executeImportBatch", () => {
     } finally {
       globalThis.fetch = origFetch;
     }
-    assert.ok(calls.some((c) => c.includes("POST /api/plugins/install-git") && c.includes('"git_ref":"main"')));
+    assert.ok(
+      calls.some((c) => c.includes("POST /api/plugins/install-git") && c.includes('"git_ref":"main"')),
+    );
     assert.ok(calls.some((c) => c.includes("DELETE /api/plugins/tools/remote/p2")));
   });
 });

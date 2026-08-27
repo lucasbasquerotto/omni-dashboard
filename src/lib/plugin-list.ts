@@ -160,9 +160,9 @@ export function createPluginPage(cfg: PluginPageConfig) {
     `;
 
     document.getElementById(abId)?.addEventListener("click", () => showInstallModal(type));
-    document.getElementById(ibId)?.addEventListener("click", () =>
-      showImportModal(type, () => void loadPage(type, cfg, true)),
-    );
+    document
+      .getElementById(ibId)
+      ?.addEventListener("click", () => showImportModal(type, () => void loadPage(type, cfg, true)));
 
     // Wire reload button
     const reloadBtn = document.getElementById("btn-reload-plugins");

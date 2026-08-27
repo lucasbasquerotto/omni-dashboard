@@ -9,6 +9,7 @@ Built with **Vite + TypeScript** frontend and **Express** backend, sharing a **P
 ## Pages
 
 ### Overview (`/`)
+
 4-row dashboard page with:
 
 - **Row 1: KPI Cards**: Threads Today, Avg Response Time, Token Consumption, Active Channels. Each card shows a vs-yesterday trend indicator.
@@ -17,6 +18,7 @@ Built with **Vite + TypeScript** frontend and **Express** backend, sharing a **P
 - **Row 4: Bottom Bar**: Top Tools Used (7-day tool call counts) and Kanban Snapshot (column counts overview).
 
 ### Threads (`/threads`)
+
 Paginated thread list with filter controls:
 
 - Filter by **Status** (completed, failed, processing, pending, etc.)
@@ -26,6 +28,7 @@ Paginated thread list with filter controls:
 - Each row shows: ID, status badge, cause badge, channel, created time, message count, content preview, duration, token count.
 
 ### Messages (`/messages`)
+
 Detailed message viewer with extensive filtering:
 
 - Filters: Channel, Thread ID, Role (cause/agent/system/tool), Type (multi-select toggle buttons for prompt/response/reasoning/tool/tool_output/iteration/delegate_result/skill), Subtype (free-text), Provider, Model, Seq-0 only checkbox.
@@ -34,6 +37,7 @@ Detailed message viewer with extensive filtering:
 - Color-coded type a
 
 ### Memory (`/memory`)
+
 Memory management:
 
 - **Editors**: MEMORY.md and USER.md in-place editors with save.
@@ -42,6 +46,7 @@ Memory management:
 - **Upload/Download**: Upload or download the memory files.
 
 ### Kanban (`/kanban`)
+
 Kanban task board with board selector and role-based workflows:
 
 - **Board selector** (top bar): custom enhanced `<select>` (via `lib/kanban-boards.ts`) listing boards from `boards.yml`; selection persisted in localStorage and synced to the URL (`?board=...`).
@@ -54,9 +59,11 @@ Kanban task board with board selector and role-based workflows:
 - Module-level `_dropdownListenerAttached` flag to prevent accumulated listeners on re-render.
 
 ### Kanban History (`/kanban/:id/history`)
+
 Per-task workflow history: shows the steps each task traversed (todo → running → review → testing → done) with the workflow roles that ran.
 
 ### Workflows (`/workflows`)
+
 Role-based kanban workflow editor backed by `config/workflows.yml`:
 
 - Lists workflows with their global settings (profile, provider, model, plan_mode, retries, `auto_approve`, `review_on_fail`, `clear_executions_on_review`).
@@ -64,6 +71,7 @@ Role-based kanban workflow editor backed by `config/workflows.yml`:
 - Changes are written to `workflows.yml` on save.
 
 ### Schedule (`/schedule`)
+
 Cron job list with mode indicators:
 
 - Shows all cron jobs from the `cron_jobs` table.
@@ -72,6 +80,7 @@ Cron job list with mode indicators:
 - JSONB fields (skills, context_from, enabled_toolsets) parsed via `parseJsonArray` helper.
 
 ### Hooks (`/hooks`)
+
 Event-driven hooks manager backed by the hooks API (`config/tasks.yml` hook templates):
 
 - Lists hook task templates (thread_started / thread_finished / new_message events) with their channel, prompt, enabled state.
@@ -79,6 +88,7 @@ Event-driven hooks manager backed by the hooks API (`config/tasks.yml` hook temp
 - New hooks are registered as cron-scheduled tasks delivering events to the configured hook channel.
 
 ### Secrets (`/secrets`)
+
 Vault secrets manager for API keys and credentials:
 
 - Lists all secrets from the secrets API.
@@ -90,6 +100,7 @@ Vault secrets manager for API keys and credentials:
 - **Plugin config references**: Secrets can be referenced from plugin config forms (Platforms, Tools, Providers) using the prefix `$secret:name`. The secret value is resolved at runtime: the YAML file stores only the reference, never the actual value. See [Plugin Config References](#-secretconfig-field-reference-toggle) below.
 
 ### Profiles (`/profiles`)
+
 Agent profile management:
 
 - Lists all profiles from the `profiles` DB table.
@@ -98,6 +109,7 @@ Agent profile management:
 - Profiles define the LLM configuration and tool access for threads created under them.
 
 ### Channels (`/channels`)
+
 Channel management for all connected platforms:
 
 - Lists all channels with: name, platform, resource identifier, open/closed status badge.
@@ -109,6 +121,7 @@ Channel management for all connected platforms:
 - Filter controls: channel ID, platform, status.
 
 ### Platforms (`/platforms`)
+
 Platform management and subscription control:
 
 - Platforms grouped by name with active/inactive status.
@@ -119,6 +132,7 @@ Platform management and subscription control:
 - Unsubscribe: DELETE to `/api/platforms/:platform/subscribe/:subId`.
 
 ### Tools (`/tools`)
+
 MCP tool registry viewer:
 
 - Lists all registered MCP tools from the OmniAgent MCP registry.
@@ -127,6 +141,7 @@ MCP tool registry viewer:
 - Read-only view: tool configuration is managed through Platforms and plugin settings.
 
 ### Providers (`/providers`)
+
 LLM provider configuration:
 
 - Lists all configured LLM providers with their settings.
@@ -136,6 +151,7 @@ LLM provider configuration:
 - Configuration is stored in OmniAgent's provider config and read from the root `config_schema`.
 
 ### Models (`/models`)
+
 Provider/model overrides from `config/models.yml`:
 
 - Lists provider entries with their models list, api_mode, default_base_url, refresh_url, token budgets.
@@ -144,6 +160,7 @@ Provider/model overrides from `config/models.yml`:
 - **⟳ Refresh** fetches live model lists from a provider's `refresh_url` and writes them back to `models.yml`.
 
 ### Actions (`/actions`)
+
 Saved action management:
 
 - Lists all saved actions from the `actions` table.
@@ -154,6 +171,7 @@ Saved action management:
 - Built-in actions (e.g., kanban_dispatcher, relevance_indexer, hindsight_populator) are marked and cannot be deleted.
 
 ### Prompt (`/prompt`)
+
 Prompt preview tool for testing assembled system prompts:
 
 - Channel selector (populated from API), prompt textarea, optional planning step toggle.
@@ -161,6 +179,7 @@ Prompt preview tool for testing assembled system prompts:
 - Shows assembled system prompt + messages response, including recent seq-0 context and available skills.
 
 ### Explorer (`/explorer`)
+
 Filesystem browser for agent workspace:
 
 - **File Tree** (left panel): Tree-view of the filesystem. Directories are expandable/collapsible with lazy-loaded children.
@@ -172,6 +191,7 @@ Filesystem browser for agent workspace:
 - Explorer collapse/expand toggle persisted in localStorage.
 
 ### Database (`/database`)
+
 Read-only database browser/query runner:
 
 - **Table list** (left sidebar): all tables with row counts; click to view columns + first rows.
@@ -180,6 +200,7 @@ Read-only database browser/query runner:
 - Backed by the OmniAgent `search_database` MCP tool (the DB page calls `POST /api/db/query` which proxies to it).
 
 ### Settings (`/settings`)
+
 Environment variable editor:
 
 - Settings fetched from OmniAgent API (`GET /api/settings`), organized by category.
@@ -194,6 +215,7 @@ Environment variable editor:
 ## Architecture
 
 ### Frontend
+
 - **Vite + TypeScript SPA** with hashless router.
 - `data-route` attributes on `<a>` elements for SPA navigation.
 - Router at `src/lib/router.ts` maps routes to page renderer functions.
@@ -204,6 +226,7 @@ Environment variable editor:
 - Global file drag-drop in `src/index.ts`.
 
 ### Backend
+
 - **Express server** (compiled from TypeScript via `tsc`).
 - Routes proxy to OmniAgent API or query shared PostgreSQL directly.
 - All API routes under `/api/` prefix.
@@ -213,6 +236,7 @@ Environment variable editor:
 - Docker gateway used to reach sibling containers (`omniagent:8080`, `qdrant:6333`).
 
 ### Docker
+
 - **Multi-stage build**: Stage 1 builds frontend (Vite) + compiles backend (tsc). Stage 2 is a minimal `node:22-alpine` image.
 - Frontend output: `./dist/`. Backend output: `./server-dist/`.
 - Volume-mounted `./dist:/app/dist:ro` for instant frontend updates without Docker rebuild.
@@ -220,6 +244,7 @@ Environment variable editor:
 - Includes `sqlite` for agent_interactions queries.
 
 ### Database
+
 - **PostgreSQL** (shared with OmniAgent).
 - Connected via `pg` driver with `rowMode: 'array'` for performance.
 - `queryDb` helper with automatic retry (3 attempts, exponential backoff) and named-field conversion from array rows.
@@ -307,17 +332,17 @@ repo/
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev:frontend` | Vite dev server |
-| `npm run dev:server` | Watch-mode server via `tsx watch` |
+| Command                  | Description                       |
+| ------------------------ | --------------------------------- |
+| `npm run dev:frontend`   | Vite dev server                   |
+| `npm run dev:server`     | Watch-mode server via `tsx watch` |
 | `npm run build:frontend` | Vite production build → `./dist/` |
-| `npm run build:server` | tsc compile → `./server-dist/` |
-| `npm run build` | Both frontend + server |
-| `npm run test` | Run all tests (`node --test`) |
-| `npm run lint` | ESLint check |
-| `npm run format` | Prettier formatting |
-| `npm run format:check` | Check formatting |
+| `npm run build:server`   | tsc compile → `./server-dist/`    |
+| `npm run build`          | Both frontend + server            |
+| `npm run test`           | Run all tests (`node --test`)     |
+| `npm run lint`           | ESLint check                      |
+| `npm run format`         | Prettier formatting               |
+| `npm run format:check`   | Check formatting                  |
 
 ### Workflow
 
@@ -328,6 +353,7 @@ repo/
 - Never use `--no-cache` unless the `dist/` directory is empty.
 
 ### Tests
+
 - Test files in `tests/` directory.
 - Run with `npm run test` or `npm run test:unit`.
 - Uses Node.js built-in test runner.
@@ -339,16 +365,17 @@ repo/
 
 The server reads the following environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PGHOST` | `postgres` | PostgreSQL host |
-| `PGPORT` | `5432` | PostgreSQL port |
-| `PGUSER` | `omniagent` | PostgreSQL user |
-| `PGPASSWORD` | `omniagent` | PostgreSQL password |
+| Variable     | Default     | Description              |
+| ------------ | ----------- | ------------------------ |
+| `PGHOST`     | `postgres`  | PostgreSQL host          |
+| `PGPORT`     | `5432`      | PostgreSQL port          |
+| `PGUSER`     | `omniagent` | PostgreSQL user          |
+| `PGPASSWORD` | `omniagent` | PostgreSQL password      |
 | `PGDATABASE` | `omniagent` | PostgreSQL database name |
-| `PORT` | `3001` | Server listen port |
+| `PORT`       | `3001`      | Server listen port       |
 
 The dashboard container connects to:
+
 - **OmniAgent HTTP API** at `http://omniagent:8080` (for settings, prompt-preview, hooks, models, DB query proxy).
 - **Qdrant** at `http://qdrant:6333` (for wiki search).
 - Note: Dashboard cannot reach sibling containers via `localhost`: uses Docker internal networking.
@@ -366,27 +393,27 @@ The dashboard container connects to:
 
 ### Runtime
 
-| Package | Purpose |
-|---------|---------|
-| `express` | HTTP server |
-| `pg` | PostgreSQL driver |
-| `multer` | File upload handling |
-| `chart.js` | Chart rendering |
-| `marked` | Markdown→HTML parsing |
+| Package            | Purpose                    |
+| ------------------ | -------------------------- |
+| `express`          | HTTP server                |
+| `pg`               | PostgreSQL driver          |
+| `multer`           | File upload handling       |
+| `chart.js`         | Chart rendering            |
+| `marked`           | Markdown→HTML parsing      |
 | `marked-highlight` | Markdown code highlighting |
-| `highlight.js` | Syntax highlighting |
-| `shell-quote` | Shell command quoting |
+| `highlight.js`     | Syntax highlighting        |
+| `shell-quote`      | Shell command quoting      |
 
 ### Dev
 
-| Package | Purpose |
-|---------|---------|
-| `vite` | Frontend bundler |
-| `typescript` | TypeScript compiler |
-| `eslint` | Linting |
-| `prettier` | Code formatting |
-| `husky` | Git hooks |
-| `@types/*` | TypeScript type definitions |
+| Package      | Purpose                     |
+| ------------ | --------------------------- |
+| `vite`       | Frontend bundler            |
+| `typescript` | TypeScript compiler         |
+| `eslint`     | Linting                     |
+| `prettier`   | Code formatting             |
+| `husky`      | Git hooks                   |
+| `@types/*`   | TypeScript type definitions |
 
 ---
 
@@ -394,53 +421,53 @@ The dashboard container connects to:
 
 All endpoints are under `/api/`:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Server health check (status, version, uptime) |
-| `/api/overview` | GET | Recent threads list (50 most recent) |
-| `/api/overview/dashboard` | GET | Full dashboard data (KPIs, charts, tables, tools) |
-| `/api/threads` | GET | Paginated threads with filters |
-| `/api/threads/filters` | GET | Available status and cause values |
-| `/api/messages/filters` | GET | Available filter values (channels, roles, types, etc.) |
-| `/api/messages/events` | GET | Paginated messages with all filters |
-| `/api/kanban/board` | GET | Kanban board (columns with tasks) |
-| `/api/kanban/boards` | GET | List boards (from boards.yml) |
-| `/api/kanban/tasks` | POST | Create kanban task (board/workflow/plan/template/channel/profile fields) |
-| `/api/kanban/tasks/:id` | GET | Task detail |
-| `/api/kanban/tasks/:id` | PATCH | Update task fields |
-| `/api/kanban/tasks/:id` | DELETE | Delete task |
-| `/api/kanban/tasks/:id/status` | PATCH | Move task between columns |
-| `/api/kanban/tasks/:id/position` | PATCH | Reorder task within/between columns |
-| `/api/kanban/tasks/:id/history` | GET | Workflow history for a task |
-| `/api/workflows` | GET | List role-based workflows (config/workflows.yml) |
-| `/api/workflows` | PUT | Update workflows.yml |
-| `/api/schedule` | GET | List cron jobs |
-| `/api/schedule/:id` | GET | Cron job detail |
-| `/api/settings` | GET | All env settings (proxied to OmniAgent) |
-| `/api/settings` | PUT | Update settings (proxied to OmniAgent) |
-| `/api/prompt-preview/:channelName` | POST | Preview assembled prompt (proxied to OmniAgent) |
-| `/api/channels` | GET | List all channels |
-| `/api/profiles` | GET | List all profiles |
-| `/api/platforms` | GET | List all platforms with subscriptions |
-| `/api/platforms/:platform/subscribe` | POST | Add channel subscription |
-| `/api/platforms/:platform/subscribe/:subId` | DELETE | Remove channel subscription |
-| `/api/hooks` | GET | List hook task templates |
-| `/api/hooks` | POST | Create hook |
-| `/api/hooks/:id` | PUT | Update hook |
-| `/api/hooks/:id` | DELETE | Delete hook |
-| `/api/models` | GET | List models.yml entries |
-| `/api/models` | PUT | Write models.yml |
-| `/api/models/import` | POST | Import a models.yml-like file |
-| `/api/models/refresh` | POST | Refresh model lists from provider refresh_url |
-| `/api/db/query` | POST | Read-only SQL query (proxied to OmniAgent `search_database` MCP tool) |
-| `/api/wiki-search` | POST | Search wiki via Qdrant |
-| `/api/uploads` | POST | Upload files |
-| `/api/uploads/list` | GET | List uploaded files |
-| `/api/uploads/check` | POST | Check if files exist |
-| `/api/uploads/:file` | DELETE | Delete uploaded file |
-| `/api/fs/list` | GET | List directory contents |
-| `/api/fs/read` | GET | Read file content |
-| `/api/fs/download` | GET | Download file |
+| Endpoint                                    | Method | Description                                                              |
+| ------------------------------------------- | ------ | ------------------------------------------------------------------------ |
+| `/api/health`                               | GET    | Server health check (status, version, uptime)                            |
+| `/api/overview`                             | GET    | Recent threads list (50 most recent)                                     |
+| `/api/overview/dashboard`                   | GET    | Full dashboard data (KPIs, charts, tables, tools)                        |
+| `/api/threads`                              | GET    | Paginated threads with filters                                           |
+| `/api/threads/filters`                      | GET    | Available status and cause values                                        |
+| `/api/messages/filters`                     | GET    | Available filter values (channels, roles, types, etc.)                   |
+| `/api/messages/events`                      | GET    | Paginated messages with all filters                                      |
+| `/api/kanban/board`                         | GET    | Kanban board (columns with tasks)                                        |
+| `/api/kanban/boards`                        | GET    | List boards (from boards.yml)                                            |
+| `/api/kanban/tasks`                         | POST   | Create kanban task (board/workflow/plan/template/channel/profile fields) |
+| `/api/kanban/tasks/:id`                     | GET    | Task detail                                                              |
+| `/api/kanban/tasks/:id`                     | PATCH  | Update task fields                                                       |
+| `/api/kanban/tasks/:id`                     | DELETE | Delete task                                                              |
+| `/api/kanban/tasks/:id/status`              | PATCH  | Move task between columns                                                |
+| `/api/kanban/tasks/:id/position`            | PATCH  | Reorder task within/between columns                                      |
+| `/api/kanban/tasks/:id/history`             | GET    | Workflow history for a task                                              |
+| `/api/workflows`                            | GET    | List role-based workflows (config/workflows.yml)                         |
+| `/api/workflows`                            | PUT    | Update workflows.yml                                                     |
+| `/api/schedule`                             | GET    | List cron jobs                                                           |
+| `/api/schedule/:id`                         | GET    | Cron job detail                                                          |
+| `/api/settings`                             | GET    | All env settings (proxied to OmniAgent)                                  |
+| `/api/settings`                             | PUT    | Update settings (proxied to OmniAgent)                                   |
+| `/api/prompt-preview/:channelName`          | POST   | Preview assembled prompt (proxied to OmniAgent)                          |
+| `/api/channels`                             | GET    | List all channels                                                        |
+| `/api/profiles`                             | GET    | List all profiles                                                        |
+| `/api/platforms`                            | GET    | List all platforms with subscriptions                                    |
+| `/api/platforms/:platform/subscribe`        | POST   | Add channel subscription                                                 |
+| `/api/platforms/:platform/subscribe/:subId` | DELETE | Remove channel subscription                                              |
+| `/api/hooks`                                | GET    | List hook task templates                                                 |
+| `/api/hooks`                                | POST   | Create hook                                                              |
+| `/api/hooks/:id`                            | PUT    | Update hook                                                              |
+| `/api/hooks/:id`                            | DELETE | Delete hook                                                              |
+| `/api/models`                               | GET    | List models.yml entries                                                  |
+| `/api/models`                               | PUT    | Write models.yml                                                         |
+| `/api/models/import`                        | POST   | Import a models.yml-like file                                            |
+| `/api/models/refresh`                       | POST   | Refresh model lists from provider refresh_url                            |
+| `/api/db/query`                             | POST   | Read-only SQL query (proxied to OmniAgent `search_database` MCP tool)    |
+| `/api/wiki-search`                          | POST   | Search wiki via Qdrant                                                   |
+| `/api/uploads`                              | POST   | Upload files                                                             |
+| `/api/uploads/list`                         | GET    | List uploaded files                                                      |
+| `/api/uploads/check`                        | POST   | Check if files exist                                                     |
+| `/api/uploads/:file`                        | DELETE | Delete uploaded file                                                     |
+| `/api/fs/list`                              | GET    | List directory contents                                                  |
+| `/api/fs/read`                              | GET    | Read file content                                                        |
+| `/api/fs/download`                          | GET    | Download file                                                            |
 
 ---
 
@@ -450,10 +477,10 @@ Plugin config forms (Platforms, Tools, Providers) support referencing values fro
 
 ### Prefix syntax
 
-| Prefix | Source | Example | Resolution |
-|--------|--------|---------|------------|
-| `$secret:name` | Secrets DB (`/secrets` page) | `$secret:my_telegram_token` | Async DB lookup at API handler level |
-| `$env:VAR_NAME` | Process environment variable | `$env:OPENCODE_GO_API_KEY` | Sync env var read in `build_plugin_detail()` |
+| Prefix          | Source                       | Example                     | Resolution                                   |
+| --------------- | ---------------------------- | --------------------------- | -------------------------------------------- |
+| `$secret:name`  | Secrets DB (`/secrets` page) | `$secret:my_telegram_token` | Async DB lookup at API handler level         |
+| `$env:VAR_NAME` | Process environment variable | `$env:OPENCODE_GO_API_KEY`  | Sync env var read in `build_plugin_detail()` |
 
 ### UI toggle
 

@@ -104,7 +104,10 @@ async function runQueryTool(sql: string): Promise<Record<string, unknown>[]> {
   }
   const body = (await httpRes.json().catch(() => ({}))) as McpExecuteResult;
   if (body.success !== true || body.is_error === true) {
-    throw new ApiError(502, body.error || (typeof body.content === "string" ? body.content : "Query tool failed"));
+    throw new ApiError(
+      502,
+      body.error || (typeof body.content === "string" ? body.content : "Query tool failed"),
+    );
   }
   if (typeof body.content !== "string") {
     return [];

@@ -122,7 +122,8 @@ function renderModelConfigInline(mc: Record<string, ModelConfig> | undefined): s
       if (cfg.token_budget_soft !== undefined) parts.push(`soft: ${cfg.token_budget_soft}`);
       if (cfg.token_budget_hard !== undefined) parts.push(`hard: ${cfg.token_budget_hard}`);
       if (cfg.max_tokens !== undefined) parts.push(`max_tokens: ${cfg.max_tokens}`);
-      if (cfg.max_tokens_on_truncation !== undefined) parts.push(`max_tok_trunc: ${cfg.max_tokens_on_truncation}`);
+      if (cfg.max_tokens_on_truncation !== undefined)
+        parts.push(`max_tok_trunc: ${cfg.max_tokens_on_truncation}`);
       const detail = parts.length ? parts.join(", ") : "(no overrides)";
       return `<div style="padding-left:1rem;"><code style="background:rgba(255,255,255,0.05);padding:0.0625rem 0.25rem;border-radius:2px;font-size:0.75rem;">${escapeHtml(model)}</code>: <span style="color:var(--text-muted);font-size:0.78rem;">${escapeHtml(detail)}</span></div>`;
     })

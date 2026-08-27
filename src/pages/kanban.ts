@@ -4,7 +4,13 @@
  * and lib/kanban-create.ts (create-task modal + board/workflow fields).
  */
 import { loadBoard } from "../lib/kanban-board";
-import { getStoredBoard, setStoredBoard, wireBoardControls, fetchBoards, boardMetaLabel } from "../lib/kanban-boards";
+import {
+  getStoredBoard,
+  setStoredBoard,
+  wireBoardControls,
+  fetchBoards,
+  boardMetaLabel,
+} from "../lib/kanban-boards";
 import { createTaskModalHTML, wireCreateTaskModal } from "../lib/kanban-create";
 import { enhanceSelect } from "../lib/dropdown";
 

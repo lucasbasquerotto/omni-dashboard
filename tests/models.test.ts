@@ -69,7 +69,10 @@ describe("Models server proxy (server/index.ts, item 3)", () => {
     );
     const modelsIdx = serverSrc.indexOf(routeStart);
     const genericIdx = serverSrc.indexOf("Generic proxy");
-    assert.ok(modelsIdx !== -1 && genericIdx !== -1 && modelsIdx < genericIdx, "must be registered before the generic proxy");
+    assert.ok(
+      modelsIdx !== -1 && genericIdx !== -1 && modelsIdx < genericIdx,
+      "must be registered before the generic proxy",
+    );
   });
 
   it("forwards the full /api/models path to omniagent (prefix preserved)", () => {
@@ -84,7 +87,6 @@ describe("Models server proxy (server/index.ts, item 3)", () => {
   });
 });
 
-
 // ── Models page UI/styling + refresh behavior (9bce18c) ──
 describe("Models page UI (pages/models.ts, 9bce18c)", () => {
   const mSrc = readFileSync(join(src, "pages", "models.ts"), "utf-8");
@@ -94,7 +96,10 @@ describe("Models page UI (pages/models.ts, 9bce18c)", () => {
       /import\s*\{[^}]*enhanceSelectElement[^}]*\}\s*from\s*["']\.\.\/lib\/dropdown["']/.test(mSrc),
       "must import enhanceSelectElement from ../lib/dropdown",
     );
-    assert.ok(mSrc.includes('"#m-api_mode, #m-supports_reasoning"'), "must enhance the editor api_mode/supports_reasoning selects");
+    assert.ok(
+      mSrc.includes('"#m-api_mode, #m-supports_reasoning"'),
+      "must enhance the editor api_mode/supports_reasoning selects",
+    );
   });
 
   it("Save/Cancel buttons use the app standard button classes", () => {
@@ -103,9 +108,15 @@ describe("Models page UI (pages/models.ts, 9bce18c)", () => {
   });
 
   it("refresh wiring is scoped to .channel-refresh-btn and guards on refresh_url", () => {
-    assert.ok(mSrc.includes(".channel-refresh-btn[data-provider]"), "refresh must be wired via .channel-refresh-btn[data-provider]");
+    assert.ok(
+      mSrc.includes(".channel-refresh-btn[data-provider]"),
+      "refresh must be wired via .channel-refresh-btn[data-provider]",
+    );
     assert.ok(mSrc.includes("refresh_url"), "refresh must check refresh_url before calling the API");
-    assert.ok(!/id="m-add-mc"[^>]*data-provider=/.test(mSrc), '"+ model config" must NOT be wired as a refresh button (data-provider removed)');
+    assert.ok(
+      !/id="m-add-mc"[^>]*data-provider=/.test(mSrc),
+      '"+ model config" must NOT be wired as a refresh button (data-provider removed)',
+    );
   });
 
   it("per-model config is rendered inline in each provider card (renderModelConfigInline)", () => {

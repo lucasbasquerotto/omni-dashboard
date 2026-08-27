@@ -459,7 +459,6 @@ function renderRow(row: ThreadRow): string {
   `;
 }
 
-
 /**
  * For skipped threads whose prompt was appended into another running thread
  * (sub-prompt merging), render a link to that target thread on the Threads page.

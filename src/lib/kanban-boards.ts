@@ -189,9 +189,21 @@ export async function openBoardModal(
   let channels: unknown[] = [];
   let profiles: { name: string }[] = [];
   let templates: { name: string }[] = [];
-  try { channels = await apiGet<unknown[]>("/channels"); } catch { /* ok */ }
-  try { profiles = await apiGet<{ name: string }[]>("/profiles"); } catch { /* ok */ }
-  try { templates = await apiGet<{ name: string }[]>("/templates"); } catch { /* ok */ }
+  try {
+    channels = await apiGet<unknown[]>("/channels");
+  } catch {
+    /* ok */
+  }
+  try {
+    profiles = await apiGet<{ name: string }[]>("/profiles");
+  } catch {
+    /* ok */
+  }
+  try {
+    templates = await apiGet<{ name: string }[]>("/templates");
+  } catch {
+    /* ok */
+  }
   const modal = document.createElement("div");
   modal.id = "board-modal";
   modal.style.cssText =
@@ -201,7 +213,7 @@ export async function openBoardModal(
       <h2 style="margin:0 0 1rem 0;font-size:1.1rem;">${mode === "create" ? "Create Board" : "Edit Board"}</h2>
       <div style="display:grid;gap:0.75rem;">
         ${fieldRow("board-form-key", "Name *", `<input type="text" id="board-form-key" value="${escapeHtml(boardKey ?? "")}" ${mode === "edit" ? "disabled" : ""} style="${inputStyle}" />`, "Board name (key). Tasks reference it via the task's board field.")}
-        ${fieldRow("board-form-channel", "Channel", `<select id="board-form-channel" style="${inputStyle}"><option value="">- None -</option>${channels.map((c) => `<option value="${escapeHtml(typeof c === "string" ? c : (c as { name?: string }).name ?? "")}" ${String(b.channel ?? "") === String(typeof c === "string" ? c : (c as { name?: string }).name ?? "") ? "selected" : ""}>${escapeHtml(typeof c === "string" ? c : (c as { name?: string }).name ?? "")}</option>`).join("")}</select>`, "Channel — fallback for tasks on this board.")}
+        ${fieldRow("board-form-channel", "Channel", `<select id="board-form-channel" style="${inputStyle}"><option value="">- None -</option>${channels.map((c) => `<option value="${escapeHtml(typeof c === "string" ? c : ((c as { name?: string }).name ?? ""))}" ${String(b.channel ?? "") === String(typeof c === "string" ? c : ((c as { name?: string }).name ?? "")) ? "selected" : ""}>${escapeHtml(typeof c === "string" ? c : ((c as { name?: string }).name ?? ""))}</option>`).join("")}</select>`, "Channel — fallback for tasks on this board.")}
         ${fieldRow("board-form-profile", "Profile", `<select id="board-form-profile" style="${inputStyle}"><option value="">- None -</option>${profiles.map((pr) => `<option value="${escapeHtml(pr.name)}" ${String(b.profile ?? "") === pr.name ? "selected" : ""}>${escapeHtml(pr.name)}</option>`).join("")}</select>`)}
         ${fieldRow("board-form-workflow", "Workflow", renderWorkflowSelect(workflows, b.workflow), "Used when the task itself does not set a workflow.")}
         ${fieldRow(
@@ -214,7 +226,7 @@ export async function openBoardModal(
           </select>`,
         )}
         ${fieldRow("board-form-template", "Template", `<select id="board-form-template" style="${inputStyle}"><option value="">- None -</option>${templates.map((t) => `<option value="${escapeHtml(t.name)}" ${String(b.template ?? "") === t.name ? "selected" : ""}>${escapeHtml(t.name)}</option>`).join("")}</select>`)}
-        ${fieldRow("board-form-priority", "Priority", `<select id="board-form-priority" style="${inputStyle}"><option value="">- None -</option>${[0,1,2,3,4,5].map((pr) => `<option value="${pr}" ${b.priority === pr ? "selected" : ""}>${pr}</option>`).join("")}</select>`)}
+        ${fieldRow("board-form-priority", "Priority", `<select id="board-form-priority" style="${inputStyle}"><option value="">- None -</option>${[0, 1, 2, 3, 4, 5].map((pr) => `<option value="${pr}" ${b.priority === pr ? "selected" : ""}>${pr}</option>`).join("")}</select>`)}
       </div>
       <div style="display:flex;gap:0.5rem;justify-content:space-between;margin-top:1rem;">
         <div style="display:flex;gap:0.5rem;">
@@ -256,7 +268,11 @@ export async function openBoardModal(
   const delBtn = document.getElementById("board-form-delete");
   if (delBtn && boardKey) {
     delBtn.addEventListener("click", async () => {
-      if (!confirm(`Delete board "${boardKey}"?\n\nAll tasks of this board will be deleted. This cannot be undone.`)) {
+      if (
+        !confirm(
+          `Delete board "${boardKey}"?\n\nAll tasks of this board will be deleted. This cannot be undone.`,
+        )
+      ) {
         return;
       }
       try {
@@ -275,10 +291,7 @@ export async function openBoardModal(
  * Populate a plain <select> with the board list (used by the create-task /
  * edit-task modals). No-op when the element or the board list is missing.
  */
-export async function populateBoardSelect(
-  selectId: string,
-  selected: string | null = null,
-): Promise<void> {
+export async function populateBoardSelect(selectId: string, selected: string | null = null): Promise<void> {
   const select = document.getElementById(selectId) as HTMLSelectElement | null;
   if (!select) return;
   const boards = await fetchBoards();
@@ -313,9 +326,7 @@ export async function wireBoardControls(opts: {
     container.innerHTML = "";
     return;
   }
-  const currentMeta = opts.currentBoard
-    ? boards.find((b) => b.key === opts.currentBoard)?.board
-    : undefined;
+  const currentMeta = opts.currentBoard ? boards.find((b) => b.key === opts.currentBoard)?.board : undefined;
   const metaLabel = currentMeta ? boardMetaLabel(currentMeta) : "";
   container.innerHTML = `
     <select id="kanban-board-select" title="Filter by board" style="background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);color:inherit;border-radius:6px;padding:0.375rem 0.5rem;font-size:0.8rem;cursor:pointer;">

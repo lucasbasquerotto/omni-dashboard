@@ -22,12 +22,14 @@ describe("src/lib/kanban-boards.ts — board workflow select + display", () => {
   it("board modal workflow field is a <select> rendered from renderWorkflowSelect (not a free-text input)", () => {
     // The modal must render the workflow field via renderWorkflowSelect(workflows, b.workflow)
     assert.ok(
-      /fieldRow\([^)]*"board-form-workflow"[\s\S]*renderWorkflowSelect\s*\(\s*workflows\s*,\s*b\.workflow\s*\)/.test(src),
+      /fieldRow\([^)]*"board-form-workflow"[\s\S]*renderWorkflowSelect\s*\(\s*workflows\s*,\s*b\.workflow\s*\)/.test(
+        src,
+      ),
       "workflow field should call renderWorkflowSelect(workflows, b.workflow)",
     );
     assert.ok(
       /<select id="board-form-workflow"/.test(src),
-      "renderWorkflowSelect emits <select id=\"board-form-workflow\">",
+      'renderWorkflowSelect emits <select id="board-form-workflow">',
     );
     // No free-text <input> for the workflow field anymore
     assert.ok(
@@ -76,12 +78,18 @@ describe("src/lib/kanban-board.ts — board choice buttons show workflow", () =>
   const src = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
 
   it("imports boardMetaLabel from kanban-boards", () => {
-    assert.ok(/import\s*\{[\s\S]*boardMetaLabel[\s\S]*\}\s*from\s*"\.\/kanban-boards"/.test(src), "should import boardMetaLabel");
+    assert.ok(
+      /import\s*\{[\s\S]*boardMetaLabel[\s\S]*\}\s*from\s*"\.\/kanban-boards"/.test(src),
+      "should import boardMetaLabel",
+    );
   });
 
   it("'choose a board' buttons append the board's workflow/channel meta under the key", () => {
     assert.ok(/boardMetaLabel\(b\.board\)/.test(src), "choice buttons should call boardMetaLabel(b.board)");
-    assert.ok(/board-choice-btn[\s\S]*meta[\s\S]*<div style="font-size:0\.7rem;color:var\(--text-muted\)/.test(src), "meta rendered as small muted text under the key");
+    assert.ok(
+      /board-choice-btn[\s\S]*meta[\s\S]*<div style="font-size:0\.7rem;color:var\(--text-muted\)/.test(src),
+      "meta rendered as small muted text under the key",
+    );
   });
 });
 
@@ -110,7 +118,10 @@ describe("board workflow helpers (runtime, pure functions)", () => {
       assert.equal(none[0].value, "");
 
       // boardMetaLabel: only fields that exist, joined with ·
-      assert.equal(mod.boardMetaLabel({ workflow: "omniagent-dev", channel: "mm-kanban" }), "workflow: omniagent-dev · channel: mm-kanban");
+      assert.equal(
+        mod.boardMetaLabel({ workflow: "omniagent-dev", channel: "mm-kanban" }),
+        "workflow: omniagent-dev · channel: mm-kanban",
+      );
       assert.equal(mod.boardMetaLabel({ workflow: "omniagent-dev" }), "workflow: omniagent-dev");
       assert.equal(mod.boardMetaLabel({ channel: "mm-kanban" }), "channel: mm-kanban");
       assert.equal(mod.boardMetaLabel({}), "");

@@ -214,10 +214,7 @@ export function parseGenericYaml(text: string): Record<string, unknown> {
 
 // ── Shared entry helpers ──
 
-function entriesFromSection(
-  yml: Record<string, unknown>,
-  section: string,
-): ImportEntry[] {
+function entriesFromSection(yml: Record<string, unknown>, section: string): ImportEntry[] {
   const sec = (yml[section] ?? {}) as Record<string, unknown>;
   return Object.entries(sec).map(([name, data]) => ({
     name,
@@ -241,7 +238,8 @@ function describeScalarSummary(data: Record<string, unknown>): string {
 function summaryLine(p: PlannedEntry): string {
   const data = p.data ?? {};
   const models = Array.isArray(data.models) ? (data.models as string[]).join(", ") : "";
-  const roles = data.roles && typeof data.roles === "object" ? Object.keys(data.roles as object).join(", ") : "";
+  const roles =
+    data.roles && typeof data.roles === "object" ? Object.keys(data.roles as object).join(", ") : "";
   if (roles) return `roles: ${roles}`;
   return describeScalarSummary(data) + (models ? ` · models: ${models}` : "");
 }
@@ -269,10 +267,7 @@ export function showWorkflowsImportModal(onDone?: () => void): void {
     },
 
     plan(entries: ImportEntry[], local: unknown) {
-      return planModelsImportActions(
-        entries,
-        local as Record<string, Record<string, unknown>> | null,
-      );
+      return planModelsImportActions(entries, local as Record<string, Record<string, unknown>> | null);
     },
 
     describe(p: PlannedEntry) {
@@ -338,19 +333,20 @@ export function showSchedulesImportModal(onDone?: () => void): void {
     },
 
     plan(entries: ImportEntry[], local: unknown) {
-      return planModelsImportActions(
-        entries,
-        local as Record<string, Record<string, unknown>> | null,
-      );
+      return planModelsImportActions(entries, local as Record<string, Record<string, unknown>> | null);
     },
 
     describe(p: PlannedEntry) {
       const data = p.data ?? {};
       return {
         subtitle: `cron: ${String(data.cron ?? "-")}`,
-        extra: [data.channel ? `channel: ${String(data.channel)}` : "", data.profile ? `profile: ${String(data.profile)}` : ""]
-          .filter(Boolean)
-          .join(" · ") || undefined,
+        extra:
+          [
+            data.channel ? `channel: ${String(data.channel)}` : "",
+            data.profile ? `profile: ${String(data.profile)}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ") || undefined,
       };
     },
 
@@ -405,19 +401,20 @@ export function showHooksImportModal(onDone?: () => void): void {
     },
 
     plan(entries: ImportEntry[], local: unknown) {
-      return planModelsImportActions(
-        entries,
-        local as Record<string, Record<string, unknown>> | null,
-      );
+      return planModelsImportActions(entries, local as Record<string, Record<string, unknown>> | null);
     },
 
     describe(p: PlannedEntry) {
       const data = p.data ?? {};
       return {
         subtitle: `event: ${String(data.event ?? "-")}`,
-        extra: [data.scope ? `scope: ${String(data.scope)}` : "", data.target ? `target: ${String(data.target)}` : ""]
-          .filter(Boolean)
-          .join(" · ") || undefined,
+        extra:
+          [
+            data.scope ? `scope: ${String(data.scope)}` : "",
+            data.target ? `target: ${String(data.target)}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ") || undefined,
       };
     },
 
@@ -486,10 +483,7 @@ export function showChannelsImportModal(onDone?: () => void): void {
     },
 
     plan(entries: ImportEntry[], local: unknown) {
-      return planModelsImportActions(
-        entries,
-        local as Record<string, Record<string, unknown>> | null,
-      );
+      return planModelsImportActions(entries, local as Record<string, Record<string, unknown>> | null);
     },
 
     describe(p: PlannedEntry) {
@@ -563,10 +557,7 @@ export function showActionsImportModal(onDone?: () => void): void {
     },
 
     plan(entries: ImportEntry[], local: unknown) {
-      return planModelsImportActions(
-        entries,
-        local as Record<string, Record<string, unknown>> | null,
-      );
+      return planModelsImportActions(entries, local as Record<string, Record<string, unknown>> | null);
     },
 
     describe(p: PlannedEntry) {
@@ -625,7 +616,10 @@ export function showSettingsImportModal(onDone?: () => void): void {
     parse(text: string): ImportEntry[] {
       const yml = parseGenericYaml(text);
       // Accept either a `settings:` section or a flat name→value map.
-      const section = yml.settings !== undefined && typeof yml.settings === "object" ? (yml.settings as Record<string, unknown>) : yml;
+      const section =
+        yml.settings !== undefined && typeof yml.settings === "object"
+          ? (yml.settings as Record<string, unknown>)
+          : yml;
       return Object.entries(section).map(([name, value]) => ({
         name,
         data: { value },
@@ -635,9 +629,9 @@ export function showSettingsImportModal(onDone?: () => void): void {
     async fetchLocal() {
       const local: Record<string, Record<string, unknown>> = {};
       try {
-        const resp = (await apiGet<{ categories?: { name: string; settings: { name: string; value: string }[] }[] }>(
-          "/settings",
-        )) ?? { categories: [] };
+        const resp = (await apiGet<{
+          categories?: { name: string; settings: { name: string; value: string }[] }[];
+        }>("/settings")) ?? { categories: [] };
         for (const cat of resp.categories ?? []) {
           for (const s of cat.settings ?? []) {
             local[s.name] = { value: s.value };
@@ -650,10 +644,7 @@ export function showSettingsImportModal(onDone?: () => void): void {
     },
 
     plan(entries: ImportEntry[], local: unknown) {
-      return planModelsImportActions(
-        entries,
-        local as Record<string, Record<string, unknown>> | null,
-      );
+      return planModelsImportActions(entries, local as Record<string, Record<string, unknown>> | null);
     },
 
     describe(p: PlannedEntry) {

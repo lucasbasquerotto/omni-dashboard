@@ -57,9 +57,7 @@ describe("Config import wiring (config-import.ts, item 9)", () => {
       const pageSrc = readFileSync(join(src, "pages", p.file), "utf-8");
       assert.match(
         pageSrc,
-        new RegExp(
-          `import\\s*\\{[^}]*${p.modalFn}[^}]*\\}\\s*from\\s*["']\\.\\./lib/config-import["']`,
-        ),
+        new RegExp(`import\\s*\\{[^}]*${p.modalFn}[^}]*\\}\\s*from\\s*["']\\.\\./lib/config-import["']`),
         `${p.file} must import ${p.modalFn} from ../lib/config-import`,
       );
       assert.ok(pageSrc.includes(`id="${p.btnId}"`), `${p.file} must render ${p.btnId}`);
@@ -107,7 +105,7 @@ describe("Config import wiring (config-import.ts, item 9)", () => {
     const uses = (cfg.match(/showImportFlow\(flow, onDone\)/g) || []).length;
     assert.equal(uses, 6, "each of the six flows must call showImportFlow");
     assert.equal((cfg.match(/planModelsImportActions\(/g) || []).length, 6);
-    assert.ok(cfg.includes('import { apiGet, apiPost, apiPut, fetchWorkflows, upsertWorkflow'));
+    assert.ok(cfg.includes("import { apiGet, apiPost, apiPut, fetchWorkflows, upsertWorkflow"));
   });
 
   it("exports a generic YAML parser used by every flow", () => {

@@ -663,10 +663,9 @@ function showProfilesImportModal(): void {
         text = await res.text();
       }
       if (!text.trim()) throw new Error("Paste a profiles.yml document or provide a URL");
-      const result = await apiPost<{ data?: { message?: string }; message?: string }>(
-        "/profiles/import",
-        { yaml: text },
-      );
+      const result = await apiPost<{ data?: { message?: string }; message?: string }>("/profiles/import", {
+        yaml: text,
+      });
       const msg = result?.data?.message || result?.message || "Profiles imported";
       showToast(msg, "success");
       close();

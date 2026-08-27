@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { existsSync, readdirSync, statSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 
 const OMNI_DIR = process.env.OMNI_DIR;
@@ -217,8 +217,7 @@ profilesRouter.post("/", async (req, res) => {
       success: true,
       profile: {
         name: trimmedName,
-        provider:
-          provider && typeof provider === "string" && provider.trim() ? provider.trim() : null,
+        provider: provider && typeof provider === "string" && provider.trim() ? provider.trim() : null,
         model: model && typeof model === "string" && model.trim() ? model.trim() : null,
         allowed_tools: [],
         skills: [],
@@ -274,7 +273,9 @@ profilesRouter.post("/import", async (req, res) => {
   try {
     const { yaml } = (req.body ?? {}) as any;
     if (!yaml || typeof yaml !== "string" || !yaml.trim()) {
-      res.status(400).json({ error: "Import body must contain a `yaml` field with the profiles.yml document" });
+      res
+        .status(400)
+        .json({ error: "Import body must contain a `yaml` field with the profiles.yml document" });
       return;
     }
     const fwd = await fetch(`${OMNIAGENT}/profiles/import`, {

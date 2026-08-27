@@ -7,13 +7,7 @@ import { apiGet } from "./api";
 import { escapeHtml, formatApiError, fixMissingSelectOptions } from "./helpers";
 import { enhanceSelectElement, unenhanceSelect } from "./dropdown";
 import { showToast } from "./utils";
-import {
-  formatHookCounterJson,
-  hookField,
-  EVENT_LABELS,
-  SCOPE_LABELS,
-  MODE_LABELS,
-} from "./hooks";
+import { formatHookCounterJson, hookField, EVENT_LABELS, SCOPE_LABELS, MODE_LABELS } from "./hooks";
 
 interface ChannelOption {
   id: number | string;
@@ -318,7 +312,10 @@ export async function showHookModal(
     templateSelect.innerHTML =
       `<option value="">- (None) -</option>` +
       filtered
-        .map((t) => `<option value="${escapeHtml(t.name)}" ${curTpl === t.name ? "selected" : ""}>${escapeHtml(t.name)}</option>`)
+        .map(
+          (t) =>
+            `<option value="${escapeHtml(t.name)}" ${curTpl === t.name ? "selected" : ""}>${escapeHtml(t.name)}</option>`,
+        )
         .join("");
     unenhanceSelect("hook-template");
     enhanceSelectElement(templateSelect);

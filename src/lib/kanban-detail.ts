@@ -319,13 +319,15 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
         </div>
         <div>
           <div class="detail-label">Goal phase</div>
-          <div>${task.goal_phase
-            ? `<span class="badge ${task.goal_phase === "blocked" ? "badge-error" : task.goal_phase === "active" ? "badge-warning" : "badge-neutral"}">${escapeHtml(task.goal_phase)}</span>${
-                task.goal_max_rounds
-                  ? ` <code style="font-size:0.7rem;color:var(--text-muted);">rounds ≤ ${escapeHtml(String(task.goal_max_rounds))}</code>`
-                  : ""
-              }`
-            : "<em>None</em>"}</div>
+          <div>${
+            task.goal_phase
+              ? `<span class="badge ${task.goal_phase === "blocked" ? "badge-error" : task.goal_phase === "active" ? "badge-warning" : "badge-neutral"}">${escapeHtml(task.goal_phase)}</span>${
+                  task.goal_max_rounds
+                    ? ` <code style="font-size:0.7rem;color:var(--text-muted);">rounds ≤ ${escapeHtml(String(task.goal_max_rounds))}</code>`
+                    : ""
+                }`
+              : "<em>None</em>"
+          }</div>
         </div>
         ${
           task.goal_blocked_code || task.goal_blocked_message
@@ -494,8 +496,7 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
         (document.getElementById("task-edit-priority") as HTMLSelectElement)?.value || "0",
       );
       const status = (document.getElementById("task-edit-status") as HTMLSelectElement)?.value || "backlog";
-      const channel =
-        (document.getElementById("task-edit-channel") as HTMLSelectElement)?.value || undefined;
+      const channel = (document.getElementById("task-edit-channel") as HTMLSelectElement)?.value || undefined;
       const profile = (document.getElementById("task-edit-profile") as HTMLSelectElement)?.value || undefined;
       const template =
         (document.getElementById("task-edit-template") as HTMLSelectElement)?.value || undefined;
