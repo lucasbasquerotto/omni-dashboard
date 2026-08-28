@@ -11,7 +11,8 @@ import {
   fetchBoards,
   boardMetaLabel,
 } from "../lib/kanban-boards";
-import { createTaskModalHTML, wireCreateTaskModal } from "../lib/kanban-create";
+import { taskModalHTML, wireTaskModal } from "../lib/kanban-create";
+import { prefetch } from "../lib/refcache";
 import { enhanceSelect } from "../lib/dropdown";
 
 // ── State ──
@@ -96,16 +97,21 @@ export function renderKanban(container: HTMLElement): void {
     <div class="kanban-board" id="kanban-board">
       <div class="loading">Loading board</div>
     </div>
-    ${createTaskModalHTML()}
+    ${taskModalHTML("create")}
   `;
 
-  // Wire the create-task modal (board/workflow fields live in kanban-create.ts)
-  wireCreateTaskModal({
+  // Wire the shared create-task modal (also used for Edit on the detail page).
+  wireTaskModal({
+    mode: "create",
     getBoard: () => currentBoard,
-    onCreated: () => {
+    onSaved: () => {
       void loadBoard(showArchived, currentBoard);
     },
   });
+
+  // Prefetch the modal option lists (channels/profiles/templates/boards/workflows)
+  // so Create Task opens instantly from the refcache.
+  prefetch(["/channels", "/profiles", "/templates", "/boards", "/workflows"]);
 
   // Toggle archived button
   document.getElementById("toggle-archived-btn")!.addEventListener("click", () => {

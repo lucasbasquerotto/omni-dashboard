@@ -203,6 +203,10 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
     const tasks = await apiGet<KanbanTask[]>(
       boardKey ? `/kanban/tasks?board=${encodeURIComponent(boardKey)}` : "/kanban/tasks",
     );
+    // Archived filter: default (Unarchived) shows ONLY non-archived tasks of
+    // the chosen board; "Show archived" shows ONLY archived tasks. Filtering
+    // happens here on the archived flag - not merely on the URL.
+    const visibleTasks = tasks.filter((t: KanbanTask) => (showArchived ? t.archived === true : !t.archived));
     const KANBAN_COLUMNS: { id: string; title: string }[] = [
       { id: "backlog", title: "Backlog" },
       { id: "todo", title: "Todo" },
@@ -215,11 +219,13 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
     const columns = KANBAN_COLUMNS.map((col) => ({
       id: col.id,
       title: col.title,
-      tasks: tasks.filter((t: KanbanTask) => t.status === col.id),
+      tasks: visibleTasks.filter((t: KanbanTask) => t.status === col.id),
     }));
-    const board: KanbanBoardResponse = { columns, total: tasks.length };
+    const board: KanbanBoardResponse = { columns, total: visibleTasks.length };
     if (board.columns.length === 0 || board.total === 0) {
-      boardEl.innerHTML = `<div class="empty-state">No tasks yet</div>`;
+      boardEl.innerHTML = `<div class="empty-state">${
+        showArchived ? "No archived tasks" : "No tasks yet"
+      }</div>`;
       countEl.textContent = "";
       return;
     }

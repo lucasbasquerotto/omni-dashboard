@@ -3,7 +3,7 @@
  * Clone of showCronModal (src/lib/schedule-detail.ts) with hook-specific
  * fields, backed by the omniagent hooks REST API.
  */
-import { apiGet } from "./api";
+import { cachedGet } from "./refcache";
 import { escapeHtml, formatApiError, fixMissingSelectOptions } from "./helpers";
 import { enhanceSelectElement, unenhanceSelect } from "./dropdown";
 import { showToast } from "./utils";
@@ -36,34 +36,26 @@ export async function showHookModal(
 ): Promise<void> {
   const isEdit = hook !== null;
 
-  // Fetch available data (best-effort, like showCronModal)
+  // Fetch available data (best-effort, like showCronModal; cached from
+  // page-load prefetch so the modal opens instantly).
   let channels: ChannelOption[] = [];
   let profiles: ProfileOption[] = [];
   let existingHooks: Record<string, unknown>[] = [];
   let actions: ActionOption[] = [];
-  try {
-    channels = (await apiGet("/channels")) as ChannelOption[];
-  } catch {
-    /* ok */
-  }
-  try {
-    profiles = await apiGet<ProfileOption[]>("/profiles");
-  } catch {
-    /* ok */
-  }
-  try {
-    existingHooks = await apiGet<Record<string, unknown>[]>("/hooks");
-  } catch {
-    /* ok */
-  }
-  try {
-    actions = await apiGet<ActionOption[]>("/actions");
-  } catch {
-    /* ok */
-  }
   let templates: { profile: string; name: string; label: string }[] = [];
   try {
-    templates = await apiGet<{ profile: string; name: string; label: string }[]>("/templates");
+    const [ch, pr, hooks, ac, tm] = await Promise.all([
+      cachedGet("/channels"),
+      cachedGet("/profiles"),
+      cachedGet("/hooks"),
+      cachedGet("/actions"),
+      cachedGet("/templates"),
+    ]);
+    channels = ch as ChannelOption[];
+    profiles = pr as ProfileOption[];
+    existingHooks = hooks as Record<string, unknown>[];
+    actions = ac as ActionOption[];
+    templates = tm as { profile: string; name: string; label: string }[];
   } catch {
     /* ok */
   }
@@ -241,7 +233,7 @@ export async function showHookModal(
         </div>
 
         <div style="margin-bottom:1rem;">
-          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Current Counter <span style="color:var(--text-muted);font-weight:400;">(read-only — resets automatically when the hook fires)</span></label>
+          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Current Counter <span style="color:var(--text-muted);font-weight:400;">(read-only ,  resets automatically when the hook fires)</span></label>
           <pre id="hook-counter-view" style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;padding:0.625rem;font-size:0.75rem;color:var(--accent-cyan);white-space:pre-wrap;word-break:break-word;margin:0;max-height:140px;overflow-y:auto;">${escapeHtml(formatHookCounterJson(cur.counter))}</pre>
         </div>
 

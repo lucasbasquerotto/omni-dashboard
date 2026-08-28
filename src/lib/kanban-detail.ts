@@ -7,7 +7,7 @@ import { boardMoveEnabled, fetchBoards, nextBoardOptions } from "./kanban-boards
 import { STATUS_LABELS, statusBadge, moveTask } from "./kanban-board";
 // ── Helper imports ──
 import { escapeHtml, formatApiError } from "./helpers";
-import { enhanceSelect, syncSelectDisplay } from "./dropdown";
+import { taskModalHTML, wireTaskModal, openTaskModal } from "./kanban-create";
 import { renderMessageCard, wireMessageCardToggles } from "./message-card";
 import { showToast } from "./utils";
 
@@ -136,92 +136,6 @@ async function loadKanbanActivity(taskId: string): Promise<void> {
   } catch {
     el.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Failed to load activity.</div>';
   }
-}
-
-// ── Channel / Profile population helpers ──
-
-async function populateEditChannelSelect(currentChannelId: string): Promise<void> {
-  const select = document.getElementById("task-edit-channel") as HTMLSelectElement;
-  if (!select) return;
-  try {
-    const channels = (await apiGet("/channels")) as {
-      name?: string;
-      id?: string;
-      platform?: string;
-      channel?: string;
-    }[];
-    select.innerHTML = '<option value="">None</option>';
-    for (const ch of channels) {
-      const opt = document.createElement("option");
-      opt.value = ch.id || ch.name || "";
-      opt.textContent = ch.name || ch.id || "";
-      if (opt.value === currentChannelId) {
-        opt.selected = true;
-      }
-      select.appendChild(opt);
-    }
-    refreshEnhancedSelect("task-edit-channel");
-  } catch {
-    // console.error("Failed to load channels:", e);
-    select.innerHTML = '<option value="">Error loading channels</option>';
-  }
-}
-
-async function populateProfileSelect(selectId: string, currentProfile?: string): Promise<void> {
-  const select = document.getElementById(selectId) as HTMLSelectElement;
-  if (!select) return;
-  try {
-    const profiles = (await apiGet("/profiles")) as { name?: string }[];
-    select.innerHTML = '<option value="">None</option>';
-    for (const p of profiles) {
-      const name = typeof p === "string" ? p : p.name || "";
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      if (currentProfile && name === currentProfile) {
-        opt.selected = true;
-      }
-      select.appendChild(opt);
-    }
-    refreshEnhancedSelect(selectId);
-  } catch (e) {
-    console.error("Failed to load profiles:", e);
-    select.innerHTML = '<option value="">Error loading profiles</option>';
-  }
-}
-
-async function populateTemplatesSelect(selectId: string, currentTemplate?: string): Promise<void> {
-  const select = document.getElementById(selectId) as HTMLSelectElement;
-  if (!select) return;
-  try {
-    const templates = await apiGet<{ profile: string; name: string; label: string }[]>("/templates");
-    select.innerHTML = '<option value="">None</option>';
-    for (const t of templates) {
-      const opt = document.createElement("option");
-      opt.value = t.name;
-      opt.textContent = `${t.name} (${t.profile})`;
-      if (currentTemplate && t.name === currentTemplate) {
-        opt.selected = true;
-      }
-      select.appendChild(opt);
-    }
-    refreshEnhancedSelect(selectId);
-  } catch (e) {
-    console.error("Failed to load templates:", e);
-    select.innerHTML = '<option value="">Error loading templates</option>';
-  }
-}
-
-function refreshEnhancedSelect(selectId: string): void {
-  const select = document.getElementById(selectId) as HTMLSelectElement;
-  if (!select) return;
-  const wrapper = select.nextElementSibling as HTMLElement;
-  if (wrapper && wrapper.classList.contains("custom-select")) {
-    wrapper.remove();
-  }
-  (select as HTMLSelectElement).dataset._enhanced = "";
-  select.style.display = "";
-  enhanceSelect(selectId);
 }
 
 // ── Detail view ──
@@ -455,82 +369,21 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
       });
     });
 
-    // Wire up Edit button
+    // Wire up Edit button: opens the SHARED task modal (same component as
+    // Create Task) pre-filled with this task; only the submit differs (PATCH).
     const editBtn = document.getElementById("task-edit-btn");
     if (editBtn) {
-      editBtn.addEventListener("click", async () => {
-        (document.getElementById("task-edit-title") as HTMLInputElement).value = task.title;
-        (document.getElementById("task-edit-body") as HTMLTextAreaElement).value = task.body || "";
-        (document.getElementById("task-edit-priority") as HTMLSelectElement).value = String(task.priority);
-        (document.getElementById("task-edit-status") as HTMLSelectElement).value = task.status;
-        syncSelectDisplay("task-edit-priority");
-        syncSelectDisplay("task-edit-status");
-
-        await populateEditChannelSelect(task.channel || "");
-        await populateProfileSelect("task-edit-profile", task.profile || "");
-        const planSelect = document.getElementById("task-edit-plan") as HTMLSelectElement;
-        if (planSelect) {
-          planSelect.value = task.plan != null ? String(task.plan) : "";
-          syncSelectDisplay("task-edit-plan");
-        }
-        await populateTemplatesSelect("task-edit-template", task.template || "");
-
-        const modal = document.getElementById("edit-task-modal");
-        if (modal) modal.style.display = "flex";
+      editBtn.addEventListener("click", () => {
+        openTaskModal({
+          mode: "edit",
+          task: task as Record<string, unknown>,
+          getBoard: () => (task.board ? String(task.board) : null),
+          onSaved: () => {
+            void loadTaskDetail(taskId);
+          },
+        });
       });
     }
-
-    // Wire up edit modal cancel
-    document.getElementById("task-edit-cancel")?.addEventListener("click", () => {
-      const modal = document.getElementById("edit-task-modal");
-      if (modal) modal.style.display = "none";
-    });
-
-    // Wire up edit modal submit
-    document.getElementById("task-edit-submit")?.addEventListener("click", async () => {
-      const title = (document.getElementById("task-edit-title") as HTMLInputElement)?.value.trim();
-      if (!title) return;
-      const body =
-        (document.getElementById("task-edit-body") as HTMLTextAreaElement)?.value.trim() || undefined;
-      const priority = parseInt(
-        (document.getElementById("task-edit-priority") as HTMLSelectElement)?.value || "0",
-      );
-      const status = (document.getElementById("task-edit-status") as HTMLSelectElement)?.value || "backlog";
-      const channel = (document.getElementById("task-edit-channel") as HTMLSelectElement)?.value || undefined;
-      const profile = (document.getElementById("task-edit-profile") as HTMLSelectElement)?.value || undefined;
-      const template =
-        (document.getElementById("task-edit-template") as HTMLSelectElement)?.value || undefined;
-      const planVal = (document.getElementById("task-edit-plan") as HTMLSelectElement)?.value || undefined;
-
-      try {
-        const reqBody: Record<string, any> = {
-          title,
-          body,
-          priority,
-          status,
-          channel,
-          profile,
-          template,
-        };
-        if (planVal !== undefined && planVal !== "") {
-          reqBody.plan = planVal === "true";
-        }
-        const res = await fetch("/api/kanban/tasks/" + encodeURIComponent(taskId), {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(reqBody),
-        });
-        if (!res.ok) {
-          const text = await res.text().catch(() => "Unknown error");
-          throw new Error(`${res.status}: ${text}`);
-        }
-        const modal = document.getElementById("edit-task-modal");
-        if (modal) modal.style.display = "none";
-        void loadTaskDetail(taskId);
-      } catch (e) {
-        alert("Failed to update task: " + formatApiError(e));
-      }
-    });
 
     // ── Render dependencies table ──
     renderDepsTable(task);
@@ -605,6 +458,10 @@ function wireDepsAdd(taskId: string): void {
       }
       input.value = "";
       showToast("Dependency added", "success");
+      // Wire the shared edit-task modal (same component as Create Task; cancel +
+      // submit live in kanban-create.ts). Idempotent, safe on every render.
+      wireTaskModal({ mode: "edit" });
+
       void loadTaskDetail(taskId);
     } catch (e: unknown) {
       showToast("Failed: " + ((e instanceof Error ? e.message : String(e)) || "Unknown"), "error");
@@ -719,66 +576,7 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
         </span>
       </div>
     </div>
-    <!-- Edit Task Modal -->
-    <div id="edit-task-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:flex-start;justify-content:center;padding-top:10vh;">
-      <div style="background:#1a1a2e;border-radius:8px;padding:1.5rem;max-width:500px;width:90%;border:1px solid var(--glass-border,rgba(255,255,255,0.08));">
-        <h2 style="margin:0 0 1rem 0;font-size:1.1rem;">Edit Task</h2>
-        <div style="display:grid;gap:0.75rem;">
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Title *</label>
-            <input type="text" id="task-edit-title" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;" />
-          </div>
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Body</label>
-            <textarea id="task-edit-body" rows="3" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;resize:vertical;box-sizing:border-box;"></textarea>
-          </div>
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Priority</label>
-            <select id="task-edit-priority" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
-              <option value="0">Low</option>
-              <option value="1">Med</option>
-              <option value="3">High</option>
-              <option value="5">Critical</option>
-            </select>
-          </div>
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Status</label>
-            <select id="task-edit-status" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
-              <option value="backlog">Backlog</option>
-              <option value="todo">Todo</option>
-              <option value="running">In Progress</option>
-              <option value="testing">Testing</option>
-              <option value="review">Review</option>
-              <option value="blocked">Blocked</option>
-              <option value="done">Done</option>
-            </select>
-          </div>
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Channel</label>
-            <select id="task-edit-channel" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
-              <option value="">Loading...</option>
-            </select>
-          </div>
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Profile</label>
-            <select id="task-edit-profile" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
-              <option value="">None</option>
-            </select>
-          </div>
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Template</label>
-            <select id="task-edit-template" style="width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;">
-              <option value="">None</option>
-            </select>
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Structured guidance injected into the agent's prompt when this task runs.</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
-          <button id="task-edit-cancel" style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
-          <button id="task-edit-submit" style="background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.4);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;">Save</button>
-        </div>
-      </div>
-    </div>
+    ${taskModalHTML("edit")}
   `;
 
   const backLink = document.getElementById("back-to-kanban");
@@ -807,8 +605,6 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
   }
 
   void loadTaskDetail(taskId);
-  enhanceSelect("task-edit-priority");
-  enhanceSelect("task-edit-status");
 }
 
 async function handleResetWorkflowExecutions(taskId: string): Promise<void> {

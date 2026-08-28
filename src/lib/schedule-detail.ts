@@ -3,6 +3,7 @@
  * Extracted from src/pages/schedule.ts
  */
 import { apiGet, type Message } from "./api";
+import { cachedGet } from "./refcache";
 import { escapeHtml, formatApiError } from "./helpers";
 import { enhanceSelectElement } from "./dropdown";
 import { renderMessageCard, wireMessageCardToggles } from "./message-card";
@@ -363,34 +364,26 @@ export async function showCronModal(
 ): Promise<void> {
   const isEdit = job !== null;
 
-  // Fetch available data
+  // Fetch available data (cached from page-load prefetch, so the modal opens
+  // instantly; the old code awaited 5 sequential fetches before showing).
   let channels: { id: string; name: string; platform: string }[] = [];
   let profiles: { name: string }[] = [];
   let existingJobs: Record<string, unknown>[] = [];
   let actions: { id: string; name: string; tool_name: string; is_builtin: boolean }[] = [];
   let templates: { profile: string; name: string; label: string }[] = [];
   try {
-    channels = (await apiGet("/channels")) as { id: string; name: string; platform: string }[];
-  } catch {
-    /* ok */
-  }
-  try {
-    profiles = await apiGet<any[]>("/profiles");
-  } catch {
-    /* ok */
-  }
-  try {
-    existingJobs = await apiGet<any[]>("/schedule?active=false");
-  } catch {
-    /* ok */
-  }
-  try {
-    actions = await apiGet<any[]>("/actions");
-  } catch {
-    /* ok */
-  }
-  try {
-    templates = await apiGet<any[]>("/templates");
+    const [ch, pr, jobs, ac, tm] = await Promise.all([
+      cachedGet("/channels"),
+      cachedGet("/profiles"),
+      cachedGet("/schedule?active=false"),
+      cachedGet("/actions"),
+      cachedGet("/templates"),
+    ]);
+    channels = ch as { id: string; name: string; platform: string }[];
+    profiles = pr as { name: string }[];
+    existingJobs = jobs as Record<string, unknown>[];
+    actions = ac as { id: string; name: string; tool_name: string; is_builtin: boolean }[];
+    templates = tm as { profile: string; name: string; label: string }[];
   } catch {
     /* ok */
   }

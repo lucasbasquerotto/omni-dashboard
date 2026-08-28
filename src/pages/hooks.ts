@@ -4,6 +4,7 @@
  * lib/hooks-detail.ts.
  */
 import { loadHooks } from "../lib/hooks-list";
+import { prefetch } from "../lib/refcache";
 import { showHooksImportModal } from "../lib/config-import";
 
 // ── Main render ──
@@ -39,6 +40,10 @@ export function renderHooks(container: HTMLElement): void {
   document.getElementById("hooks-import-btn")?.addEventListener("click", () => {
     showHooksImportModal(() => void loadHooks());
   });
+
+  // Prefetch modal option lists (channels/profiles/templates/actions/hooks)
+  // so Create Hook opens instantly from the refcache.
+  prefetch(["/channels", "/profiles", "/templates", "/actions", "/hooks"]);
 
   void loadHooks();
 }

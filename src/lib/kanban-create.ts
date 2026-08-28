@@ -1,29 +1,60 @@
 /**
- * Kanban create-task modal: HTML + wiring.
- * Extracted from src/pages/kanban.ts (keeps that page under 350 lines).
- * Adds Board + Workflow fields (Board pre-filled with the current board;
- * Workflow options mirror the board modal's workflow select).
+ * Kanban create/edit task modal: ONE shared modal component for both modes.
+ *
+ * - Create Task (kanban page) and Edit Task (kanban detail page) render the
+ *   SAME field set through `taskModalHTML(mode)`; only the submit action
+ *   differs (POST vs PATCH) and Edit pre-fills the fields.
+ * - Every <select> in the modal uses the custom styled dropdown (dropdown.ts),
+ *   including Board and Workflow.
+ * - The modal opens INSTANTLY: `openTaskModal` shows the overlay first and
+ *   populates the selects in the background from the refcache (prefetched on
+ *   page load), so a click never waits on the network.
  */
-import { apiGet } from "./api";
-import { fetchBoards, populateBoardSelect, populateWorkflowSelect } from "./kanban-boards";
+import { type BoardEntry, type WorkflowEntry } from "./api";
+import { workflowSelectOptions } from "./kanban-boards";
 import { enhanceSelect, syncSelectDisplay } from "./dropdown";
 import { formatApiError } from "./helpers";
+import { cachedGet } from "./refcache";
 
-// ── Channel / Profile / Template population helpers ──
+export type TaskModalMode = "create" | "edit";
 
-export async function populateCreateChannelSelect(): Promise<void> {
-  const select = document.getElementById("task-create-channel") as HTMLSelectElement | null;
+/** id prefix per mode: create -> task-create-*, edit -> task-edit-* */
+const prefix = (mode: TaskModalMode): string => (mode === "edit" ? "task-edit" : "task-create");
+const modalId = (mode: TaskModalMode): string => (mode === "edit" ? "edit-task-modal" : "create-task-modal");
+
+// ── Modal open state (what the wired submit button acts on) ──
+let _editTaskId: string | null = null;
+let _activeSave: (() => void) | null = null;
+
+// ── Select population helpers (all cached + enhanced) ──
+
+function refreshEnhancedSelect(selectId: string): void {
+  const select = document.getElementById(selectId) as HTMLSelectElement | null;
+  if (!select) return;
+  const wrapper = select.nextElementSibling as HTMLElement | null;
+  if (wrapper && wrapper.classList.contains("custom-select")) {
+    wrapper.remove();
+  }
+  (select as HTMLSelectElement).dataset._enhanced = "";
+  select.style.display = "";
+  enhanceSelect(selectId);
+}
+
+async function populateChannelSelect(selectId: string, selected: string | null): Promise<void> {
+  const select = document.getElementById(selectId) as HTMLSelectElement | null;
   if (!select) return;
   try {
-    const channels = (await apiGet("/channels")) as Record<string, unknown>[];
-    const kanbanChannel = channels.find((ch: Record<string, unknown>) => ch.platform === "kanban");
+    const channels = (await cachedGet<Record<string, unknown>[]>("/channels")) || [];
+    const kanbanChannel = channels.find((ch) => ch.platform === "kanban");
     select.innerHTML = '<option value="">None</option>';
     for (const ch of channels) {
       const opt = document.createElement("option");
       const chAny = ch as Record<string, string>;
       opt.value = chAny.id || chAny.name || "";
       opt.textContent = chAny.name || chAny.id || "";
-      if (
+      if (selected) {
+        if (opt.value === selected) opt.selected = true;
+      } else if (
         kanbanChannel &&
         (opt.value === (kanbanChannel as Record<string, string>).id ||
           opt.value === (kanbanChannel as Record<string, string>).name ||
@@ -33,23 +64,24 @@ export async function populateCreateChannelSelect(): Promise<void> {
       }
       select.appendChild(opt);
     }
-    refreshEnhancedSelect("task-create-channel");
+    refreshEnhancedSelect(selectId);
   } catch {
     select.innerHTML = '<option value="">Error loading channels</option>';
   }
 }
 
-export async function populateProfileSelect(selectId: string): Promise<void> {
+async function populateProfileSelect(selectId: string, selected: string | null): Promise<void> {
   const select = document.getElementById(selectId) as HTMLSelectElement | null;
   if (!select) return;
   try {
-    const profiles = await apiGet<any[]>("/profiles");
+    const profiles = (await cachedGet<unknown[]>("/profiles")) || [];
     select.innerHTML = '<option value="">None</option>';
     for (const p of profiles) {
-      const name = typeof p === "string" ? p : p.name || "";
+      const name = typeof p === "string" ? p : (p as { name?: string }).name || "";
       const opt = document.createElement("option");
       opt.value = name;
       opt.textContent = name;
+      if (selected && name === selected) opt.selected = true;
       select.appendChild(opt);
     }
     refreshEnhancedSelect(selectId);
@@ -59,16 +91,18 @@ export async function populateProfileSelect(selectId: string): Promise<void> {
   }
 }
 
-export async function populateTemplatesSelect(selectId: string): Promise<void> {
+async function populateTemplatesSelect(selectId: string, selected: string | null): Promise<void> {
   const select = document.getElementById(selectId) as HTMLSelectElement | null;
   if (!select) return;
   try {
-    const templates = await apiGet<{ profile: string; name: string; label: string }[]>("/templates");
+    const templates =
+      (await cachedGet<{ profile: string; name: string; label: string }[]>("/templates")) || [];
     select.innerHTML = '<option value="">None</option>';
     for (const t of templates) {
       const opt = document.createElement("option");
       opt.value = t.name;
       opt.textContent = `${t.name} (${t.profile})`;
+      if (selected && t.name === selected) opt.selected = true;
       select.appendChild(opt);
     }
     refreshEnhancedSelect(selectId);
@@ -78,220 +112,324 @@ export async function populateTemplatesSelect(selectId: string): Promise<void> {
   }
 }
 
-function refreshEnhancedSelect(selectId: string): void {
+async function populateBoardSelectCached(selectId: string, selected: string | null): Promise<void> {
   const select = document.getElementById(selectId) as HTMLSelectElement | null;
   if (!select) return;
-  const wrapper = select.nextElementSibling as HTMLElement | null;
-  if (wrapper && wrapper.classList.contains("custom-select")) {
-    wrapper.remove();
+  try {
+    const boards = (await cachedGet<{ boards: BoardEntry[] }>("/boards"))?.boards || [];
+    select.innerHTML = '<option value="">None</option>';
+    for (const b of boards) {
+      const opt = document.createElement("option");
+      opt.value = b.key;
+      opt.textContent = b.key;
+      if (selected && b.key === selected) opt.selected = true;
+      select.appendChild(opt);
+    }
+    refreshEnhancedSelect(selectId);
+  } catch {
+    select.innerHTML = '<option value="">None</option>';
   }
-  (select as any).dataset._enhanced = "";
-  select.style.display = "";
-  enhanceSelect(selectId);
 }
 
-/** Populate every create-task select (channel/profile/template/board/workflow). */
-export async function populateTaskCreateSelects(currentBoard: string | null): Promise<void> {
-  await populateCreateChannelSelect();
-  await populateProfileSelect("task-create-profile");
-  await populateTemplatesSelect("task-create-template");
-  await populateBoardSelect("task-create-board", currentBoard);
-  let wf: string | null = null;
-  if (currentBoard) {
-    const boards = await fetchBoards();
-    wf = boards.find((b) => b.key === currentBoard)?.board?.workflow ?? null;
+async function populateWorkflowSelectCached(selectId: string, selected: string | null): Promise<void> {
+  const select = document.getElementById(selectId) as HTMLSelectElement | null;
+  if (!select) return;
+  try {
+    const workflows = (await cachedGet<{ workflows: WorkflowEntry[] }>("/workflows"))?.workflows || [];
+    const options = workflowSelectOptions(workflows, selected);
+    select.innerHTML = "";
+    for (const o of options) {
+      const opt = document.createElement("option");
+      opt.value = o.value;
+      opt.textContent = o.label;
+      if (o.selected) opt.selected = true;
+      select.appendChild(opt);
+    }
+    refreshEnhancedSelect(selectId);
+  } catch {
+    select.innerHTML = '<option value="">(none)</option>';
   }
-  await populateWorkflowSelect("task-create-workflow", wf);
 }
 
-// ── Modal HTML ──
+/**
+ * Populate every select of the modal (channel/profile/template/board/workflow).
+ * Board and Workflow get the custom dropdown enhancement here (req: no native
+ * <select> for those fields).
+ */
+export async function populateTaskModalSelects(
+  mode: TaskModalMode,
+  currentBoard: string | null,
+  task: Record<string, unknown> | null,
+): Promise<void> {
+  const p = prefix(mode);
+  const board = task?.board ? String(task.board) : currentBoard;
+  await Promise.all([
+    populateChannelSelect(`${p}-channel`, task?.channel ? String(task.channel) : null),
+    populateProfileSelect(`${p}-profile`, task?.profile ? String(task.profile) : null),
+    populateTemplatesSelect(`${p}-template`, task?.template ? String(task.template) : null),
+    populateBoardSelectCached(`${p}-board`, board),
+  ]);
+  // Workflow: explicit task.workflow wins, else the board's workflow.
+  let wf: string | null = task?.workflow ? String(task.workflow) : null;
+  if (!wf && board) {
+    const boards = (await cachedGet<{ boards: BoardEntry[] }>("/boards"))?.boards || [];
+    wf = boards.find((b) => b.key === board)?.board?.workflow ?? null;
+  }
+  await populateWorkflowSelectCached(`${p}-workflow`, wf);
+}
+
+// ── Modal HTML (one component, two modes) ──
 
 const inputStyle =
   "width:100%;padding:0.5rem;border-radius:6px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.04);color:inherit;font-size:0.85rem;box-sizing:border-box;";
 const labelStyle = "display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;";
 
-export function createTaskModalHTML(): string {
+export function taskModalHTML(mode: TaskModalMode): string {
+  const p = prefix(mode);
+  const isEdit = mode === "edit";
   return `
-    <div id="create-task-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:flex-start;justify-content:center;padding-top:10vh;">
-      <div style="background:#1a1a2e;border-radius:8px;padding:1.5rem;max-width:500px;width:90%;border:1px solid var(--glass-border,rgba(255,255,255,0.08));">
-        <h2 style="margin:0 0 1rem 0;font-size:1.1rem;">Create Task</h2>
-        <div style="display:grid;gap:0.75rem;">
-          <div>
-            <label style="${labelStyle}">Title *</label>
-            <input type="text" id="task-create-title" style="${inputStyle}" />
-          </div>
-          <div>
-            <label style="${labelStyle}">Body</label>
-            <textarea id="task-create-body" rows="3" style="${inputStyle}resize:vertical;"></textarea>
-          </div>
-          <div>
-            <label style="${labelStyle}">Priority</label>
-            <select id="task-create-priority" style="${inputStyle}">
-              <option value="0">Low</option>
-              <option value="1">Med</option>
-              <option value="3">High</option>
-              <option value="5">Critical</option>
-            </select>
-          </div>
-          <div>
-            <label style="${labelStyle}">Status</label>
-            <select id="task-create-status" style="${inputStyle}">
-              <option value="backlog">Backlog</option>
-              <option value="todo">Todo</option>
-              <option value="running">In Progress</option>
-              <option value="testing">Testing</option>
-              <option value="review">Review</option>
-              <option value="blocked">Blocked</option>
-              <option value="done">Done</option>
-            </select>
-          </div>
-          <div>
-            <label style="${labelStyle}">Board</label>
-            <select id="task-create-board" style="${inputStyle}">
-              <option value="">None</option>
-            </select>
-          </div>
-          <div>
-            <label style="${labelStyle}">Workflow</label>
-            <select id="task-create-workflow" style="${inputStyle}">
-              <option value="">(none)</option>
-            </select>
-          </div>
-          <div>
-            <label style="${labelStyle}">Channel</label>
-            <select id="task-create-channel" style="${inputStyle}">
-              <option value="">Loading...</option>
-            </select>
-          </div>
-          <div>
-            <label style="${labelStyle}">Profile</label>
-            <select id="task-create-profile" style="${inputStyle}">
-              <option value="">None</option>
-            </select>
-          </div>
-          <div>
-            <label style="${labelStyle}">Template</label>
-            <select id="task-create-template" style="${inputStyle}">
-              <option value="">None</option>
-            </select>
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Structured guidance injected into the agent's prompt. Create .md files in profiles/&lt;name&gt;/templates/</div>
+        <div id="${modalId(mode)}" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:flex-start;justify-content:center;padding-top:10vh;">
+          <div style="background:#1a1a2e;border-radius:8px;padding:1.5rem;max-width:500px;width:90%;border:1px solid var(--glass-border,rgba(255,255,255,0.08));">
+            <h2 style="margin:0 0 1rem 0;font-size:1.1rem;">${isEdit ? "Edit Task" : "Create Task"}</h2>
+            <div style="display:grid;gap:0.75rem;">
+              <div>
+                <label style="${labelStyle}">Title *</label>
+                <input type="text" id="${p}-title" style="${inputStyle}" />
+              </div>
+              <div>
+                <label style="${labelStyle}">Body</label>
+                <textarea id="${p}-body" rows="3" style="${inputStyle}resize:vertical;"></textarea>
+              </div>
+              <div>
+                <label style="${labelStyle}">Priority</label>
+                <select id="${p}-priority" style="${inputStyle}">
+                  <option value="0">Low</option>
+                  <option value="1">Med</option>
+                  <option value="3">High</option>
+                  <option value="5">Critical</option>
+                </select>
+              </div>
+              <div>
+                <label style="${labelStyle}">Status</label>
+                <select id="${p}-status" style="${inputStyle}">
+                  <option value="backlog">Backlog</option>
+                  <option value="todo">Todo</option>
+                  <option value="running">In Progress</option>
+                  <option value="testing">Testing</option>
+                  <option value="review">Review</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
+              <div>
+                <label style="${labelStyle}">Board</label>
+                <select id="${p}-board" style="${inputStyle}">
+                  <option value="">None</option>
+                </select>
+              </div>
+              <div>
+                <label style="${labelStyle}">Workflow</label>
+                <select id="${p}-workflow" style="${inputStyle}">
+                  <option value="">(none)</option>
+                </select>
+              </div>
+              <div>
+                <label style="${labelStyle}">Channel</label>
+                <select id="${p}-channel" style="${inputStyle}">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+              <div>
+                <label style="${labelStyle}">Profile</label>
+                <select id="${p}-profile" style="${inputStyle}">
+                  <option value="">None</option>
+                </select>
+              </div>
+              <div>
+                <label style="${labelStyle}">Template</label>
+                <select id="${p}-template" style="${inputStyle}">
+                  <option value="">None</option>
+                </select>
+                <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Structured guidance injected into the agent's prompt. Create .md files in profiles/&lt;name&gt;/templates/</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
+              <button id="${p}-cancel" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
+              <button id="${p}-submit" style="background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.4);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;">${isEdit ? "Save" : "Create"}</button>
+            </div>
           </div>
         </div>
-        <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
-          <button id="task-create-cancel" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;">Cancel</button>
-          <button id="task-create-submit" style="background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.4);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;">Create</button>
-        </div>
-      </div>
-    </div>
-  `;
+      `;
 }
 
-// ── Wiring ──
+// ── Close / reset ──
 
-export function closeCreateModal(): void {
-  const modal = document.getElementById("create-task-modal");
+export function closeTaskModal(mode: TaskModalMode): void {
+  const modal = document.getElementById(modalId(mode));
   if (modal) modal.style.display = "none";
-  const title = document.getElementById("task-create-title") as HTMLInputElement | null;
+  const p = prefix(mode);
+  const title = document.getElementById(`${p}-title`) as HTMLInputElement | null;
   if (title) title.value = "";
-  const body = document.getElementById("task-create-body") as HTMLTextAreaElement | null;
+  const body = document.getElementById(`${p}-body`) as HTMLTextAreaElement | null;
   if (body) body.value = "";
-  const priority = document.getElementById("task-create-priority") as HTMLSelectElement | null;
+  const priority = document.getElementById(`${p}-priority`) as HTMLSelectElement | null;
   if (priority) priority.value = "0";
-  syncSelectDisplay("task-create-priority");
-  syncSelectDisplay("task-create-status");
-  const channel = document.getElementById("task-create-channel") as HTMLSelectElement | null;
-  if (channel) channel.value = "";
-  syncSelectDisplay("task-create-channel");
-  const profile = document.getElementById("task-create-profile") as HTMLSelectElement | null;
-  if (profile) profile.value = "";
-  syncSelectDisplay("task-create-profile");
-  const planEl = document.getElementById("task-create-plan") as HTMLSelectElement | null;
-  if (planEl) {
-    planEl.value = "";
-    syncSelectDisplay("task-create-plan");
-  }
-  const template = document.getElementById("task-create-template") as HTMLSelectElement | null;
-  if (template) {
-    template.value = "";
-    syncSelectDisplay("task-create-template");
-  }
-  const board = document.getElementById("task-create-board") as HTMLSelectElement | null;
-  if (board) {
-    board.value = "";
-    syncSelectDisplay("task-create-board");
-  }
-  const workflow = document.getElementById("task-create-workflow") as HTMLSelectElement | null;
-  if (workflow) {
-    workflow.value = "";
-    syncSelectDisplay("task-create-workflow");
-  }
+  syncSelectDisplay(`${p}-priority`);
+  syncSelectDisplay(`${p}-status`);
+  syncSelectDisplay(`${p}-board`);
+  syncSelectDisplay(`${p}-workflow`);
+  syncSelectDisplay(`${p}-channel`);
+  syncSelectDisplay(`${p}-profile`);
+  syncSelectDisplay(`${p}-template`);
 }
 
-/** Wire the Create Task button, modal cancel/submit, and enhanced selects. */
-export function wireCreateTaskModal(opts: { getBoard: () => string | null; onCreated: () => void }): void {
-  document.getElementById("create-task-btn")?.addEventListener("click", async () => {
-    const modal = document.getElementById("create-task-modal");
-    if (!modal) return;
-    await populateTaskCreateSelects(opts.getBoard());
-    modal.style.display = "flex";
-  });
+/** Backwards-compatible alias (kanban page used closeCreateModal). */
+export function closeCreateModal(): void {
+  closeTaskModal("create");
+}
 
-  document.getElementById("task-create-cancel")?.addEventListener("click", () => {
-    closeCreateModal();
-  });
+// ── Open (instant) ──
 
-  document.getElementById("task-create-submit")?.addEventListener("click", async () => {
-    const titleInput = document.getElementById("task-create-title") as HTMLInputElement | null;
-    if (!titleInput) return;
-    const title = titleInput.value.trim();
-    if (!title) return;
+export interface OpenTaskModalOpts {
+  mode: TaskModalMode;
+  /** Edit pre-fill (the task record). */
+  task?: Record<string, unknown> | null;
+  /** Create: the currently selected board (default board). */
+  getBoard?: () => string | null;
+  onSaved?: () => void;
+}
 
-    const body =
-      (document.getElementById("task-create-body") as HTMLTextAreaElement | null)?.value.trim() || undefined;
-    const priority = parseInt(
-      (document.getElementById("task-create-priority") as HTMLSelectElement | null)?.value || "0",
-    );
-    const channel =
-      (document.getElementById("task-create-channel") as HTMLSelectElement | null)?.value || undefined;
-    const profile =
-      (document.getElementById("task-create-profile") as HTMLSelectElement | null)?.value || undefined;
-    const status =
-      (document.getElementById("task-create-status") as HTMLSelectElement | null)?.value || "backlog";
-    const template =
-      (document.getElementById("task-create-template") as HTMLSelectElement | null)?.value || undefined;
-    const board =
-      (document.getElementById("task-create-board") as HTMLSelectElement | null)?.value || undefined;
-    const workflow =
-      (document.getElementById("task-create-workflow") as HTMLSelectElement | null)?.value || undefined;
+/**
+ * Open the shared task modal. Shows the overlay IMMEDIATELY (no awaits before
+ * display), then fills the selects from the prefetched refcache in the
+ * background. Edit pre-fills title/body/priority/status/board/... from `task`.
+ */
+export function openTaskModal(opts: OpenTaskModalOpts): void {
+  const mode = opts.mode;
+  const p = prefix(mode);
+  const modal = document.getElementById(modalId(mode));
+  if (!modal) return;
 
-    try {
-      const reqBody: Record<string, unknown> = {
-        title,
-        body,
-        priority,
-        channel,
-        profile,
-        status,
-        template,
-        board,
-        workflow,
-      };
-      const res = await fetch("/api/kanban/tasks", {
+  _editTaskId = mode === "edit" ? String(opts.task?.id ?? "") : null;
+  _activeSave = opts.onSaved ?? null;
+
+  const task = opts.task || null;
+  const title = document.getElementById(`${p}-title`) as HTMLInputElement | null;
+  if (title) title.value = task?.title ? String(task.title) : "";
+  const body = document.getElementById(`${p}-body`) as HTMLTextAreaElement | null;
+  if (body) body.value = task?.body ? String(task.body) : "";
+  const priority = document.getElementById(`${p}-priority`) as HTMLSelectElement | null;
+  if (priority) priority.value = task?.priority != null ? String(task.priority) : "0";
+  const status = document.getElementById(`${p}-status`) as HTMLSelectElement | null;
+  if (status) status.value = task?.status ? String(task.status) : "backlog";
+
+  // Show first, populate in background.
+  modal.style.display = "flex";
+  const board = opts.getBoard ? opts.getBoard() : null;
+  void populateTaskModalSelects(mode, board, task);
+}
+
+// ── Wiring (idempotent) ──
+
+/**
+ * Wire the modal's cancel + submit buttons (and, for create mode, the
+ * "+ Create Task" page button). Safe to call on every page render: listeners
+ * are attached once per element.
+ */
+export function wireTaskModal(opts: {
+  mode: TaskModalMode;
+  getBoard?: () => string | null;
+  onSaved?: () => void;
+}): void {
+  const mode = opts.mode;
+  const p = prefix(mode);
+
+  const cancel = document.getElementById(`${p}-cancel`);
+  if (cancel && !(cancel as HTMLElement).dataset._wired) {
+    (cancel as HTMLElement).dataset._wired = "1";
+    cancel.addEventListener("click", () => closeTaskModal(mode));
+  }
+
+  const submit = document.getElementById(`${p}-submit`);
+  if (submit && !(submit as HTMLElement).dataset._wired) {
+    (submit as HTMLElement).dataset._wired = "1";
+    submit.addEventListener("click", () => {
+      void submitTaskModal(mode);
+    });
+  }
+
+  if (mode === "create") {
+    const btn = document.getElementById("create-task-btn");
+    if (btn && !(btn as HTMLElement).dataset._wired) {
+      (btn as HTMLElement).dataset._wired = "1";
+      btn.addEventListener("click", () => {
+        openTaskModal({ mode: "create", getBoard: opts.getBoard, onSaved: opts.onSaved });
+      });
+    }
+  }
+
+  // Static selects (priority/status) are enhanced once at wire time.
+  enhanceSelect(`${p}-priority`);
+  enhanceSelect(`${p}-status`);
+}
+
+// ── Submit ──
+
+async function submitTaskModal(mode: TaskModalMode): Promise<void> {
+  const p = prefix(mode);
+  const titleInput = document.getElementById(`${p}-title`) as HTMLInputElement | null;
+  if (!titleInput) return;
+  const title = titleInput.value.trim();
+  if (!title) return;
+
+  const body =
+    (document.getElementById(`${p}-body`) as HTMLTextAreaElement | null)?.value.trim() || undefined;
+  const priority = parseInt(
+    (document.getElementById(`${p}-priority`) as HTMLSelectElement | null)?.value || "0",
+  );
+  const channel = (document.getElementById(`${p}-channel`) as HTMLSelectElement | null)?.value || undefined;
+  const profile = (document.getElementById(`${p}-profile`) as HTMLSelectElement | null)?.value || undefined;
+  const status = (document.getElementById(`${p}-status`) as HTMLSelectElement | null)?.value || "backlog";
+  const template = (document.getElementById(`${p}-template`) as HTMLSelectElement | null)?.value || undefined;
+  const board = (document.getElementById(`${p}-board`) as HTMLSelectElement | null)?.value || undefined;
+  const workflow = (document.getElementById(`${p}-workflow`) as HTMLSelectElement | null)?.value || undefined;
+
+  const reqBody: Record<string, unknown> = {
+    title,
+    body,
+    priority,
+    channel,
+    profile,
+    status,
+    template,
+    board,
+    workflow,
+  };
+
+  try {
+    let res: Response;
+    if (mode === "edit") {
+      res = await fetch("/api/kanban/tasks/" + encodeURIComponent(_editTaskId || ""), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reqBody),
+      });
+    } else {
+      res = await fetch("/api/kanban/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(reqBody),
       });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "Unknown error");
-        throw new Error(`${res.status}: ${text}`);
-      }
-      closeCreateModal();
-      opts.onCreated();
-    } catch (e) {
-      alert("Failed to create task: " + formatApiError(e));
     }
-  });
-
-  enhanceSelect("task-create-priority");
-  enhanceSelect("task-create-status");
+    if (!res.ok) {
+      const text = await res.text().catch(() => "Unknown error");
+      throw new Error(`${res.status}: ${text}`);
+    }
+    closeTaskModal(mode);
+    const cb = _activeSave;
+    _activeSave = null;
+    if (cb) cb();
+  } catch (e) {
+    alert("Failed to " + (mode === "edit" ? "update" : "create") + " task: " + formatApiError(e));
+  }
 }

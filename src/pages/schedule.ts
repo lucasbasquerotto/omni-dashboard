@@ -3,6 +3,7 @@
  * Delegates to lib/schedule-list.ts and lib/schedule-detail.ts.
  */
 import { loadCronJobs } from "../lib/schedule-list";
+import { prefetch } from "../lib/refcache";
 import { showSchedulesImportModal } from "../lib/config-import";
 
 // ── State ──
@@ -76,6 +77,10 @@ export function renderSchedule(container: HTMLElement): void {
     updateScheduleUrl();
     void loadCronJobs(_activeOnly, () => {});
   });
+
+  // Prefetch modal option lists (channels/profiles/templates/actions/schedule)
+  // so Create Schedule opens instantly from the refcache.
+  prefetch(["/channels", "/profiles", "/templates", "/actions", "/schedule?active=false"]);
 
   void loadCronJobs(_activeOnly, () => {});
 }
