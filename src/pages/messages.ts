@@ -527,6 +527,8 @@ async function loadMessages(): Promise<void> {
     // Post-render: remove has-more class and button for content that doesn't actually overflow
     listEl.querySelectorAll(".ev-content-text.has-more").forEach((el) => {
       const textEl = el as HTMLElement;
+      // Truncated previews always keep their expand button (content was cut off).
+      if (textEl.classList.contains("ev-truncated")) return;
       if (textEl.scrollHeight <= textEl.clientHeight) {
         textEl.classList.remove("has-more");
         const btn = textEl.parentElement?.querySelector(".ev-expand-btn");

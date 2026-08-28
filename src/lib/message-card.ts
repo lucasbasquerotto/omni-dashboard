@@ -42,6 +42,42 @@ export function typeColor(type: string): string {
   return TYPE_COLORS[type.toLowerCase()] || "#64748b";
 }
 
+// ── Content preview: only this many chars are rendered into the DOM per message.
+// Full content stays available via data-view-raw ("See as Markdown/JSON", "Show more").
+// Rendering full multi-hundred-KB contents (e.g. system prompts) synchronously via
+// innerHTML blocked the main thread for ~10s on pagination.
+const PREVIEW_CHARS = 1000;
+
+// ── Full-content registry (lazy) ──
+// Long contents are NOT embedded in the DOM (neither as text nor as a base64
+// data-view-raw attribute): embedding them is what made pagination block the
+// main thread for ~10s. They are registered here at render time and read on
+// demand by the view/expand buttons.
+const rawContentById = new Map<number, string>();
+const RAW_CACHE_MAX = 500;
+
+function registerRawContent(msgId: number, content: string): void {
+  if (rawContentById.size >= RAW_CACHE_MAX) rawContentById.clear();
+  rawContentById.set(msgId, content);
+}
+
+function rawContentFor(el: HTMLElement): string {
+  const b64 = el.getAttribute("data-view-raw");
+  if (b64) {
+    try {
+      return decodeURIComponent(atob(b64));
+    } catch {
+      return b64;
+    }
+  }
+  const msgId = el.getAttribute("data-msg-id");
+  if (msgId) {
+    const raw = rawContentById.get(Number(msgId));
+    if (raw !== undefined) return raw;
+  }
+  return "";
+}
+
 // ── Status badge style ──
 function statusBadgeStyle(status: string | null): string {
   const s = (status || "unknown").toLowerCase();
@@ -94,8 +130,15 @@ export function renderMessageCard(msg: Message): string {
   const rColor = roleColor(role);
   const contentRaw = msg.content || "";
   const isEmpty = !contentRaw.trim();
-  const content = contentRaw ? escapeHtml(contentRaw) : "";
+  const isLong = contentRaw.length > PREVIEW_CHARS;
+  // Render only a preview of the content into the DOM; the full text is kept in
+  // data-view-raw and swapped in on demand ("Show more"). This keeps pagination fast
+  // even when messages carry hundreds of KB (layout cost is proportional to the
+  // rendered text; CSS max-height clipping does NOT avoid layout of the full text).
+  const previewRaw = isLong ? contentRaw.slice(0, PREVIEW_CHARS).replace(/\s+$/, "") + "\n\n…" : contentRaw;
+  const content = contentRaw ? escapeHtml(previewRaw) : "";
   const hasMore = !isEmpty;
+  if (isLong) registerRawContent(msg.id, contentRaw);
   const ts = formatRelativeTime(
     new Date(msg.created_at.endsWith("Z") ? msg.created_at : msg.created_at + "Z"),
   );
@@ -134,7 +177,7 @@ export function renderMessageCard(msg: Message): string {
         <span class="ev-time" title="${escapeHtml(tsFull)}">${ts}</span>
       </div>
       <div class="event-content-area">
-        <div class="ev-content-text${hasMore && !isEmpty ? " has-more" : ""}" data-msg-id="${msg.id}" data-view-raw="${btoa(encodeURIComponent(contentRaw))}">${isEmpty ? "<em>Empty</em>" : content}</div>
+        <div class="ev-content-text${hasMore && !isEmpty ? " has-more" : ""}${isLong ? " ev-truncated" : ""}" data-msg-id="${msg.id}" ${isLong ? "" : ` data-view-raw="${btoa(encodeURIComponent(contentRaw))}"`}>${isEmpty ? "<em>Empty</em>" : content}</div>
         ${
           hasMore && !isEmpty
             ? `<div class="ev-content-actions">
@@ -204,6 +247,22 @@ export function wireMessageCardToggles(container: HTMLElement): void {
       const card = (e.currentTarget as HTMLElement).closest(".event-row")!;
       const isExpanded = card.classList.toggle("expanded");
       (e.currentTarget as HTMLElement).textContent = isExpanded ? "Show less" : "Show more";
+      const contentDiv = card.querySelector(".ev-content-text") as HTMLElement | null;
+      if (!contentDiv) return;
+      const view = contentDiv.getAttribute("data-view");
+      if (view && view !== "original") return; // md/json/json+md views manage their own content
+      if (isExpanded) {
+        // Lazily decode the full raw content (base64 in data-view-raw), escape it once,
+        // and cache it on the element so toggling stays instant.
+        if (!contentDiv.dataset.fullHtml) {
+          const rawContent = rawContentFor(contentDiv);
+          contentDiv.dataset.fullHtml = escapeHtml(rawContent);
+          contentDiv.dataset.previewHtml = contentDiv.innerHTML;
+        }
+        contentDiv.innerHTML = contentDiv.dataset.fullHtml;
+      } else if (contentDiv.dataset.previewHtml) {
+        contentDiv.innerHTML = contentDiv.dataset.previewHtml;
+      }
     });
   });
 
@@ -217,13 +276,7 @@ export function wireMessageCardToggles(container: HTMLElement): void {
       const contentDiv = card.querySelector(`.ev-content-text[data-msg-id="${msgId}"]`) as HTMLElement | null;
       if (!contentDiv) return;
 
-      const rawB64 = contentDiv.getAttribute("data-view-raw") || "";
-      let rawContent: string;
-      try {
-        rawContent = decodeURIComponent(atob(rawB64));
-      } catch {
-        rawContent = rawB64;
-      }
+      const rawContent = rawContentFor(contentDiv);
       const currentView = contentDiv.getAttribute("data-view") || "original";
       const targetView = btnEl.classList.contains("ev-view-md") ? "md" : "json";
 
@@ -295,13 +348,7 @@ export function wireMessageCardToggles(container: HTMLElement): void {
       const contentDiv = card.querySelector(`.ev-content-text[data-msg-id="${msgId}"]`) as HTMLElement | null;
       if (!contentDiv) return;
 
-      const rawB64 = contentDiv.getAttribute("data-view-raw") || "";
-      let rawContent: string;
-      try {
-        rawContent = decodeURIComponent(atob(rawB64));
-      } catch {
-        rawContent = rawB64;
-      }
+      const rawContent = rawContentFor(contentDiv);
 
       const currentView = contentDiv.getAttribute("data-view") || "original";
 
