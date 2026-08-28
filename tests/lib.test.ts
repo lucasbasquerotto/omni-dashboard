@@ -215,10 +215,10 @@ describe("src/lib/plugin-ui.ts", () => {
   });
 });
 
-// ── Unit tests for src/lib/helpers.ts — escapeHtml quote escaping (9bce18c) ──
+// ── Unit tests for src/lib/helpers.ts: escapeHtml quote escaping (9bce18c) ──
 // Regression: the old DOM-based escapeHtml (div.textContent -> innerHTML) left `"`
 // unescaped, so HTML attribute values (value="..." / data-original="...") were
-// truncated at the first double quote — secret values containing " were cut off.
+// truncated at the first double quote: secret values containing " were cut off.
 describe("src/lib/helpers.ts", () => {
   it("escapeHtml source escapes double and single quotes", () => {
     const content = readFileSync(new URL("../src/lib/helpers.ts", import.meta.url), "utf-8");
@@ -243,7 +243,7 @@ describe("src/lib/helpers.ts", () => {
   });
 });
 
-// ── Unit tests for src/pages/secrets.ts — Edit capability (9bce18c) ──
+// ── Unit tests for src/pages/secrets.ts: Edit capability (9bce18c) ──
 describe("src/pages/secrets.ts", () => {
   it("secret value inputs render readonly with an explicit Edit button", () => {
     const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
@@ -258,7 +258,7 @@ describe("src/pages/secrets.ts", () => {
   });
 });
 
-// ── Unit tests for plugin secret select sync — initial value + discard revert (9bce18c) ──
+// ── Unit tests for plugin secret select sync: initial value + discard revert (9bce18c) ──
 describe("plugin secret select sync (dropdown/plugin-config/plugin-list/plugin-ui)", () => {
   it("dropdown.ts exports syncSelectDisplayEl (by-element variant of syncSelectDisplay)", () => {
     const content = readFileSync(new URL("../src/lib/dropdown.ts", import.meta.url), "utf-8");
@@ -283,14 +283,14 @@ describe("plugin secret select sync (dropdown/plugin-config/plugin-list/plugin-u
 });
 
 // ── Multiline secret support (regression) ──
-describe("src/pages/secrets.ts — multiline secret fields", () => {
+describe("src/pages/secrets.ts: multiline secret fields", () => {
   it("secret value fields render as <textarea> (multiline), not single-line inputs", () => {
     const content = readFileSync(new URL("../src/pages/secrets.ts", import.meta.url), "utf-8");
     assert.ok(/<textarea/.test(content), "secret fields must render as <textarea>");
     assert.ok(content.includes("new-secret-value"), "create modal must include the value textarea");
     assert.ok(
-      content.includes("multiline supported"),
-      "create modal placeholder should advertise multiline support",
+      content.includes('placeholder="Enter secret value"'),
+      'create modal placeholder must be exactly "Enter secret value"',
     );
   });
 

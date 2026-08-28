@@ -193,7 +193,7 @@ function renderSecretRow(s: SecretEntry): string {
           <div class="setting-controls">
             <div class="setting-input-group">
               ${inputHtml}
-              <div style="display:flex;gap:0.25rem;align-items:center;">
+              <div style="display:flex;gap:0.25rem;align-items:center;align-self:stretch;">
                 ${actionsHtml}
               </div>
             </div>
@@ -511,8 +511,8 @@ function showCreateModal(): void {
         </div>
         <div style="margin-bottom:1rem;">
           <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Value <span style="color:var(--accent-rose);">*</span></label>
-          <div class="setting-secret-wrapper" style="align-items:flex-start;">
-            <textarea id="new-secret-value" class="filter-input setting-secret-textarea" placeholder="Enter secret value — multiline supported (e.g. paste a PEM private key)" style="width:100%;min-height:120px;resize:vertical;white-space:pre;overflow:auto;" autocomplete="off" spellcheck="false" data-masked="false"></textarea>
+          <div class="setting-secret-wrapper" style="width:100%;max-width:none;align-items:center;">
+            <textarea id="new-secret-value" class="filter-input setting-secret-textarea" placeholder="Enter secret value" style="flex:1;min-width:0;min-height:120px;resize:vertical;white-space:pre;overflow:auto;" autocomplete="off" spellcheck="false" data-masked="false"></textarea>
             <span id="new-secret-toggle-wrap">
               <button type="button" class="setting-secret-toggle" title="Toggle visibility" data-target="new-secret-value">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -537,8 +537,12 @@ function showCreateModal(): void {
   // Wire close
   backdrop.querySelector(".modal-close-btn")?.addEventListener("click", () => backdrop.remove());
   backdrop.querySelector(".modal-cancel-btn")?.addEventListener("click", () => backdrop.remove());
+  backdrop.addEventListener("mousedown", (e) => {
+    if (e.target === backdrop) backdrop.dataset.closing = "true";
+    else backdrop.dataset.closing = "false";
+  });
   backdrop.addEventListener("click", (e) => {
-    if (e.target === backdrop) backdrop.remove();
+    if (e.target === backdrop && backdrop.dataset.closing === "true") backdrop.remove();
   });
 
   // Enhance type select to styled custom dropdown

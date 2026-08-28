@@ -219,7 +219,7 @@ function renderModelConfigEditor(_provider: string, mc: Record<string, ModelConf
     .join("");
   return `
     <div style="margin-top:0.5rem;">
-      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.35rem;">model_config (per-model overrides — highest precedence)</div>
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.35rem;">model_config (per-model overrides; highest precedence)</div>
       ${rows || '<div style="font-size:0.78rem;color:var(--text-muted);">No per-model config yet.</div>'}
       <div style="display:flex;gap:0.4rem;align-items:center;margin-top:0.4rem;">
         <input type="text" id="m-new-mc-model" class="filter-input" placeholder="model name" style="width:10rem;" />
@@ -278,7 +278,7 @@ function wireModelsPage(): void {
     if (!name || !name.trim()) return;
     const n = name.trim();
     if (currentFile.providers[n]) {
-      showToast(`Provider "${n}" already exists — edit it instead`, "error");
+      showToast(`Provider "${n}" already exists. Edit it instead`, "error");
       return;
     }
     currentFile.providers[n] = { plugin: true };
@@ -330,7 +330,7 @@ function wireRows(): void {
       const prov = currentFile.providers[provider];
       if (!prov?.refresh_url) {
         showToast(
-          `No refresh_url configured for "${provider}" — add one in Edit to enable model refresh`,
+          `No refresh_url configured for "${provider}". Add one in Edit to enable model refresh`,
           "error",
         );
         return;

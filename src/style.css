@@ -5287,8 +5287,6 @@ a.thread-row {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
   border-radius: 6px;
   border: 1px solid var(--glass-border);
   background: #94a3b814;
@@ -5296,7 +5294,7 @@ a.thread-row {
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
-  padding: 0;
+  padding: 0.25rem;
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
@@ -5929,7 +5927,7 @@ a.thread-row {
   border-radius: var(--radius-sm, 6px);
 }
 
-/* Field precedence note (workflows page) — styled as an actual note/callout */
+/* Field precedence note (workflows page): styled as an actual note/callout */
 .wf-note {
   display: flex;
   align-items: flex-start;
