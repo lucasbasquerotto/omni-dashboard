@@ -18,6 +18,16 @@ describe("Kanban archived filter (show_archived)", () => {
       "default (Unarchived) must show ONLY non-archived; Show archived ONLY archived",
     );
   });
+  it("loadBoard asks the API for archived tasks when showArchived is on", () => {
+    assert.ok(
+      /showArchived \? "&show_archived=true" : ""/.test(src),
+      "board fetch must request archived tasks from the API",
+    );
+    assert.ok(
+      /showArchived \? "\?show_archived=true" : ""/.test(src),
+      "no-board fetch must request archived tasks too",
+    );
+  });
 
   it("columns and totals are computed from the filtered list", () => {
     assert.ok(

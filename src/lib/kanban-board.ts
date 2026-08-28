@@ -200,8 +200,12 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
         return;
       }
     }
+    // Ask the API for archived tasks too when "Show archived" is active:
+    // the server excludes archived tasks by default.
     const tasks = await apiGet<KanbanTask[]>(
-      boardKey ? `/kanban/tasks?board=${encodeURIComponent(boardKey)}` : "/kanban/tasks",
+      boardKey
+        ? `/kanban/tasks?board=${encodeURIComponent(boardKey)}${showArchived ? "&show_archived=true" : ""}`
+        : `/kanban/tasks${showArchived ? "?show_archived=true" : ""}`,
     );
     // Archived filter: default (Unarchived) shows ONLY non-archived tasks of
     // the chosen board; "Show archived" shows ONLY archived tasks. Filtering
