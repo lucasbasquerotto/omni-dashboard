@@ -4,7 +4,7 @@
  *
  * Boards are file-defined (config/boards.yml, served by the omniagent
  * kanban API at /boards). When the file is absent (omnistable today) the
- * API returns an empty list and the kanban page shows no board controls —
+ * API returns an empty list and the kanban page shows no board controls.
  * byte-for-byte today's behavior.
  */
 import {
@@ -43,7 +43,7 @@ export function setStoredBoard(board: string | null): void {
       window.localStorage.removeItem(KANBAN_BOARD_LS_KEY);
     }
   } catch {
-    // localStorage unavailable — selection just isn't persisted.
+    // localStorage unavailable; selection just isn't persisted.
   }
 }
 
@@ -92,7 +92,7 @@ export function boardMetaLabel(board: BoardConfig): string {
 
 // ── API wrappers ──
 
-/** GET /boards — list boards from config/boards.yml ([] when file absent). */
+/** GET /boards: list boards from config/boards.yml ([] when file absent). */
 export async function fetchBoards(): Promise<BoardEntry[]> {
   try {
     const res = await apiGet<{ boards: BoardEntry[] }>("/boards");
@@ -102,13 +102,13 @@ export async function fetchBoards(): Promise<BoardEntry[]> {
   }
 }
 
-/** PUT /boards/{key} — create or update a board in boards.yml. */
+/** PUT /boards/{key}: create or update a board in boards.yml. */
 export async function upsertBoard(key: string, board: BoardConfig): Promise<BoardEntry[]> {
   const res = await apiPut<{ boards: BoardEntry[] }>(`/boards/${encodeURIComponent(key)}`, board);
   return res?.boards ?? [];
 }
 
-/** DELETE /boards/{key} — delete a board AND its tasks from boards.yml. */
+/** DELETE /boards/{key}: delete a board AND its tasks from boards.yml. */
 export async function deleteBoard(key: string): Promise<BoardEntry[]> {
   const res = await apiDelete<{ boards: BoardEntry[] }>(`/boards/${encodeURIComponent(key)}`);
   return res?.boards ?? [];
@@ -213,7 +213,7 @@ export async function openBoardModal(
       <h2 style="margin:0 0 1rem 0;font-size:1.1rem;">${mode === "create" ? "Create Board" : "Edit Board"}</h2>
       <div style="display:grid;gap:0.75rem;">
         ${fieldRow("board-form-key", "Name *", `<input type="text" id="board-form-key" value="${escapeHtml(boardKey ?? "")}" ${mode === "edit" ? "disabled" : ""} style="${inputStyle}" />`, "Board name (key). Tasks reference it via the task's board field.")}
-        ${fieldRow("board-form-channel", "Channel", `<select id="board-form-channel" style="${inputStyle}"><option value="">- None -</option>${channels.map((c) => `<option value="${escapeHtml(typeof c === "string" ? c : ((c as { name?: string }).name ?? ""))}" ${String(b.channel ?? "") === String(typeof c === "string" ? c : ((c as { name?: string }).name ?? "")) ? "selected" : ""}>${escapeHtml(typeof c === "string" ? c : ((c as { name?: string }).name ?? ""))}</option>`).join("")}</select>`, "Channel — fallback for tasks on this board.")}
+        ${fieldRow("board-form-channel", "Channel", `<select id="board-form-channel" style="${inputStyle}"><option value="">- None -</option>${channels.map((c) => `<option value="${escapeHtml(typeof c === "string" ? c : ((c as { name?: string }).name ?? ""))}" ${String(b.channel ?? "") === String(typeof c === "string" ? c : ((c as { name?: string }).name ?? "")) ? "selected" : ""}>${escapeHtml(typeof c === "string" ? c : ((c as { name?: string }).name ?? ""))}</option>`).join("")}</select>`, "Channel: fallback for tasks on this board.")}
         ${fieldRow("board-form-profile", "Profile", `<select id="board-form-profile" style="${inputStyle}"><option value="">- None -</option>${profiles.map((pr) => `<option value="${escapeHtml(pr.name)}" ${String(b.profile ?? "") === pr.name ? "selected" : ""}>${escapeHtml(pr.name)}</option>`).join("")}</select>`)}
         ${fieldRow("board-form-workflow", "Workflow", renderWorkflowSelect(workflows, b.workflow), "Used when the task itself does not set a workflow.")}
         ${fieldRow(
@@ -312,7 +312,7 @@ export async function populateBoardSelect(selectId: string, selected: string | n
 /**
  * Wire the board selector + create/edit board buttons into the kanban
  * page header (#kanban-board-controls). Boards absent (boards.yml missing)
- * ⇒ no controls at all — the page renders exactly as before.
+ * ⇒ no controls at all; the page renders exactly as before.
  */
 export async function wireBoardControls(opts: {
   currentBoard: string | null;

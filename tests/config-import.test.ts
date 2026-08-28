@@ -9,7 +9,7 @@ const src = join(here, "..", "src");
 const cfg = readFileSync(join(src, "lib", "config-import.ts"), "utf-8");
 
 // ── Item 9: Import buttons on workflows/schedules/hooks/channels/actions/settings ──
-// Static source assertions (repo pattern: database.test.ts, models.test.ts) —
+// Static source assertions (repo pattern: database.test.ts, models.test.ts).
 // the dynamic-import pattern is a no-op under node ESM (extensionless imports).
 
 describe("Config import wiring (config-import.ts, item 9)", () => {

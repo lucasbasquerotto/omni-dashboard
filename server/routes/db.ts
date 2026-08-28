@@ -1,5 +1,5 @@
 /**
- * Database browser API — backed by the omniagent QUERY TOOL (read-only MCP).
+ * Database browser API, backed by the omniagent QUERY TOOL (read-only MCP).
  *
  * All DB access is proxied through POST /mcp/execute on the omniagent backend
  * (search_database, arguments { sql }). The dashboard server never connects to
@@ -126,7 +126,7 @@ function sendError(res: Response, err: unknown): void {
   res.status(status).json({ error: message });
 }
 
-/** GET /api/db/tables — public-schema tables via the query tool. */
+/** GET /api/db/tables: public-schema tables via the query tool. */
 router.get("/tables", async (_req: Request, res: Response) => {
   try {
     const rows = await runQueryTool(
@@ -138,7 +138,7 @@ router.get("/tables", async (_req: Request, res: Response) => {
   }
 });
 
-/** GET /api/db/columns?table=X — columns of a table via the query tool. */
+/** GET /api/db/columns?table=X: columns of a table via the query tool. */
 router.get("/columns", async (req: Request, res: Response) => {
   try {
     const table = typeof req.query.table === "string" ? req.query.table.trim() : "";
@@ -164,7 +164,7 @@ interface QueryBody {
 }
 
 /**
- * POST /api/db/query — page through a table or a custom read-only SELECT.
+ * POST /api/db/query: page through a table or a custom read-only SELECT.
  * Body: { table | sql, page?, pageSize?, sortField?, sortDir? }
  * Returns: { columns, rows, total, sql }
  */
@@ -217,7 +217,7 @@ router.post("/query", async (req: Request, res: Response) => {
       throw new ApiError(400, "Either 'table' or 'sql' is required");
     }
 
-    // Count over a subquery wrapper of the un-paginated SELECT — never a regex
+    // Count over a subquery wrapper of the un-paginated SELECT, never a regex
     // that strips LIMIT/OFFSET (it can strip the wrong LIMIT when the SQL
     // contains LIMIT inside a subquery or string literal).
     const countSql = `SELECT count(*)::bigint AS total FROM (${countBaseSql}) AS sub`;

@@ -110,7 +110,7 @@ function toDisplayNames(tools: string[] | null): string[] {
 }
 
 /**
- * Profile definitions are DECLARED in `{OMNI_DIR}/config/profiles.yml` —
+ * Profile definitions are DECLARED in `{OMNI_DIR}/config/profiles.yml`.
  * the single source of truth (omniagent owns read/write/validation). This
  * router delegates every storage operation to the omniagent /profiles API
  * (which mirrors the channels.yml pattern) and keeps only the dashboard
@@ -139,7 +139,7 @@ async function omniProfiles(): Promise<OmniProfile[]> {
 
 // ── Routes ──
 
-// GET /api/profiles — YAML-declared profiles (incl. YAML-only profiles with
+// GET /api/profiles: YAML-declared profiles (incl. YAML-only profiles with
 // no directory), enriched with the tool map + filesystem skills.
 profilesRouter.get("/", async (_req, res) => {
   try {
@@ -163,7 +163,7 @@ profilesRouter.get("/", async (_req, res) => {
 });
 
 // POST /api/profiles: create a new profile (upsert into config/profiles.yml
-// via the omniagent API — NO profiles/<name>/config.json is written).
+// via the omniagent API; NO profiles/<name>/config.json is written).
 profilesRouter.post("/", async (req, res) => {
   try {
     const { name, provider, model } = req.body as any;

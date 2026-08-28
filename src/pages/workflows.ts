@@ -138,7 +138,7 @@ async function loadWorkflows(): Promise<void> {
 function renderWorkflowList(entries: WorkflowEntry[]): string {
   if (entries.length === 0) {
     return `<div class="empty-state" style="padding:3rem;text-align:center;color:#99a;">
-      No workflows yet. Create one with “New Workflow” — workflows.yml doesn’t exist until you save.
+      No workflows yet. Create one with “New Workflow”: workflows.yml doesn’t exist until you save.
     </div>`;
   }
   return entries.map(renderWorkflowCard).join("");
@@ -154,7 +154,7 @@ function renderWorkflowCard(entry: WorkflowEntry): string {
     ? `<span class="wf-badge" title="clear_executions_on_review">clear executions on review</span>`
     : "";
   const autoApproveBadge = wf.auto_approve
-    ? `<span class="wf-badge" title="auto_approve: no reviewer — review-bound tasks go straight to done">auto-approve</span>`
+    ? `<span class="wf-badge" title="auto_approve: no reviewer: review-bound tasks go straight to done">auto-approve</span>`
     : "";
   const summary = [
     wf.profile ? `profile ${wf.profile}` : null,
@@ -386,7 +386,7 @@ function actionOptions(current: string): string {
 
 function planOptions(current: string): string {
   const raw = (current || "").trim();
-  // Legacy values (auto_plan | auto_subtasks | always) are removed — normalize
+  // Legacy values (auto_plan | auto_subtasks | always) are removed; normalize
   // them to "on" so editing a workflow with old data cleans it up on save.
   const legacy = ["auto_plan", "auto_subtasks", "always"].includes(raw.toLowerCase());
   const cur = legacy ? "on" : raw;
@@ -526,7 +526,7 @@ function renderForm(key: string, wf: Workflow, roles: Record<string, WorkflowRol
         </label>
 <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.88rem;">
           <input id="wf-auto-approve" type="checkbox" ${wf.auto_approve ? "checked" : ""}>
-          <span>Auto-approve (<code>auto_approve</code>): no reviewer — review-bound tasks go straight to <code>done</code>; <code>review_on_fail</code> ignored</span>
+          <span>Auto-approve (<code>auto_approve</code>): no reviewer: review-bound tasks go straight to <code>done</code>; <code>review_on_fail</code> ignored</span>
         </label>
         
         
@@ -747,7 +747,7 @@ async function handleSave(): Promise<void> {
     const cfg = collectRole(role);
     if (role === "executor" && isEmptyRole(cfg)) {
       formError(
-        "The executor role is required — fill at least one executor field (e.g. template or mode=action).",
+        "The executor role is required: fill at least one executor field (e.g. template or mode=action).",
       );
       return;
     }

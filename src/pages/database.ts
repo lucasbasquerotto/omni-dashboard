@@ -294,7 +294,7 @@ function renderResult(res: QueryResponse): void {
 function renderPagination(): void {
   const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
   // renderPagination is only called after a query result (renderResult), so
-  // always show it — at the top AND bottom of the results area, even when a
+  // always show it, at the top AND bottom of the results area, even when a
   // query returns 0 rows (the initial state stays hidden via the HTML).
   const show = true;
   const markup = () => {

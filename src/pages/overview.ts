@@ -301,9 +301,9 @@ function renderDonutChart(statusDist: StatusCount[]): string {
 // ── SVG Token Trend Chart (stacked bar / block graph, 14 days) ──
 //
 // Each day is a block stacked from three parts:
-//   1. input tokens (cache hit)  — emerald
-//   2. input tokens (cache miss) — amber
-//   3. output tokens             — cyan
+//   1. input tokens (cache hit): emerald
+//   2. input tokens (cache miss): amber
+//   3. output tokens: cyan
 // The x-axis labels use the real per-day date (no "Invalid Date").
 
 function renderTokenTrendChart(tokenTrend: DailyTokens[]): string {
@@ -360,7 +360,7 @@ function renderTokenTrendChart(tokenTrend: DailyTokens[]): string {
     })
     .join("");
 
-  // X-axis labels: every ~3rd day plus the last — real dates, no double-formatting
+  // X-axis labels: every ~3rd day plus the last: real dates, no double-formatting
   const labels = days
     .map((d, i) => {
       if (i % 3 !== 0 && i !== days.length - 1) return "";

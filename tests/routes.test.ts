@@ -432,12 +432,12 @@ describe("OmniDashboard API Routes", () => {
     });
   });
 
-  // ── /api/db/query — error propagation (P2 #7) ──
+  // /api/db/query: error propagation (P2 #7)
   describe("/api/db/query", () => {
     it("surfaces a query-tool error as an HTTP error, not empty results", async () => {
       try {
         // A query that passes dashboard validation but fails inside the query
-        // tool must surface as a 4xx/5xx with an error message — NOT as
+        // tool must surface as a 4xx/5xx with an error message, NOT as
         // HTTP 200 with {columns:[], rows:[], total:0}.
         const { status, body } = await apiPost("/api/db/query", {
           sql: "SELECT * FROM nonexistent_table_xyz_123",
@@ -590,7 +590,7 @@ describe("/api/templates/content", () => {
         assert.equal(body.profile, "omni");
         assert.equal(body.name, "dev-executor.md");
       } else {
-        // Profile/template may not exist on the deployed OMNI_DIR — the route
+        // Profile/template may not exist on the deployed OMNI_DIR; the route
         // itself must still respond with a well-formed error object.
         assert.ok("error" in body, "error body expected");
       }

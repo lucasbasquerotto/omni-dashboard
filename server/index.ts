@@ -67,7 +67,7 @@ app.get("/api/fetch-remote", async (req, res) => {
 
 // GET /api/remote-yml: serve the local remote.yml (host data dir) as text/plain.
 // The plugin Import modal compares fetched entries against this file's section.
-// Since the config/ move, remote.yml lives at {data_dir}/config/remote.yml —
+// Since the config/ move, remote.yml lives at {data_dir}/config/remote.yml.
 // try the new locations first, then legacy root-level fallbacks.
 app.get("/api/remote-yml", (_req, res) => {
   const candidates = [
@@ -208,7 +208,7 @@ app.post("/api/reload", (req, res) => {
   void fetchAndForward(req, res, `${OMNIAGENT}/api/reload`);
 });
 
-// Models (config/models.yml): omniagent serves these WITH the /api prefix —
+// Models (config/models.yml): omniagent serves these WITH the /api prefix.
 // preserve it (the generic proxy below strips /api, which would 404).
 app.all(/^\/api\/models(?:\/.*)?$/, async (req, res) => {
   const queryStr = req.url.includes("?") ? req.url.substring(req.url.indexOf("?")) : "";

@@ -2,7 +2,7 @@
 // import of provider definitions from a models.yml-like file.
 //
 // ONE shared implementation: the modal flow (URL fetch with server-proxy
-// fallback, parse -> compare -> mark -> execute) is generic — `showImportFlow`.
+// fallback, parse -> compare -> mark -> execute) is generic; `showImportFlow`.
 // The plugin flow (`showImportModal`) and the models flow
 // (`showModelsImportModal`) are thin configs over the same modal. The ONLY
 // differences are the parsed schema (url/path/ref specs vs provider
@@ -34,12 +34,12 @@
 //        override -> present locally with a DIFFERENT definition
 //                    ("will overwrite existing config")
 //        same     -> present locally with IDENTICAL config
-//                    ("already exists" — removable from the import set)
+//                    ("already exists": removable from the import set)
 //   5. Marking works like the plugin flow; "same" rows can be removed from
 //      the import set (skip).
 //   6. "Confirm & Execute" MERGES the marked providers into models.yml via
 //      PUT /api/models (add + override; the rest of the file is untouched).
-//      Import never deletes local entries — deletion stays a /models page
+//      Import never deletes local entries; deletion stays a /models page
 //      action.
 import { apiGet, apiPost, apiDelete, apiPut, toCamelCase, type PluginData } from "./api";
 import { escapeHtml, formatApiError } from "./helpers";
@@ -366,7 +366,7 @@ export function parseModelsYml(text: string): ModelsYmlData {
       continue;
     }
     if (indent === 6 && value === "" && currentModel) {
-      // nested model field with empty value: treat as model-level sub-map (rare) — skip
+      // nested model field with empty value: treat as model-level sub-map (rare): skip
       continue;
     }
 
@@ -382,7 +382,7 @@ export function parseModelsYml(text: string): ModelsYmlData {
     if (key === "models" && value.startsWith("[")) {
       target.models = parseYamlList(value);
     } else if (value === "") {
-      // empty scalar — skip (could be a nested map we do not model)
+      // empty scalar: skip (could be a nested map we do not model)
     } else {
       target[key] = normalizeScalar(value);
     }
@@ -472,7 +472,7 @@ export function planModelsImportActions(
   });
 }
 
-// ── URL fetching (with server-proxy fallback) — shared by both flows ──
+// URL fetching (with server-proxy fallback): shared by both flows
 
 interface AttemptOutcome {
   ok: boolean;
@@ -497,7 +497,7 @@ async function attemptFetch(url: string, fetchImpl: typeof fetch): Promise<Attem
       const json = JSON.parse(body) as { error?: unknown };
       if (json && typeof json.error === "string" && json.error) msg = json.error;
     } catch {
-      // not JSON — keep the generic HTTP message
+      // not JSON; keep the generic HTTP message
     }
     return { ok: false, text: "", status: res.status, error: msg, errorType: "http" };
   }
@@ -535,7 +535,7 @@ export async function fetchRemoteYml(url: string, fetchImpl: typeof fetch = fetc
     }
     return { ok: false, text: "", status: proxied.status, error: proxied.error, usedProxy: true };
   }
-  // HTTP error from the origin — authoritative, do not proceed.
+  // HTTP error from the origin: authoritative, do not proceed.
   return { ok: false, text: "", status: direct.status, error: direct.error, usedProxy: false };
 }
 
@@ -592,7 +592,7 @@ export interface ModelsFile {
 
 /**
  * Merge the marked add/override providers into the local models.yml and PUT
- * the result via /api/models. Only the marked providers change — every other
+ * the result via /api/models. Only the marked providers change; every other
  * entry in the file is untouched. Never deletes local entries.
  */
 export async function executeModelsImport(items: BatchItem[]): Promise<BatchResult[]> {
@@ -618,7 +618,7 @@ export async function executeModelsImport(items: BatchItem[]): Promise<BatchResu
   try {
     await apiPut("/models", current);
   } catch (e: unknown) {
-    // PUT failure affects the whole merge — mark every planned item failed.
+    // PUT failure affects the whole merge; mark every planned item failed.
     const msg = formatApiError(e);
     return toMerge.map((item) => ({ name: item.name, action: item.action, ok: false, error: msg }));
   }
@@ -662,7 +662,7 @@ const MODAL_CSS =
  * via `config.plan`, renders rows with action buttons (click to mark pending,
  * revert to restore) and executes marked actions via `config.execute`.
  * `same` rows (models flow) show "Already exists" and can be removed from the
- * import set (skipped) — they are never executed.
+ * import set (skipped); they are never executed.
  */
 export function showImportFlow(config: ImportFlowConfig, onDone?: () => void): void {
   const entryNoun = config.entryNoun;
@@ -824,7 +824,7 @@ export function showImportFlow(config: ImportFlowConfig, onDone?: () => void): v
 
       if (planned.length === 0) {
         listHead.textContent = `No ${entryNoun} entries found in this file.`;
-        rowsEl.innerHTML = `<div style="color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0;">Nothing to import — the file has no entries for this page.</div>`;
+        rowsEl.innerHTML = `<div style="color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0;">Nothing to import: the file has no entries for this page.</div>`;
         confirmBtn.style.display = "none";
         return;
       }
@@ -842,7 +842,7 @@ export function showImportFlow(config: ImportFlowConfig, onDone?: () => void): v
   confirmBtn.addEventListener("click", async () => {
     const marked = planned.filter((p) => marks.get(p.name) === "include");
     if (marked.length === 0) {
-      showStatus("No actions marked — click an action button next to an entry first.", "error");
+      showStatus("No actions marked: click an action button next to an entry first.", "error");
       return;
     }
     confirmBtn.disabled = true;
@@ -902,7 +902,7 @@ export function showImportModal(pluginType: PluginPageType, onDone?: () => void)
               .filter((p) => p.pluginType === pluginType)
           : [];
       } catch {
-        // plugin list unavailable — treat as empty local state
+        // plugin list unavailable: treat as empty local state
       }
       let localYmlSection: Record<string, RemotePluginSpec> | null | undefined;
       try {
@@ -911,7 +911,7 @@ export function showImportModal(pluginType: PluginPageType, onDone?: () => void)
           localYmlSection = parseRemoteYml(await res.text())[section];
         }
       } catch {
-        // local remote.yml unavailable — comparison falls back to installed plugins only
+        // local remote.yml unavailable; comparison falls back to installed plugins only
       }
       return { localPlugins, localYmlSection };
     },

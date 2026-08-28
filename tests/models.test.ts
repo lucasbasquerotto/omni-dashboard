@@ -58,7 +58,7 @@ describe("Models page API usage (pages/models.ts)", () => {
 describe("Models server proxy (server/index.ts, item 3)", () => {
   const serverSrc = readFileSync(join(here, "..", "server", "index.ts"), "utf-8");
   // NOTE: the Express regex literal in the source escapes the slashes, so the
-  // file text is `app.all(/^\/api\/models(?:\/.*)?$/, ...)` — search for that
+  // file text is `app.all(/^\/api\/models(?:\/.*)?$/, ...); search for that
   // exact (backslash-containing) text, not a bare "api/models".
   const routeStart = "app.all(/^\\/api\\/models";
 

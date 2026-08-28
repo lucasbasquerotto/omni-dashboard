@@ -96,7 +96,7 @@ function parseMap(lines: YamlLine[], i: number, indent: number): { value: unknow
     const line = lines[i];
     if (line.indent < indent) break;
     if (line.indent > indent) {
-      // Deeper than the current map level without a key — skip (defensive).
+      // Deeper than the current map level without a key: skip (defensive).
       i++;
       continue;
     }
@@ -327,7 +327,7 @@ export function showSchedulesImportModal(onDone?: () => void): void {
           local[String(j.id || j.name || "")] = j as Record<string, unknown>;
         }
       } catch {
-        // local state unavailable — treat as empty
+        // local state unavailable: treat as empty
       }
       return local;
     },
@@ -395,7 +395,7 @@ export function showHooksImportModal(onDone?: () => void): void {
           local[String(h.id || h.name || "")] = h as Record<string, unknown>;
         }
       } catch {
-        // local state unavailable — treat as empty
+        // local state unavailable: treat as empty
       }
       return local;
     },
@@ -477,7 +477,7 @@ export function showChannelsImportModal(onDone?: () => void): void {
           local[String(c.id || c.name || "")] = c as Record<string, unknown>;
         }
       } catch {
-        // local state unavailable — treat as empty
+        // local state unavailable: treat as empty
       }
       return local;
     },
@@ -551,7 +551,7 @@ export function showActionsImportModal(onDone?: () => void): void {
           local[String(a.id || a.name || "")] = a as Record<string, unknown>;
         }
       } catch {
-        // local state unavailable — treat as empty
+        // local state unavailable: treat as empty
       }
       return local;
     },
@@ -638,7 +638,7 @@ export function showSettingsImportModal(onDone?: () => void): void {
           }
         }
       } catch {
-        // local state unavailable — treat as empty
+        // local state unavailable: treat as empty
       }
       return local;
     },

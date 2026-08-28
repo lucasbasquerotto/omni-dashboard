@@ -271,7 +271,7 @@ export interface KanbanBoardResponse {
   total: number;
 }
 
-// ── Board Types (kanban boards — config/boards.yml) ──
+// Board Types (kanban boards: config/boards.yml)
 
 /** A board's default execution options (task fallback per field). */
 export interface BoardConfig {
@@ -580,7 +580,7 @@ export interface Workflow {
   retries?: number;
   /** Top-level (outside roles): clear `workflow_state.executions` when the task moves to review. Default: false. */
   clear_executions_on_review?: boolean;
-  /** Top-level: no reviewer — review-bound tasks go straight to done; review_on_fail forced false. Default: false. */
+  /** Top-level: no reviewer: review-bound tasks go straight to done; review_on_fail forced false. Default: false. */
   auto_approve?: boolean;
   /** Top-level: failed steps go to review instead of blocked (ignored when auto_approve). Default: false. */
   review_on_fail?: boolean;
@@ -604,25 +604,25 @@ export interface ResetExecutionsResponse {
 
 // ── Workflow API (Phase 5) ──
 
-/** GET /workflows — list workflow definitions from workflows.yml (stored in OMNI_DIR; no DB tables). */
+/** GET /workflows: list workflow definitions from workflows.yml (stored in OMNI_DIR; no DB tables). */
 export async function fetchWorkflows(): Promise<WorkflowEntry[]> {
   const res = await apiGet<WorkflowListResponse>("/workflows");
   return res?.workflows ?? [];
 }
 
-/** PUT /workflows/{key} — create or update a workflow definition in workflows.yml. */
+/** PUT /workflows/{key}: create or update a workflow definition in workflows.yml. */
 export async function upsertWorkflow(key: string, workflow: Workflow): Promise<WorkflowEntry[]> {
   const res = await apiPut<WorkflowListResponse>(`/workflows/${encodeURIComponent(key)}`, workflow);
   return res?.workflows ?? [];
 }
 
-/** DELETE /workflows/{key} — remove a workflow definition from workflows.yml. */
+/** DELETE /workflows/{key}: remove a workflow definition from workflows.yml. */
 export async function deleteWorkflow(key: string): Promise<WorkflowEntry[]> {
   const res = await apiDelete<WorkflowListResponse>(`/workflows/${encodeURIComponent(key)}`);
   return res?.workflows ?? [];
 }
 
-/** POST /kanban/tasks/{id}/workflow/executions/reset — clear a task's workflow execution counters. */
+/** POST /kanban/tasks/{id}/workflow/executions/reset: clear a task's workflow execution counters. */
 export async function resetWorkflowExecutions(taskId: string | number): Promise<ResetExecutionsResponse> {
   return apiPost<ResetExecutionsResponse>(
     `/kanban/tasks/${encodeURIComponent(String(taskId))}/workflow/executions/reset`,

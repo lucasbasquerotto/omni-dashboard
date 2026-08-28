@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 // ── Board workflow display + workflow select (board create/edit modal) ──
 
-describe("src/lib/kanban-boards.ts — board workflow select + display", () => {
+describe("src/lib/kanban-boards.ts: board workflow select + display", () => {
   const src = readFileSync(new URL("../src/lib/kanban-boards.ts", import.meta.url), "utf-8");
 
   it("imports fetchWorkflows and the WorkflowEntry type from api.ts", () => {
@@ -53,7 +53,7 @@ describe("src/lib/kanban-boards.ts — board workflow select + display", () => {
 
   it("wireBoardControls enhances the board selector with the custom stylized select (Item 2)", () => {
     // The kanban-page board selector (#kanban-board-select) must NOT remain a native
-    // <select> — wireBoardControls must pass it through enhanceSelectElement, the same
+    // <select>: wireBoardControls must pass it through enhanceSelectElement, the same
     // custom dropdown treatment the Create Task modal / board modal fields use.
     assert.ok(
       /getElementById\("kanban-board-select"\)/.test(src),
@@ -74,7 +74,7 @@ describe("src/lib/kanban-boards.ts — board workflow select + display", () => {
   });
 });
 
-describe("src/lib/kanban-board.ts — board choice buttons show workflow", () => {
+describe("src/lib/kanban-board.ts: board choice buttons show workflow", () => {
   const src = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
 
   it("imports boardMetaLabel from kanban-boards", () => {

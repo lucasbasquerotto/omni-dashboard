@@ -2,7 +2,7 @@
  * Hooks API client + shared helpers for the /hooks page.
  *
  * The omniagent backend (src/server/hooks.rs) serves the hooks REST API and
- * wraps every response in `{ "success": true, "data": ... }` — apiGet()
+ * wraps every response in `{ "success": true, "data": ... }; apiGet()
  * unwraps that automatically. JSON keys are snake_case (serde default) and the
  * Express proxy forwards them unchanged, so every read here tolerates both
  * snake_case and camelCase keys (defensive: the task spec mentioned camelCase).
