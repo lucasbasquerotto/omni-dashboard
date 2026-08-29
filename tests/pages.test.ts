@@ -427,3 +427,102 @@ describe("Overview page widgets", () => {
     assert.ok(/Channels with activity in 24h/.test(content));
   });
 });
+
+// ── Threads page 'Show details' toggle + kanban workflow linkage (task_omnidev_dashboard_ui_workflow_below_board_in) ──
+
+describe("Threads page 'Show details' toggle + workflow details (dashboard UI polish)", () => {
+  it("threads.ts declares the new kanban/hook linkage fields on ThreadRow", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    assert.ok(/task_id:\s*string \| null;/.test(content));
+    assert.ok(/schedule_task_id:\s*string \| null;/.test(content));
+    assert.ok(/workflow_step:\s*string \| null;/.test(content));
+    assert.ok(/workflow:\s*string \| null;/.test(content));
+    assert.ok(/kanban_board:\s*string \| null;/.test(content));
+    assert.ok(/hook_id:\s*string \| null;/.test(content));
+  });
+
+  it("threads.ts row has a purple 'Show details' toggle that swaps to 'Hide details'", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    assert.ok(/class="thread-details-toggle"/.test(content));
+    assert.ok(/Show details/.test(content));
+    assert.ok(/open \? "Hide details" : "Show details"/.test(content));
+    // Each row wraps a real thread-row link plus an expandable details box.
+    assert.ok(/<a href="\$\{url\}" class="thread-row"/.test(content));
+    assert.ok(/classList\.toggle\("open"\)/.test(content));
+  });
+
+  it("threads.ts moves Cause/Type/Subtype/Plan Mode out of the header row", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    // The compact header no longer renders these column headers...
+    assert.ok(!/<div role="columnheader">Cause<\/div>/.test(content));
+    assert.ok(!/<div role="columnheader">Type<\/div>/.test(content));
+    assert.ok(!/<div role="columnheader">Subtype<\/div>/.test(content));
+    assert.ok(!/<div role="columnheader">Plan Mode<\/div>/.test(content));
+    // ...and the Details column header was added.
+    assert.ok(/<div role="columnheader">Details<\/div>/.test(content));
+  });
+
+  it("threads.ts details box shows Cause, Type, Subtype and Plan Mode", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    assert.ok(/function\s+threadDetailsContent\(row: ThreadRow\): string/.test(content));
+    assert.ok(/thread-detail-label">Cause</.test(content));
+    assert.ok(/thread-detail-label">Type</.test(content));
+    assert.ok(/thread-detail-label">Subtype</.test(content));
+    assert.ok(/thread-detail-label">Plan Mode</.test(content));
+  });
+
+  it("threads.ts details box shows kanban board, workflow and workflow role for kanban threads", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    assert.ok(/thread-detail-label">Kanban board</.test(content));
+    assert.ok(/thread-detail-label">Workflow</.test(content));
+    assert.ok(/thread-detail-label">Workflow role</.test(content));
+    assert.ok(/row\.task_id\s*\?/.test(content));
+  });
+
+  it("workflowRole maps kanban workflow steps to executor/tester/reviewer", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    assert.ok(/function\s+workflowRole\(step: string \| null\): string/.test(content));
+    assert.ok(/case "running":\s*return "executor";/.test(content));
+    assert.ok(/case "testing":\s*return "tester";/.test(content));
+    assert.ok(/case "review":\s*return "reviewer";/.test(content));
+  });
+
+  it("threads.ts links kanban/cron/hook threads to their task pages", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    assert.ok(/href="\/kanban\/\$\{encodeURIComponent\(row\.task_id\)\}"/.test(content));
+    assert.ok(/href="\/schedules\/\$\{encodeURIComponent\(row\.schedule_task_id\)\}"/.test(content));
+    assert.ok(/href="\/hooks"/.test(content));
+    assert.ok(/function\s+threadTaskLink\(row: ThreadRow\): string/.test(content));
+  });
+
+  it("kanban-detail.ts shows the task workflow right below the board name", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-detail.ts", import.meta.url), "utf-8");
+    // Workflow chip rendered in the Board cell, only when the task has a workflow.
+    assert.ok(/Workflow<\/span><br><code/.test(content));
+    assert.ok(/escapeHtml\(task\.workflow_id\)/.test(content));
+    assert.ok(/task\.workflow_id\s*\?/.test(content));
+  });
+
+  it("kanban/schedule/hook pages emphasize their titles with .emphasized-title", () => {
+    const kanban = readFileSync(new URL("../src/lib/kanban-detail.ts", import.meta.url), "utf-8");
+    const scheduleDetail = readFileSync(new URL("../src/lib/schedule-detail.ts", import.meta.url), "utf-8");
+    const scheduleList = readFileSync(new URL("../src/lib/schedule-list.ts", import.meta.url), "utf-8");
+    const hooksList = readFileSync(new URL("../src/lib/hooks-list.ts", import.meta.url), "utf-8");
+    assert.ok(/Task: <span class="emphasized-title">/.test(kanban));
+    assert.ok(/Job: <span class="emphasized-title">/.test(scheduleDetail));
+    assert.ok(/<span class="emphasized-title">\$\{escapeHtml\(j\.name \|\| j\.id\)\}/.test(scheduleList));
+    assert.ok(/<span class="emphasized-title">\$\{escapeHtml\(hookName\(h\)\)\}/.test(hooksList));
+  });
+
+  it("style.css provides the threads grid, details box and emphasized-title styles", () => {
+    const content = readFileSync(new URL("../src/style.css", import.meta.url), "utf-8");
+    assert.ok(/\.data-table\.threads-table/.test(content));
+    assert.ok(/grid-template-columns: 72px 128px/.test(content));
+    assert.ok(/\.threads-table \.thread-details \{/.test(content));
+    assert.ok(/\.thread-item\.open \.thread-details \{/.test(content));
+    assert.ok(/\.thread-details-toggle \{/.test(content));
+    assert.ok(/rgba\(139, 92, 246, 0\.15\)/.test(content)); // purple button, matching other purple buttons
+    assert.ok(/\.emphasized-title \{/.test(content));
+    assert.ok(/font-weight: 700;/.test(content));
+  });
+});
