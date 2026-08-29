@@ -6009,3 +6009,73 @@ a.thread-row {
   color: var(--text-muted);
   font-size: 0.8rem;
 }
+
+/* ── Threads page: grid layout + expandable "Show details" box ── */
+.data-table.threads-table {
+  display: grid;
+  grid-template-columns: 72px 128px minmax(90px, 0.9fr) 108px minmax(100px, 1fr) 56px 76px minmax(140px, 1.6fr) 68px 78px 108px;
+}
+.threads-table [role="rowgroup"],
+.threads-table [role="row"],
+.threads-table .thread-item {
+  display: contents;
+}
+.threads-table .thread-details {
+  grid-column: 1 / -1;
+  display: none;
+  padding: 0 0.75rem 0.75rem;
+}
+.threads-table .thread-item.open .thread-details {
+  display: block;
+}
+.threads-table .thread-details-box {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem 1.5rem;
+  background: rgba(139, 92, 246, 0.07);
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+.thread-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.thread-detail-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.thread-detail-value {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+a.thread-task-link {
+  color: var(--accent-purple);
+  text-decoration: underline;
+}
+.thread-details-toggle {
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: var(--accent-purple);
+  border-radius: 6px;
+  padding: 0.3rem 0.85rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── Emphasized item titles (kanban task / schedule job / hook name) ── */
+.emphasized-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}

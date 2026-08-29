@@ -28,6 +28,12 @@ interface ThreadRow {
   cause_msg_subtype: string | null;
   parent_id: number | null;
   merged_into_thread_id: number | null;
+  task_id: string | null;
+  schedule_task_id: string | null;
+  workflow_step: string | null;
+  workflow: string | null;
+  kanban_board: string | null;
+  hook_id: string | null;
 }
 
 interface ThreadsResponse {
@@ -340,23 +346,20 @@ async function loadThreads(): Promise<void> {
 
     listEl.innerHTML = `
       <div class="table-scroll">
-        <div class="data-table" role="table">
+        <div class="data-table threads-table" role="table">
           <div role="rowgroup">
             <div class="thread-header" role="row">
               <div role="columnheader">ID</div>
               <div role="columnheader">Status</div>
-              <div role="columnheader">Cause</div>
-              <div role="columnheader">Type</div>
-              <div role="columnheader">Subtype</div>
               <div role="columnheader">Channel</div>
               <div role="columnheader">Created</div>
-              <div role="columnheader">Plan Mode</div>
               <div role="columnheader">Provider/Model</div>
               <div role="columnheader" style="text-align:right">Msgs</div>
               <div role="columnheader" style="text-align:right">LLM Calls</div>
               <div role="columnheader" class="col-preview">Preview</div>
               <div role="columnheader" style="text-align:right">Time (ms)</div>
               <div role="columnheader" style="text-align:right">Tokens</div>
+              <div role="columnheader">Details</div>
             </div>
           </div>
           <div role="rowgroup">
@@ -409,6 +412,17 @@ async function loadThreads(): Promise<void> {
         }
       });
     });
+    // Wire "Show details" / "Hide details" toggles
+    document.querySelectorAll(".thread-details-toggle").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const item = (btn as HTMLElement).closest(".thread-item");
+        if (!item) return;
+        const open = item.classList.toggle("open");
+        (btn as HTMLButtonElement).textContent = open ? "Hide details" : "Show details";
+      });
+    });
   } catch (e) {
     listEl.innerHTML = `<div class="error-state">Failed to load threads: ${formatApiError(e)}</div>`;
   }
@@ -424,11 +438,6 @@ function renderRow(row: ThreadRow): string {
     new Date(row.created_at.endsWith("Z") ? row.created_at : row.created_at + "Z"),
   );
   const tokens = (row.input_tokens || 0) + (row.output_tokens || 0);
-  const causeCol = causeColor(row.cause);
-  const pmCol = row.plan ? "#22c55e" : "#64748b";
-
-  const typeStr = row.cause_msg_type ? escapeHtml(row.cause_msg_type) : "-";
-  const subtypeStr = row.cause_msg_subtype ? escapeHtml(row.cause_msg_subtype) : "-";
   const parentIdStr = row.parent_id
     ? `<span class="event-type-badge" title="Parent ID: ${escapeHtml(String(row.parent_id))}" style="--type-color:#64748b;background:rgba(100,116,139,0.12);border-color:rgba(100,116,139,0.25);color:#94a3b8;font-size:0.7rem;display:inline-flex;flex-direction:column;align-items:center;line-height:1.3;"><span style="font-size:0.65rem;opacity:0.7;">Parent:</span><span style="font-weight:600;">#${escapeHtml(String(row.parent_id))}</span></span>`
     : "";
@@ -436,33 +445,91 @@ function renderRow(row: ThreadRow): string {
   const url = `/messages?thread_id=${escapeHtml(row.id)}`;
 
   return `
-    <a href="${url}" class="thread-row" role="row">
-      <div role="cell" style="text-align:center;"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code>${row.parent_id ? `<br><div style="display:flex;flex-direction:column;align-items:center;gap:0.125rem;">${parentIdStr}</div>` : ""}</div>
-      <div role="cell"><div style="display:flex;flex-direction:column;align-items:center;gap:0.25rem;"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span>${row.status === "pending" || row.status === "processing" ? `<button class="thread-stop-btn" data-thread-id="${escapeHtml(row.id)}" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#ef4444;border-radius:6px;padding:0.3rem 0.85rem;cursor:pointer;font-size:0.78rem;line-height:1.4;font-weight:500;" title="Stop this thread">Stop</button>` : ""}${mergedIntoBadge(row)}</div></div>
-      <div role="cell"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></div>
-      <div role="cell">${typeStr === "-" ? typeStr : `<span class="event-type-badge" title="Type: ${typeStr}" style="--type-color:${seq0TypeColor(row.cause_msg_type || "")};background:${seq0TypeColor(row.cause_msg_type || "")}22;border-color:${seq0TypeColor(row.cause_msg_type || "")}44;color:${seq0TypeColor(row.cause_msg_type || "")}">${typeStr}</span>`}</div>
-      <div role="cell" style="font-size:0.8rem;color:var(--text-muted);font-style:italic;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${subtypeStr}</div>
-      <div role="cell"><span class="badge" style="${channelStyle(row.channel_closed)}"${row.channel_closed ? ' title="Channel closed"' : ""}>${escapeHtml(row.channel)}</span></div>
-      <div role="cell" class="cell-timestamp">${ts}</div>
-      <div role="cell"><span class="badge" style="--type-color:${pmCol};background:${pmCol}22;border-color:${pmCol}44;color:${pmCol}">${row.plan ? "On" : "Off"}</span></div>
-      <div role="cell" style="font-size:0.8rem;color:var(--text-muted)">
-        <div style="display:flex;flex-direction:column;gap:0.125rem;">
-          ${row.provider ? `<span class="ev-provider" title="Provider" style="line-height:1.3;">${escapeHtml(row.provider)}</span>` : ""}
-          ${row.model ? `<span class="ev-model" title="Model" style="line-height:1.3;">${escapeHtml(row.model)}</span>` : ""}
-          ${!row.provider && !row.model ? "-" : ""}
+    <div class="thread-item" data-thread-id="${escapeHtml(row.id)}">
+      <a href="${url}" class="thread-row" role="row">
+        <div role="cell" style="text-align:center;"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code>${row.parent_id ? `<br><div style="display:flex;flex-direction:column;align-items:center;gap:0.125rem;">${parentIdStr}</div>` : ""}</div>
+        <div role="cell"><div style="display:flex;flex-direction:column;align-items:center;gap:0.25rem;"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span>${row.status === "pending" || row.status === "processing" ? `<button class="thread-stop-btn" data-thread-id="${escapeHtml(row.id)}" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#ef4444;border-radius:6px;padding:0.3rem 0.85rem;cursor:pointer;font-size:0.78rem;line-height:1.4;font-weight:500;" title="Stop this thread">Stop</button>` : ""}${mergedIntoBadge(row)}</div></div>
+        <div role="cell"><span class="badge" style="${channelStyle(row.channel_closed)}"${row.channel_closed ? ' title="Channel closed"' : ""}>${escapeHtml(row.channel)}</span></div>
+        <div role="cell" class="cell-timestamp">${ts}</div>
+        <div role="cell" style="font-size:0.8rem;color:var(--text-muted)">
+          <div style="display:flex;flex-direction:column;gap:0.125rem;">
+            ${row.provider ? `<span class="ev-provider" title="Provider" style="line-height:1.3;">${escapeHtml(row.provider)}</span>` : ""}
+            ${row.model ? `<span class="ev-model" title="Model" style="line-height:1.3;">${escapeHtml(row.model)}</span>` : ""}
+            ${!row.provider && !row.model ? "-" : ""}
+          </div>
         </div>
+        <div role="cell" class="cell-num">${row.msg_count}</div>
+        <div role="cell" class="cell-num">${row.iterations}</div>
+        <div role="cell" class="cell-preview">${preview}</div>
+        <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "-"}</div>
+        <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "-"}</div>
+        <div role="cell"><button type="button" class="thread-details-toggle" title="Show thread details">Show details</button></div>
+      </a>
+      <div class="thread-details">
+        <div class="thread-details-box">${threadDetailsContent(row)}</div>
       </div>
-      <div role="cell" class="cell-num">${row.msg_count}</div>
-      <div role="cell" class="cell-num">${row.iterations}</div>
-      <div role="cell" class="cell-preview">${preview}</div>
-      <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "-"}</div>
-      <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "-"}</div>
-    </a>
+    </div>
   `;
 }
 
 /**
- * For skipped/merged threads whose prompt was appended into another running
+ * Details box content for a thread row: Cause, Type, Subtype, Plan Mode,
+ * plus kanban board / workflow / workflow role for kanban-originated threads
+ * and a task link for kanban / hook / cron threads.
+ */
+function threadDetailsContent(row: ThreadRow): string {
+  const causeCol = causeColor(row.cause);
+  const pmCol = row.plan ? "#22c55e" : "#64748b";
+  const typeStr = row.cause_msg_type ? escapeHtml(row.cause_msg_type) : "-";
+  const subtypeStr = row.cause_msg_subtype ? escapeHtml(row.cause_msg_subtype) : "-";
+
+  const kanbanExtra = row.task_id
+    ? `<div class="thread-detail-item"><span class="thread-detail-label">Kanban board</span><span class="thread-detail-value">${row.kanban_board ? escapeHtml(row.kanban_board) : "<em>None</em>"}</span></div>
+      <div class="thread-detail-item"><span class="thread-detail-label">Workflow</span><span class="thread-detail-value">${row.workflow ? `<code style="font-size:0.8rem;">${escapeHtml(row.workflow)}</code>` : "<em>None</em>"}</span></div>
+      <div class="thread-detail-item"><span class="thread-detail-label">Workflow role</span><span class="thread-detail-value">${escapeHtml(workflowRole(row.workflow_step))}</span></div>`
+    : "";
+
+  const taskLink = threadTaskLink(row);
+
+  return `
+    <div class="thread-detail-item"><span class="thread-detail-label">Cause</span><span class="thread-detail-value"><span class="badge" style="--type-color:${causeCol};background:${causeCol}22;border-color:${causeCol}44;color:${causeCol}">${escapeHtml(row.cause)}</span></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Type</span><span class="thread-detail-value">${typeStr === "-" ? typeStr : `<span class="event-type-badge" title="Type: ${typeStr}" style="--type-color:${seq0TypeColor(row.cause_msg_type || "")};background:${seq0TypeColor(row.cause_msg_type || "")}22;border-color:${seq0TypeColor(row.cause_msg_type || "")}44;color:${seq0TypeColor(row.cause_msg_type || "")}">${typeStr}</span>`}</span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Subtype</span><span class="thread-detail-value">${subtypeStr}</span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Plan Mode</span><span class="thread-detail-value"><span class="badge" style="--type-color:${pmCol};background:${pmCol}22;border-color:${pmCol}44;color:${pmCol}">${row.plan ? "On" : "Off"}</span></span></div>
+    ${kanbanExtra}
+    ${taskLink ? `<div class="thread-detail-item"><span class="thread-detail-label">Task</span><span class="thread-detail-value">${taskLink}</span></div>` : ""}
+  `;
+}
+
+/** Map a kanban workflow step to its role name. */
+function workflowRole(step: string | null): string {
+  switch (step) {
+    case "running":
+      return "executor";
+    case "testing":
+      return "tester";
+    case "review":
+      return "reviewer";
+    default:
+      return step || "unknown";
+  }
+}
+
+/** Link to the originating kanban / schedule / hook task, when applicable. */
+function threadTaskLink(row: ThreadRow): string {
+  if (row.task_id) {
+    return `<a class="thread-task-link" href="/kanban/${encodeURIComponent(row.task_id)}">Kanban task ${escapeHtml(row.task_id)}</a>`;
+  }
+  if (row.schedule_task_id) {
+    return `<a class="thread-task-link" href="/schedules/${encodeURIComponent(row.schedule_task_id)}">Schedule ${escapeHtml(row.schedule_task_id)}</a>`;
+  }
+  if (row.hook_id) {
+    return `<a class="thread-task-link" href="/hooks">Hook ${escapeHtml(row.hook_id)}</a>`;
+  }
+  return "";
+}
+
+/** For skipped/merged threads whose prompt was appended into another running
  * thread (sub-prompt merging), render a link to that target thread on the
  * Threads page.
  */

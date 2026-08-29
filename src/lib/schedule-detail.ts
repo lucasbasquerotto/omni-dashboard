@@ -107,7 +107,8 @@ export async function loadScheduleDetail(cronId: string): Promise<any> {
   try {
     const job = await apiGet<any>("/schedule/" + encodeURIComponent(cronId));
     const detailEl = document.getElementById("detail-subtitle");
-    if (detailEl) detailEl.textContent = `Job: ${escapeHtml(job.name || job.id)}`;
+    if (detailEl)
+      detailEl.innerHTML = `Job: <span class="emphasized-title">${escapeHtml(job.name || job.id)}</span>`;
 
     el.innerHTML = `
       <div class="detail-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">

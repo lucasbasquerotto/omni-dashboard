@@ -183,7 +183,8 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
 
   try {
     const task = (await apiGet("/kanban/tasks/" + encodeURIComponent(taskId))) as any;
-    if (subtitle) subtitle.textContent = `Task: ${escapeHtml(task.title)}`;
+    if (subtitle)
+      subtitle.innerHTML = `Task: <span class="emphasized-title">${escapeHtml(task.title)}</span>`;
 
     // Load channels to resolve channel name
     let channelName = "";
@@ -230,6 +231,11 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
         <div>
           <div class="detail-label">Board</div>
           <div>${task.board ? escapeHtml(task.board) : "<em>None</em>"}</div>
+          ${
+            task.workflow_id
+              ? `<div style="margin-top:0.35rem;"><span class="detail-label" style="font-size:0.68rem;">Workflow</span><br><code style="font-size:0.8rem;color:var(--accent-cyan);background:var(--bg-card);padding:0.15rem 0.4rem;border-radius:4px;">${escapeHtml(task.workflow_id)}</code></div>`
+              : ""
+          }
         </div>
         <div>
           <div class="detail-label">Goal phase</div>
