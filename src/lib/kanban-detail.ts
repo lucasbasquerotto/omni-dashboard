@@ -209,7 +209,7 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
       <div class="detail-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div>
           <div class="detail-label">ID</div>
-          <div><code>${task.display_id || task.id}</code></div>
+          <div><code style="word-break:break-word;overflow-wrap:anywhere;">${task.display_id || task.id}</code></div>
         </div>
         <div>
           <div class="detail-label">Status</div>
