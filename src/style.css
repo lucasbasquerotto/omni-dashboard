@@ -673,6 +673,11 @@ a.thread-row {
   color: #94a3b8;
   border: 1px solid rgba(148, 163, 184, 0.2);
 }
+.status-badge-merged {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
 .status-badge-interrupted {
   background: rgba(245, 158, 11, 0.1);
   color: #fbbf24;

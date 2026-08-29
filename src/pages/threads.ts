@@ -91,9 +91,11 @@ function statusBadgeStyle(status: string): string {
             ? "#3b82f6"
             : s === "skipped"
               ? "#64748b"
-              : s === "interrupted"
-                ? "#8b5cf6"
-                : "#64748b";
+              : s === "merged"
+                ? "#64748b"
+                : s === "interrupted"
+                  ? "#8b5cf6"
+                  : "#64748b";
   return `--type-color:${color};background:${color}22;border-color:${color}44;color:${color}`;
 }
 
@@ -460,11 +462,14 @@ function renderRow(row: ThreadRow): string {
 }
 
 /**
- * For skipped threads whose prompt was appended into another running thread
- * (sub-prompt merging), render a link to that target thread on the Threads page.
+ * For skipped/merged threads whose prompt was appended into another running
+ * thread (sub-prompt merging), render a link to that target thread on the
+ * Threads page.
  */
 function mergedIntoBadge(row: ThreadRow): string {
-  if (row.status !== "skipped" || !row.merged_into_thread_id) return "";
+  if ((row.status !== "skipped" && row.status !== "merged") || !row.merged_into_thread_id) {
+    return "";
+  }
   const target = String(row.merged_into_thread_id);
   return `<button type="button" class="merged-into-link" data-target="${escapeHtml(target)}" title="Merged into thread #${escapeHtml(target)}" style="background:none;border:none;padding:0;margin:0;color:#38bdf8;cursor:pointer;font-size:0.75rem;line-height:1.4;font-weight:500;text-decoration:underline;">→ merged into thread #${escapeHtml(target)}</button>`;
 }

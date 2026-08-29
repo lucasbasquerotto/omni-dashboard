@@ -306,10 +306,11 @@ describe("Threads page merged-into badge", () => {
     assert.ok(/merged_into_thread_id:\s*number\s*\|\s*null;/.test(content));
   });
 
-  it("mergedIntoBadge renders ONLY for skipped threads with a recorded target (acceptance 3)", () => {
+  it("mergedIntoBadge renders for skipped/merged threads with a recorded target (acceptance 3)", () => {
     const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
-    // Early return when status is not skipped OR no target is recorded
-    assert.ok(/row\.status\s*!==\s*"skipped"\s*\|\|\s*!row\.merged_into_thread_id/.test(content));
+    // Early return when status is neither skipped nor merged, or no target is
+    // recorded (the merged terminal state reuses the skipped badge + link).
+    assert.ok(/row\.status\s*!==\s*"skipped"\s*&&\s*row\.status\s*!==\s*"merged"/.test(content));
     assert.ok(/function\s+mergedIntoBadge/.test(content));
   });
 

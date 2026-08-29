@@ -92,7 +92,9 @@ function statusBadgeStyle(status: string | null): string {
             ? "#3b82f6"
             : s === "skipped"
               ? "#64748b"
-              : "#64748b";
+              : s === "merged"
+                ? "#64748b"
+                : "#64748b";
   return `--type-color:${color};background:${color}22;border-color:${color}44;color:${color}`;
 }
 
