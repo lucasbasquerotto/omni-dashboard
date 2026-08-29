@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { createSign } from "crypto";
 import { join } from "path";
@@ -7,6 +7,9 @@ import { join } from "path";
 export const gitRouter = Router();
 
 const OMNI_DIR = process.env.OMNI_DIR;
+// The omniagent backend: source of the secrets the git plugin uses
+// (GITHUB_APP_KEY / GITHUB_APP_ID / GITHUB_INSTALLATION_ID).
+const OMNIAGENT = process.env.OMNIAGENT_URL || "http://omniagent:8080";
 
 // ── GitHub App token generation ──
 
@@ -27,13 +30,71 @@ function readDotEnvVar(name: string): string | null {
   return null;
 }
 
-/** Generate a fresh GitHub App installation access token */
-async function getGitHubToken(): Promise<string | null> {
-  const appId = readDotEnvVar("GITHUB_APP_ID");
-  const instId = readDotEnvVar("GITHUB_INSTALLATION_ID");
-  if (!appId || !instId) return null;
+/**
+ * Fetch a secret from the omniagent secrets API (the same store the git
+ * plugin's `$secret:GITHUB_APP_KEY` resolves from). Returns null when the
+ * secret is not set or the backend is unreachable.
+ */
+async function getSecret(name: string): Promise<string | null> {
+  try {
+    const resp = await fetch(`${OMNIAGENT}/secrets/${encodeURIComponent(name)}`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!resp.ok) return null;
+    const body = (await resp.json()) as {
+      success?: boolean;
+      data?: { current_value?: string };
+    };
+    const value = body?.data?.current_value;
+    return body?.success && value ? value : null;
+  } catch {
+    return null;
+  }
+}
 
-  // Find private key file
+/**
+ * Read the git plugin's own config (github_app_id, github_installation_id)
+ * from the omniagent plugins API - the same configuration the git plugin
+ * runs with. These are non-secret scalar values; the private key itself is
+ * fetched from the secrets API (`$secret:GITHUB_APP_KEY`).
+ */
+async function getGitPluginConfig(): Promise<{ appId: string | null; instId: string | null }> {
+  try {
+    const resp = await fetch(`${OMNIAGENT}/api/plugins`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!resp.ok) return { appId: null, instId: null };
+    const body = (await resp.json()) as {
+      success?: boolean;
+      data?: Array<{ name?: string; config?: Record<string, unknown> }>;
+    };
+    const git = body?.data?.find((p) => p?.name === "git");
+    const cfg = git?.config;
+    const str = (v: unknown): string | null => (v === null || v === undefined ? null : String(v));
+    return {
+      appId: str(cfg?.github_app_id),
+      instId: str(cfg?.github_installation_id),
+    };
+  } catch {
+    return { appId: null, instId: null };
+  }
+}
+
+/**
+ * Generate a fresh GitHub App installation access token.
+ *
+ * Credentials are looked up in this order:
+ *   1. /opt/data/.env (GITHUB_APP_ID, GITHUB_INSTALLATION_ID) +
+ *      /opt/data/credentials/*.private-key.pem (legacy file layout).
+ *   2. The omniagent secrets API (GITHUB_APP_KEY, GITHUB_APP_ID,
+ *      GITHUB_INSTALLATION_ID) - the same source the git plugin uses.
+ */
+async function getGitHubToken(): Promise<string | null> {
+  let appId = readDotEnvVar("GITHUB_APP_ID");
+  let instId = readDotEnvVar("GITHUB_INSTALLATION_ID");
+  let privateKey: string | null = null;
+
+  // Find private key file (legacy layout)
   const credDir = "/opt/data/credentials";
   let keyPath = "";
   if (existsSync(credDir)) {
@@ -41,9 +102,25 @@ async function getGitHubToken(): Promise<string | null> {
     keyPath = files.find((f: string) => f.endsWith(".private-key.pem")) || "";
     if (keyPath) keyPath = join(credDir, keyPath);
   }
-  if (!keyPath || !existsSync(keyPath)) return null;
+  if (keyPath && existsSync(keyPath)) {
+    privateKey = readFileSync(keyPath, "utf-8");
+  }
 
-  const privateKey = readFileSync(keyPath, "utf-8");
+  // Fall back to the secrets API (git plugin credential configuration)
+  if (!appId) appId = await getSecret("GITHUB_APP_ID");
+  if (!instId) instId = await getSecret("GITHUB_INSTALLATION_ID");
+  if (!privateKey) privateKey = await getSecret("GITHUB_APP_KEY");
+
+  // App ID and installation ID are configured directly on the git plugin;
+  // read them from the git plugin's config when not stored as secrets.
+  if (!appId || !instId) {
+    const pc = await getGitPluginConfig();
+    if (!appId) appId = pc.appId;
+    if (!instId) instId = pc.instId;
+  }
+
+  if (!appId || !instId || !privateKey) return null;
+
   const now = Math.floor(Date.now() / 1000);
 
   const header = { alg: "RS256", typ: "JWT" };
@@ -108,6 +185,43 @@ function gitCmd(args: string, cwd?: string): string {
     encoding: "utf-8",
     stdio: ["pipe", "pipe", "pipe"],
   });
+}
+
+/**
+ * Run git with an argv array (no shell). Used for push URLs that embed the
+ * GitHub App token so no shell quoting/interpretation is involved.
+ */
+function gitCmdArray(args: string[]): string {
+  const dir = OMNI_DIR;
+  if (!dir) throw new Error("OMNI_DIR not set");
+  return execFileSync("git", args, {
+    cwd: dir,
+    timeout: 60000,
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+}
+
+/**
+ * Resolve the remote to sync against: prefer origin, else the first
+ * configured remote. Returns the remote's https URL (no hardcoded repo
+ * names - works for any omni_dir repo, e.g. omni-root).
+ */
+function resolveRemote(): { remoteUrl: string } {
+  const remotes = gitCmd("remote")
+    .trim()
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (remotes.length === 0) {
+    throw new Error("No git remotes configured: cannot push");
+  }
+  const remoteName = remotes.includes("origin") ? "origin" : remotes[0];
+  const remoteUrl = gitCmd(`remote get-url ${remoteName}`).trim();
+  if (!remoteUrl.startsWith("https://")) {
+    throw new Error(`Remote '${remoteName}' is not https: ${remoteUrl}`);
+  }
+  return { remoteUrl };
 }
 
 /** Convert any SSH-style remotes (git@github.com:...) to HTTPS so they work
@@ -311,6 +425,10 @@ gitRouter.post("/unstage", (_req, res) => {
 });
 
 // POST /api/git/sync: fetch → pull (rebase) → push
+// The push uses the git plugin's credential configuration: the GitHub App
+// installation token is minted from the GITHUB_APP_KEY secret (via the
+// omniagent secrets API or the legacy /opt/data files) and embedded in the
+// repo's own remote URL - no hardcoded remotes, no credential failures.
 gitRouter.post("/sync", async (_req, res) => {
   try {
     if (!OMNI_DIR) {
@@ -319,27 +437,55 @@ gitRouter.post("/sync", async (_req, res) => {
     }
     ensureHttpsRemotes();
 
-    // Fetch all
-    gitCmd("fetch --all");
-
-    // Pull with rebase
-    try {
-      gitCmd("pull --rebase");
-    } catch {
-      // Pull may fail if there's nothing to pull or merge conflicts
+    // Mint the token FIRST: fetch/pull/push all authenticate with it, using
+    // the git plugin's credential configuration (GITHUB_APP_KEY secret plus
+    // the git plugin config's app id / installation id).
+    const token = await getGitHubToken();
+    if (!token) {
+      res.status(500).json({
+        error:
+          "Sync failed: GitHub credentials not found. Set the GITHUB_APP_KEY secret " +
+          "(with GITHUB_APP_ID / GITHUB_INSTALLATION_ID) in the omniagent secrets table, " +
+          "or place a private key in /opt/data/credentials.",
+      });
+      return;
     }
 
-    // Generate a fresh token and update the remote URL
-    const token = await getGitHubToken();
-    if (token) {
-      gitCmd(`remote set-url nexuslbs "https://x-access-token:${token}@github.com/nexuslbs/omni-stack.git"`);
-    } else {
-      // console.warn("[git-sync] Could not generate fresh token, using existing remote URL");
+    // Build the tokenized URL for the repo's own remote (no config mutation,
+    // no credential helper, no hardcoded repo names).
+    let remoteUrl: string;
+    try {
+      remoteUrl = resolveRemote().remoteUrl;
+    } catch (e) {
+      res.status(500).json({ error: `Push failed: ${(e as Error).message}` });
+      return;
+    }
+    // Strip any credentials already present in the remote URL (e.g. a token
+    // left by a tokenized clone URL) before injecting a fresh token.
+    const bareUrl = remoteUrl.replace(/^https:\/\/[^@]*@/, "https://");
+    const tokenUrl = bareUrl.replace(/^https:\/\//, `https://x-access-token:${token}@`);
+
+    // Fetch (private repos need credentials, so use the tokenized URL)
+    try {
+      gitCmdArray(["fetch", tokenUrl]);
+    } catch (e) {
+      res.status(500).json({ error: `Fetch failed: ${(e as Error).message}` });
+      return;
+    }
+
+    // Pull with rebase (errors surface: e.g. unstaged local changes block a
+    // rebase - better a clear message than a confusing rejected push)
+    try {
+      gitCmdArray(["pull", "--rebase", tokenUrl]);
+    } catch (e) {
+      res.status(500).json({ error: `Pull failed: ${(e as Error).message}` });
+      return;
     }
 
     // Push
     try {
-      gitCmd("push nexuslbs");
+      const branch = gitCmd("rev-parse --abbrev-ref HEAD").trim();
+      gitCmdArray(["push", tokenUrl, `HEAD:${branch}`]);
     } catch (e) {
       res.status(500).json({ error: `Push failed: ${(e as Error).message}` });
       return;
