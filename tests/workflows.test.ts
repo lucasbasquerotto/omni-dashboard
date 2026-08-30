@@ -286,3 +286,25 @@ describe("Workflows page responsive layout (small screens)", () => {
     assert.ok(tail.includes("width: 100%"), "actions take a full row on small screens");
   });
 });
+
+// ── Workflow nav icon geometry: lines must connect (task_omnidev_fix_workflow_menu_icon_lines_don_t) ──
+
+describe("Workflow nav icon geometry (index.html)", () => {
+  it("connects all three workflow nodes in the desktop and mobile icons", () => {
+    // Both the desktop (nav-item) and mobile (mobile-nav-item) icons render the
+    // same 24x24 workflow: three r=3 circles at (6,6), (18,6), (6,18) joined by
+    // a vertical connector M6 9v6 (left node bottom -> bottom node top) and a
+    // horizontal connector M9 6h6 (left node right edge -> right node left edge).
+    // The connectors must meet the circle edges exactly (no gaps, no dangling
+    // segments) so the icon reads as one connected workflow at menu sizes.
+    const horizontals = html.match(/<path d="M9 6h6" \/>/g) ?? [];
+    assert.equal(horizontals.length, 2, "horizontal connector M9 6h6 present in both nav icons");
+    const verticals = html.match(/<path d="M6 9v6" \/>/g) ?? [];
+    assert.equal(verticals.length, 2, "vertical connector M6 9v6 present in both nav icons");
+    // The broken pre-fix geometry must be gone: the dangling arc below the left
+    // circle (M6 10h5a4 4 0 0 1 4 4v1) and the stray dot under the right circle
+    // (M18 9v.01).
+    assert.ok(!html.includes("M6 10h5a4"), "no dangling arc path remains");
+    assert.ok(!html.includes("M18 9v.01"), "no stray dot path remains");
+  });
+});
