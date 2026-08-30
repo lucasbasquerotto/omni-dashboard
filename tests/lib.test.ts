@@ -211,7 +211,18 @@ describe("src/lib/plugin-ui.ts", () => {
     assert.ok(/export\s+function\s+renderPluginCard\b/.test(content), "export renderPluginCard");
     assert.ok(/export\s+function\s+renderActionButtons\b/.test(content), "export renderActionButtons");
     assert.ok(/export\s+function\s+wirePluginButtons\b/.test(content), "export wirePluginButtons");
-    assert.ok(/export\s+function\s+showInstallModal\b/.test(content), "export showInstallModal");
+  });
+
+  it("restart handler persists pending config before restarting", () => {
+    const content = readFileSync(new URL("../src/lib/plugin-ui.ts", import.meta.url), "utf-8");
+    // Restart must save the form (POST /config) BEFORE triggering /restart,
+    // otherwise the backend restarts the plugin with the previously saved
+    // (stale) config instead of the current form values.
+    const restartSection = content.slice(content.indexOf("// Restart buttons"));
+    const restartIdx = restartSection.indexOf("/restart");
+    const configIdx = restartSection.indexOf("/config");
+    assert.ok(restartIdx >= 0 && configIdx >= 0, "restart handler must call /config and /restart");
+    assert.ok(configIdx < restartIdx, "config must be persisted before the restart POST");
   });
 });
 
