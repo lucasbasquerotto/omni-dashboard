@@ -160,6 +160,12 @@ export async function moveTask(taskId: string, status: string): Promise<void> {
   }
 }
 
+// ── Drag state: column the card currently being dragged came from ──
+// A cross-column drop must land the moved task at the TOP of the destination
+// column; a same-column drop keeps the drop position. The source column is
+// recorded on dragstart and consumed by the drop handler.
+let dragSourceColumn: string | null = null;
+
 /**
  * Load and render the full kanban board into the DOM.
  * Handles column layout, card rendering, drag-and-drop, and touch drag.
@@ -379,6 +385,13 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
           (e as DragEvent).dataTransfer!.setData("text/plain", taskId);
           (e as DragEvent).dataTransfer!.effectAllowed = "move";
         }
+        // Remember the source column: a cross-column drop must land the moved
+        // task at the TOP of the destination column (not at the drop point).
+        dragSourceColumn =
+          (e.currentTarget as HTMLElement).closest(".kanban-col-body")?.getAttribute("data-column") ?? null;
+      });
+      card.addEventListener("dragend", () => {
+        dragSourceColumn = null;
       });
     });
 
@@ -398,25 +411,39 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
         const newStatus = colBody?.getAttribute("data-column");
         if (!newStatus) return;
 
-        // Determine insert position based on drop Y coordinate
-        const cards = Array.from(colBody!.querySelectorAll(".kanban-card"))
-          .map((card) => ({
-            el: card as HTMLElement,
-            rect: (card as HTMLElement).getBoundingClientRect(),
-          }))
-          .sort((a, b) => a.rect.top - b.rect.top);
-
-        const dropY = (e as DragEvent).clientY;
-        let insertIndex = cards.length;
-        for (let i = 0; i < cards.length; i++) {
-          const midY = cards[i].rect.top + cards[i].rect.height / 2;
-          if (dropY < midY) {
-            insertIndex = i;
-            break;
-          }
-        }
+        // A cross-column move always lands the task as the TOPMOST card of
+        // the destination column: the /status endpoint inserts at position 0
+        // when no explicit position is given (and runs the workflow dispatch
+        // for workflow columns). Same-column drops keep the drop position.
+        const crossColumn = dragSourceColumn !== null && dragSourceColumn !== newStatus;
+        dragSourceColumn = null;
 
         try {
+          if (crossColumn) {
+            await moveTask(taskId, newStatus);
+            showToast(`Task moved to ${STATUS_LABELS[newStatus] || newStatus}`, "success");
+            void loadBoard(showArchived);
+            return;
+          }
+
+          // Same-column reorder: determine insert position from drop Y
+          const cards = Array.from(colBody!.querySelectorAll(".kanban-card"))
+            .map((card) => ({
+              el: card as HTMLElement,
+              rect: (card as HTMLElement).getBoundingClientRect(),
+            }))
+            .sort((a, b) => a.rect.top - b.rect.top);
+
+          const dropY = (e as DragEvent).clientY;
+          let insertIndex = cards.length;
+          for (let i = 0; i < cards.length; i++) {
+            const midY = cards[i].rect.top + cards[i].rect.height / 2;
+            if (dropY < midY) {
+              insertIndex = i;
+              break;
+            }
+          }
+
           const res = await fetch("/api/kanban/tasks/" + encodeURIComponent(taskId) + "/position", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
