@@ -269,3 +269,20 @@ describe("Phase 5 Kanban Task Details (src/lib/kanban-detail.ts)", () => {
     );
   });
 });
+
+describe("Workflows page responsive layout (small screens)", () => {
+  const css = readFileSync(new URL("../src/style.css", import.meta.url), "utf-8");
+
+  it("marks the workflow card action buttons with wf-card-actions", () => {
+    assert.ok(page.includes('class="wf-card-actions"'), "actions class present");
+  });
+
+  it("wraps the card header and moves actions above roles on narrow viewports", () => {
+    assert.ok(css.includes(".wf-card .card-header"), "card header wrap rule for wf-card");
+    const mqStart = css.lastIndexOf("@media (max-width: 640px)");
+    assert.ok(mqStart !== -1, "640px media query exists");
+    const tail = css.slice(mqStart);
+    assert.ok(tail.includes(".wf-card-actions"), "actions styled inside a 640px media query");
+    assert.ok(tail.includes("width: 100%"), "actions take a full row on small screens");
+  });
+});

@@ -203,7 +203,7 @@ function renderWorkflowCard(entry: WorkflowEntry): string {
           </div>
           ${summary ? `<div class="wf-sub" style="color:#99a;font-size:.82rem;">${escapeHtml(summary)}</div>` : ""}
         </div>
-        <div style="display:flex;gap:.5rem;flex-shrink:0;">
+        <div class="wf-card-actions" style="display:flex;gap:.5rem;flex-shrink:0;">
           ${hasTemplates ? `<button class="btn btn-sm wf-show-templates" data-key="${escapeHtml(entry.key)}" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:#fbbf24;">Show templates</button>` : ""}
           <button class="btn btn-sm wf-edit" data-key="${escapeHtml(entry.key)}" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);">Edit</button>
           <button class="btn btn-sm btn-danger wf-delete" data-key="${escapeHtml(entry.key)}">Delete</button>
