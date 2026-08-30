@@ -356,6 +356,20 @@ export function wirePluginButtons(
         const typeDir = pType + "s";
         const encodedName = encodeURIComponent(pluginName);
         const encodedSource = encodeURIComponent(source);
+        // Persist any pending config edits BEFORE restarting: the backend
+        // restart re-reads the plugin config from disk, so unsaved form
+        // changes would be lost and the plugin would keep running with the
+        // previously saved (stale) config. Saving first makes Restart behave
+        // like "save + restart" for all plugin types.
+        const configInputs = card?.querySelectorAll(".plugin-config-input");
+        if (configInputs && configInputs.length > 0) {
+          const config: Record<string, string> = {};
+          configInputs.forEach((input) => {
+            const el = input as HTMLInputElement;
+            config[el.getAttribute("data-key") || el.name] = el.value;
+          });
+          await apiPost(`/plugins/${typeDir}/${encodedSource}/${encodedName}/config`, { config });
+        }
         await apiPost(`/plugins/${typeDir}/${encodedSource}/${encodedName}/restart`, {});
         showToast(`${pluginName} restarted`, "success");
         loadFn();
