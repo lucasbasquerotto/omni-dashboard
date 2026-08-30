@@ -526,3 +526,83 @@ describe("Threads page 'Show details' toggle + workflow details (dashboard UI po
     assert.ok(/font-weight: 700;/.test(content));
   });
 });
+
+// ── Kanban board/detail UI fixes (task_omnidev_dashboard_ui_fixes_kanban_card) ──
+
+describe("Kanban mobile overflow, keep-board on move, topmost drop, tags in details", () => {
+  it("style.css keeps kanban board/columns/cards within the page width on mobile", () => {
+    const content = readFileSync(new URL("../src/style.css", import.meta.url), "utf-8");
+    assert.ok(
+      /\.kanban-board \{\n {2}margin-top: 0;\n {2}max-width: 100%;\n {2}overflow-x: hidden;\n\}/.test(
+        content,
+      ),
+    );
+    assert.ok(/\.kanban-column \{\n {2}min-width: 0;\n {2}max-width: 100%;\n\}/.test(content));
+    assert.ok(
+      /\.kanban-task-id \{\n {2}overflow: hidden;\n {2}text-overflow: ellipsis;\n {2}white-space: nowrap;\n {2}min-width: 0;\n\}/.test(
+        content,
+      ),
+    );
+    assert.ok(
+      /\.kanban-card \{\n {2}min-width: 0;\n {2}max-width: 100%;\n {2}overflow: hidden;/.test(content),
+    );
+  });
+
+  it("kanban-board.ts loadBoard keeps the current board after a move (URL ?board= then stored board)", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+    assert.ok(/new URLSearchParams\(window\.location\.search\)\.get\("board"\)/.test(content));
+    assert.ok(/boardKey = urlBoard && urlBoard !== "" \? urlBoard : getStoredBoard\(\);/.test(content));
+  });
+
+  it("kanban-board.ts shows a success toast after moving a task (touch or drop)", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+    assert.ok(
+      /showToast\(`Task moved to \$\{STATUS_LABELS\[newStatus\] \|\| newStatus\}`, "success"\)/.test(content),
+    );
+    assert.ok(/showToast\("Failed to move task", "error"\)/.test(content));
+  });
+
+  it("kanban-board.ts cross-column drop lands the task topmost (PATCH /status without position)", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+    assert.ok(/let dragSourceColumn: string \| null = null;/.test(content));
+    assert.ok(
+      /const crossColumn = dragSourceColumn !== null && dragSourceColumn !== newStatus;/.test(content),
+    );
+    assert.ok(/await moveTask\(taskId, newStatus\);/.test(content));
+    assert.ok(/Same-column drops keep the drop position/.test(content));
+  });
+
+  it("kanban-detail.ts renders the task's tags as chips on the details page", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-detail.ts", import.meta.url), "utf-8");
+    assert.ok(/renderTagChips/.test(content));
+    assert.ok(/detail-label">Tags<\/div>/.test(content));
+    assert.ok(/grid-column:1 \/ -1;/.test(content));
+  });
+
+  it("kanban-detail.ts drops the 'Task: ' prefix from the header subtitle", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-detail.ts", import.meta.url), "utf-8");
+    assert.ok(!/Task: <span class="emphasized-title">/.test(content));
+    assert.ok(
+      /subtitle\.innerHTML = `<span class="emphasized-title">\$\{escapeHtml\(task\.title\)\}<\/span>`;/.test(
+        content,
+      ),
+    );
+  });
+
+  it("threads.ts places the Show details toggle as the 2nd field of each row", () => {
+    const content = readFileSync(new URL("../src/pages/threads.ts", import.meta.url), "utf-8");
+    // Header: Details column comes right after ID and before Status.
+    const headerIdx = content.indexOf('columnheader">Details</div>');
+    const statusHeaderIdx = content.indexOf('columnheader">Status</div>');
+    assert.ok(headerIdx !== -1 && statusHeaderIdx !== -1 && headerIdx < statusHeaderIdx);
+    // Row: the toggle button cell sits before the status badge cell.
+    const rowToggleIdx = content.indexOf('class="thread-details-toggle"');
+    const rowStatusIdx = content.indexOf("status-badge-", rowToggleIdx);
+    assert.ok(rowToggleIdx !== -1 && rowStatusIdx !== -1 && rowToggleIdx < rowStatusIdx);
+  });
+
+  it("style.css lays the threads details box fields side by side (auto-fit grid, mobile-friendly)", () => {
+    const content = readFileSync(new URL("../src/style.css", import.meta.url), "utf-8");
+    assert.ok(/grid-template-columns: repeat\(auto-fit, minmax\(130px, 1fr\)\)/.test(content));
+  });
+});
