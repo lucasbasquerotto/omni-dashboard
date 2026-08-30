@@ -350,6 +350,7 @@ async function loadThreads(): Promise<void> {
           <div role="rowgroup">
             <div class="thread-header" role="row">
               <div role="columnheader">ID</div>
+              <div role="columnheader">Details</div>
               <div role="columnheader">Status</div>
               <div role="columnheader">Channel</div>
               <div role="columnheader">Created</div>
@@ -359,7 +360,6 @@ async function loadThreads(): Promise<void> {
               <div role="columnheader" class="col-preview">Preview</div>
               <div role="columnheader" style="text-align:right">Time (ms)</div>
               <div role="columnheader" style="text-align:right">Tokens</div>
-              <div role="columnheader">Details</div>
             </div>
           </div>
           <div role="rowgroup">
@@ -448,6 +448,7 @@ function renderRow(row: ThreadRow): string {
     <div class="thread-item" data-thread-id="${escapeHtml(row.id)}">
       <a href="${url}" class="thread-row" role="row">
         <div role="cell" style="text-align:center;"><code style="font-size:0.8rem;color:var(--text-secondary);">#${escapeHtml(row.id)}</code>${row.parent_id ? `<br><div style="display:flex;flex-direction:column;align-items:center;gap:0.125rem;">${parentIdStr}</div>` : ""}</div>
+        <div role="cell"><button type="button" class="thread-details-toggle" title="Show thread details">Show details</button></div>
         <div role="cell"><div style="display:flex;flex-direction:column;align-items:center;gap:0.25rem;"><span class="badge status-badge-${row.status.toLowerCase()}" style="${statusBadgeStyle(row.status)}">${escapeHtml(row.status)}</span>${row.status === "pending" || row.status === "processing" ? `<button class="thread-stop-btn" data-thread-id="${escapeHtml(row.id)}" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#ef4444;border-radius:6px;padding:0.3rem 0.85rem;cursor:pointer;font-size:0.78rem;line-height:1.4;font-weight:500;" title="Stop this thread">Stop</button>` : ""}${mergedIntoBadge(row)}</div></div>
         <div role="cell"><span class="badge" style="${channelStyle(row.channel_closed)}"${row.channel_closed ? ' title="Channel closed"' : ""}>${escapeHtml(row.channel)}</span></div>
         <div role="cell" class="cell-timestamp">${ts}</div>
@@ -463,7 +464,6 @@ function renderRow(row: ThreadRow): string {
         <div role="cell" class="cell-preview">${preview}</div>
         <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "-"}</div>
         <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() : "-"}</div>
-        <div role="cell"><button type="button" class="thread-details-toggle" title="Show thread details">Show details</button></div>
       </a>
       <div class="thread-details">
         <div class="thread-details-box">${threadDetailsContent(row)}</div>

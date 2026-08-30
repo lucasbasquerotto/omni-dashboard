@@ -508,7 +508,7 @@ describe("Threads page 'Show details' toggle + workflow details (dashboard UI po
     const scheduleDetail = readFileSync(new URL("../src/lib/schedule-detail.ts", import.meta.url), "utf-8");
     const scheduleList = readFileSync(new URL("../src/lib/schedule-list.ts", import.meta.url), "utf-8");
     const hooksList = readFileSync(new URL("../src/lib/hooks-list.ts", import.meta.url), "utf-8");
-    assert.ok(/Task: <span class="emphasized-title">/.test(kanban));
+    assert.ok(/<span class="emphasized-title">\${escapeHtml\(task\.title\)}<\/span>/.test(kanban));
     assert.ok(/Job: <span class="emphasized-title">/.test(scheduleDetail));
     assert.ok(/<span class="emphasized-title">\$\{escapeHtml\(j\.name \|\| j\.id\)\}/.test(scheduleList));
     assert.ok(/<span class="emphasized-title">\$\{escapeHtml\(hookName\(h\)\)\}/.test(hooksList));
@@ -517,7 +517,7 @@ describe("Threads page 'Show details' toggle + workflow details (dashboard UI po
   it("style.css provides the threads grid, details box and emphasized-title styles", () => {
     const content = readFileSync(new URL("../src/style.css", import.meta.url), "utf-8");
     assert.ok(/\.data-table\.threads-table/.test(content));
-    assert.ok(/grid-template-columns: 72px 128px/.test(content));
+    assert.ok(/grid-template-columns: 72px 108px 128px/.test(content));
     assert.ok(/\.threads-table \.thread-details \{/.test(content));
     assert.ok(/\.thread-item\.open \.thread-details \{/.test(content));
     assert.ok(/\.thread-details-toggle \{/.test(content));

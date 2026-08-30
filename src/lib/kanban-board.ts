@@ -3,8 +3,9 @@
  * Extracted from src/pages/kanban.ts
  */
 import { apiGet, type KanbanBoardResponse, type KanbanTask } from "./api";
-import { boardMetaLabel, fetchBoards, setStoredBoard } from "./kanban-boards";
+import { boardMetaLabel, fetchBoards, getStoredBoard, setStoredBoard } from "./kanban-boards";
 import { formatApiError } from "../lib/helpers";
+import { showToast } from "./utils";
 
 // ── Status labels used across kanban modules ──
 export const STATUS_LABELS: Record<string, string> = {
@@ -105,15 +106,19 @@ export function tagColor(tag: string): string {
   return String(Math.abs(h) % 360);
 }
 
-function renderTaskTags(task: KanbanTask): string {
-  const tags = Array.isArray(task.tags) ? task.tags : [];
-  if (tags.length === 0) return "";
-  return `<div class="kanban-card-tags" style="margin-top:0.3rem;display:flex;flex-wrap:wrap;gap:0.2rem;">${tags
+export function renderTagChips(tags: string[]): string {
+  const list = Array.isArray(tags) ? tags : [];
+  if (list.length === 0) return "";
+  return `<div class="kanban-card-tags" style="margin-top:0.3rem;display:flex;flex-wrap:wrap;gap:0.2rem;">${list
     .map((t) => {
       const hue = tagColor(t);
       return `<span class="kanban-tag" style="display:inline-block;background:hsl(${hue},55%,24%);color:hsl(${hue},95%,80%);border:1px solid hsl(${hue},60%,42%);border-radius:10px;padding:0.05rem 0.5rem;font-size:0.68rem;font-weight:600;line-height:1.4;">${escapeHtml(t)}</span>`;
     })
     .join("")}</div>`;
+}
+
+function renderTaskTags(task: KanbanTask): string {
+  return renderTagChips(Array.isArray(task.tags) ? task.tags : []);
 }
 
 export function renderTaskCard(task: KanbanTask): string {
@@ -160,6 +165,13 @@ export async function moveTask(taskId: string, status: string): Promise<void> {
  * Handles column layout, card rendering, drag-and-drop, and touch drag.
  */
 export async function loadBoard(showArchived: boolean, boardKey: string | null = null): Promise<void> {
+  // A reload after a card move may omit the board key; stay on the current
+  // board (URL ?board= wins, then the last visited board) instead of falling
+  // back to the "choose a board" prompt.
+  if (!boardKey) {
+    const urlBoard = new URLSearchParams(window.location.search).get("board");
+    boardKey = urlBoard && urlBoard !== "" ? urlBoard : getStoredBoard();
+  }
   const boardEl = document.getElementById("kanban-board")!;
   const summaryEl = document.getElementById("kanban-summary")!;
   const countEl = document.getElementById("kanban-count")!;
@@ -331,7 +343,15 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
               document.querySelectorAll(".kanban-col-body").forEach((col) => {
                 (col as HTMLElement).style.background = "";
               });
-              void moveTask(id, newStatus).then(() => loadBoard(showArchived));
+              void moveTask(id, newStatus)
+                .then(() => {
+                  showToast(`Task moved to ${STATUS_LABELS[newStatus] || newStatus}`, "success");
+                  void loadBoard(showArchived);
+                })
+                .catch(() => {
+                  showToast("Failed to move task", "error");
+                  void loadBoard(showArchived);
+                });
               return;
             }
           }
@@ -402,12 +422,14 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: newStatus, position: insertIndex }),
           });
-          if (!res.ok) {
-            // console.error("Position move failed:", `${res.status}: ${await res.text().catch(() => "Unknown error")}`);
+          if (res.ok) {
+            showToast(`Task moved to ${STATUS_LABELS[newStatus] || newStatus}`, "success");
+          } else {
+            showToast("Failed to move task", "error");
           }
           void loadBoard(showArchived);
         } catch {
-          // console.error("Drop move failed:", err);
+          showToast("Failed to move task", "error");
           void loadBoard(showArchived);
         }
       });

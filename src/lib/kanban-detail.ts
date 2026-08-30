@@ -4,7 +4,7 @@
  */
 import { apiGet, apiPost, type Message, type ResetExecutionsResponse } from "./api";
 import { boardMoveEnabled, fetchBoards, nextBoardOptions } from "./kanban-boards";
-import { STATUS_LABELS, statusBadge, moveTask } from "./kanban-board";
+import { STATUS_LABELS, statusBadge, moveTask, renderTagChips } from "./kanban-board";
 // ── Helper imports ──
 import { escapeHtml, formatApiError } from "./helpers";
 import { taskModalHTML, wireTaskModal, openTaskModal } from "./kanban-create";
@@ -183,8 +183,7 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
 
   try {
     const task = (await apiGet("/kanban/tasks/" + encodeURIComponent(taskId))) as any;
-    if (subtitle)
-      subtitle.innerHTML = `Task: <span class="emphasized-title">${escapeHtml(task.title)}</span>`;
+    if (subtitle) subtitle.innerHTML = `<span class="emphasized-title">${escapeHtml(task.title)}</span>`;
 
     // Load channels to resolve channel name
     let channelName = "";
@@ -237,6 +236,11 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
               : ""
           }
         </div>
+        ${
+          task.tags && Array.isArray(task.tags) && task.tags.length > 0
+            ? `<div style="grid-column:1 / -1;"><div class="detail-label">Tags</div>${renderTagChips(task.tags)}</div>`
+            : ""
+        }
         <div>
           <div class="detail-label">Goal phase</div>
           <div>${
