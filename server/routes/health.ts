@@ -8,14 +8,16 @@ const __dirname = dirname(__filename);
 
 const OMNIAGENT = process.env.OMNIAGENT_URL || "http://omniagent:8080";
 
-// Fallback version: this package's own version, used only when the omniagent
-// backend cannot be reached (e.g. dashboard running standalone).
+// Fallback version: this package's own version (repo-root package.json), used only
+// when the omniagent backend cannot be reached (e.g. dashboard running standalone).
+// __dirname is server/routes (tsx) or server-dist/routes (compiled), so the repo
+// root is two levels up.
 function getPackageVersion(): string {
   try {
-    const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8"));
-    return pkg.version || "1.0.0";
+    const pkg = JSON.parse(readFileSync(join(__dirname, "..", "..", "package.json"), "utf-8"));
+    return pkg.version || "unknown";
   } catch {
-    return "1.0.0";
+    return "unknown";
   }
 }
 
