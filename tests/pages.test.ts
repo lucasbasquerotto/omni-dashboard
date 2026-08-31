@@ -551,7 +551,8 @@ describe("Kanban mobile overflow, keep-board on move, topmost drop, tags in deta
   it("kanban-board.ts loadBoard keeps the current board after a move (URL ?board= then stored board)", () => {
     const content = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
     assert.ok(/new URLSearchParams\(window\.location\.search\)\.get\("board"\)/.test(content));
-    assert.ok(/boardKey = urlBoard && urlBoard !== "" \? urlBoard : getStoredBoard\(\);/.test(content));
+    assert.ok(/function currentBoardKey\(\): string \| null/.test(content));
+    assert.ok(/urlBoard && urlBoard !== "" \? urlBoard : getStoredBoard\(\)/.test(content));
   });
 
   it("kanban-board.ts shows a success toast after moving a task (touch or drop)", () => {

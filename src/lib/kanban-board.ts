@@ -166,6 +166,34 @@ export async function moveTask(taskId: string, status: string): Promise<void> {
 // recorded on dragstart and consumed by the drop handler.
 let dragSourceColumn: string | null = null;
 
+// Drag/click coordination: after a drag interaction the browser can still
+// dispatch a click on the dragged card (Chromium for drags released without
+// crossing the drag threshold; Firefox and Safari dispatch one after every
+// dragend). That click must not be treated as an open-card click: it would
+// navigate away from the board. A drag arms a short-lived suppression window
+// that consumes the first click after it.
+let suppressClickAfterDrag = false;
+// Pointer-intent tracking for sub-threshold releases: a mousedown plus a small
+// movement that never crosses the browser's drag threshold still fires a click
+// on mouseup. Track it so that click is consumed too, while genuine clicks
+// (no movement) keep opening the task detail page.
+let mouseDragIntent = false;
+let mouseStartX = 0;
+let mouseStartY = 0;
+
+function armClickSuppression(): void {
+  suppressClickAfterDrag = true;
+  window.setTimeout(() => {
+    suppressClickAfterDrag = false;
+  }, 400);
+}
+
+/** Board key the UI is currently showing: URL ?board= wins, then the stored board. */
+function currentBoardKey(): string | null {
+  const urlBoard = new URLSearchParams(window.location.search).get("board");
+  return urlBoard && urlBoard !== "" ? urlBoard : getStoredBoard();
+}
+
 /**
  * Load and render the full kanban board into the DOM.
  * Handles column layout, card rendering, drag-and-drop, and touch drag.
@@ -174,10 +202,7 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
   // A reload after a card move may omit the board key; stay on the current
   // board (URL ?board= wins, then the last visited board) instead of falling
   // back to the "choose a board" prompt.
-  if (!boardKey) {
-    const urlBoard = new URLSearchParams(window.location.search).get("board");
-    boardKey = urlBoard && urlBoard !== "" ? urlBoard : getStoredBoard();
-  }
+  if (!boardKey) boardKey = currentBoardKey();
   const boardEl = document.getElementById("kanban-board")!;
   const summaryEl = document.getElementById("kanban-summary")!;
   const countEl = document.getElementById("kanban-count")!;
@@ -265,6 +290,14 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
     document.querySelectorAll(".kanban-card").forEach((card) => {
       (card as HTMLElement).draggable = true;
       card.addEventListener("click", (e) => {
+        // A drag that ends with a release on or near the card can surface as a
+        // click (Chromium for sub-threshold drags; Firefox/Safari after any
+        // dragend). Consume it so the board view is not left.
+        if (suppressClickAfterDrag || mouseDragIntent) {
+          suppressClickAfterDrag = false;
+          mouseDragIntent = false;
+          return;
+        }
         if ((e.target as HTMLElement).closest("button, select, input, textarea")) return;
         const taskId = card.getAttribute("data-task-id");
         if (taskId) {
@@ -280,6 +313,7 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
     let touchStartY = 0;
     let touchStartX = 0;
     let isTouchDragging = false;
+    let touchMoved = false;
 
     document.querySelectorAll(".kanban-card").forEach((card) => {
       card.addEventListener(
@@ -292,6 +326,7 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
           touchStartY = touch.clientY;
           touchDragTaskId = card.getAttribute("data-task-id");
           isTouchDragging = false;
+          touchMoved = false;
         },
         { passive: true },
       );
@@ -308,6 +343,11 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
           // Only treat as drag if horizontal movement dominates (not scroll)
           if (dist > 15 && Math.abs(dx) > Math.abs(dy) && !isTouchDragging) {
             isTouchDragging = true;
+          }
+          // Horizontal intent below the move threshold: still a drag start, so
+          // the release must not be treated as an open-card tap.
+          if (dist > 8 && Math.abs(dx) > Math.abs(dy)) {
+            touchMoved = true;
           }
           if (isTouchDragging) {
             e.preventDefault();
@@ -336,6 +376,9 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
           if (!touchDragTaskId) return;
           const te = e as TouchEvent;
           const touch = te.changedTouches[0];
+          // A touch drag (started or completed) can still surface a
+          // synthesized click; suppress it so the board view is kept.
+          if (isTouchDragging || touchMoved) armClickSuppression();
           if (isTouchDragging) {
             // Find column under the release point
             const dropEl = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -352,11 +395,11 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
               void moveTask(id, newStatus)
                 .then(() => {
                   showToast(`Task moved to ${STATUS_LABELS[newStatus] || newStatus}`, "success");
-                  void loadBoard(showArchived);
+                  void loadBoard(showArchived, currentBoardKey());
                 })
                 .catch(() => {
                   showToast("Failed to move task", "error");
-                  void loadBoard(showArchived);
+                  void loadBoard(showArchived, currentBoardKey());
                 });
               return;
             }
@@ -375,11 +418,31 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
     // ── Desktop drag-and-drop ──
     // Wire up drag start
     document.querySelectorAll(".kanban-card").forEach((card) => {
+      card.addEventListener("mousedown", (e) => {
+        if ((e.target as HTMLElement).closest("button, select, input, textarea")) return;
+        mouseStartX = (e as MouseEvent).clientX;
+        mouseStartY = (e as MouseEvent).clientY;
+        mouseDragIntent = false;
+      });
+      card.addEventListener("mousemove", (e) => {
+        if (mouseDragIntent) return;
+        const dx = (e as MouseEvent).clientX - mouseStartX;
+        const dy = (e as MouseEvent).clientY - mouseStartY;
+        if (Math.hypot(dx, dy) > 6) {
+          mouseDragIntent = true;
+          // A real drag usually produces dragstart/dragend; this timer is the
+          // safety net for releases that never cross the drag threshold.
+          window.setTimeout(() => {
+            mouseDragIntent = false;
+          }, 500);
+        }
+      });
       card.addEventListener("dragstart", (e) => {
         if ((e.target as HTMLElement).closest("button, select, input, textarea")) {
           e.preventDefault();
           return;
         }
+        armClickSuppression();
         const taskId = (e.currentTarget as HTMLElement).getAttribute("data-task-id");
         if (taskId && (e as DragEvent).dataTransfer) {
           (e as DragEvent).dataTransfer!.setData("text/plain", taskId);
@@ -392,6 +455,10 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
       });
       card.addEventListener("dragend", () => {
         dragSourceColumn = null;
+        // The drop can be followed by a click on the card (same-place drop in
+        // Chromium, every dragend in Firefox/Safari); consume it so the board
+        // is not left.
+        armClickSuppression();
       });
     });
 
@@ -422,7 +489,7 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
           if (crossColumn) {
             await moveTask(taskId, newStatus);
             showToast(`Task moved to ${STATUS_LABELS[newStatus] || newStatus}`, "success");
-            void loadBoard(showArchived);
+            void loadBoard(showArchived, currentBoardKey());
             return;
           }
 
@@ -454,10 +521,10 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
           } else {
             showToast("Failed to move task", "error");
           }
-          void loadBoard(showArchived);
+          void loadBoard(showArchived, currentBoardKey());
         } catch {
           showToast("Failed to move task", "error");
-          void loadBoard(showArchived);
+          void loadBoard(showArchived, currentBoardKey());
         }
       });
     });
