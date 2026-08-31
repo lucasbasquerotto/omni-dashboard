@@ -3550,7 +3550,6 @@ a.thread-row {
   box-shadow: var(--glass-shadow);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 180px);
 }
 
 .kanban-col-header {
@@ -3610,6 +3609,7 @@ a.thread-row {
 }
 
 .kanban-card {
+  flex-shrink: 0;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -4160,7 +4160,6 @@ a.thread-row {
   box-shadow: var(--glass-shadow);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 180px);
 }
 
 .kanban-col-header {
@@ -4220,6 +4219,7 @@ a.thread-row {
 }
 
 .kanban-card {
+  flex-shrink: 0;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;

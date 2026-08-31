@@ -544,8 +544,23 @@ describe("Kanban mobile overflow, keep-board on move, topmost drop, tags in deta
       ),
     );
     assert.ok(
-      /\.kanban-card \{\n {2}min-width: 0;\n {2}max-width: 100%;\n {2}overflow: hidden;/.test(content),
+      /\.kanban-card \{\n {2}flex-shrink: 0;\n {2}min-width: 0;\n {2}max-width: 100%;\n {2}overflow: hidden;/.test(
+        content,
+      ),
     );
+  });
+
+  it("style.css never clamps the kanban column height and never shrinks cards (Done column collapse fix)", () => {
+    const content = readFileSync(new URL("../src/style.css", import.meta.url), "utf-8");
+    // No max-height (or equivalent height clamp) may constrain the status
+    // column: cards must always render at their normal height no matter how
+    // many cards the column holds.
+    assert.ok(
+      !/\.kanban-column \{[^}]*max-height:/.test(content),
+      "kanban column must not be height-clamped",
+    );
+    // Cards are never flex-shrunk inside the column body (the sliver collapse).
+    assert.ok(/\.kanban-card \{\n {2}flex-shrink: 0;/.test(content), "kanban cards must never shrink");
   });
 
   it("kanban-board.ts loadBoard keeps the current board after a move (URL ?board= then stored board)", () => {
