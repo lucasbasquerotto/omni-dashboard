@@ -505,8 +505,19 @@ export async function loadBoard(
             return;
           }
 
-          // Same-column reorder: determine insert position from drop Y
+          // Same-column reorder: determine insert position from drop Y.
+          // The dragged card is still in the DOM at its original spot while
+          // the drag is in flight, so it must be EXCLUDED from the card list
+          // before the insertion index is computed: the backend /position
+          // endpoint interprets `position` as the final index of the moved
+          // card in the column (0-based, including itself), which equals the
+          // insertion index among the OTHER cards. Computing over the full
+          // list (dragged card included) made a same-place drop resolve one
+          // slot too far down - the strict `dropY < midY` comparison fails at
+          // the dragged card's own midpoint - so the card drifted toward the
+          // bottom of the panel instead of staying exactly where it was.
           const cards = Array.from(colBody!.querySelectorAll(".kanban-card"))
+            .filter((card) => card.getAttribute("data-task-id") !== taskId)
             .map((card) => ({
               el: card as HTMLElement,
               rect: (card as HTMLElement).getBoundingClientRect(),
