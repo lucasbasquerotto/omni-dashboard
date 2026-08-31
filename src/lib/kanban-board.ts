@@ -344,9 +344,10 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
           if (dist > 15 && Math.abs(dx) > Math.abs(dy) && !isTouchDragging) {
             isTouchDragging = true;
           }
-          // Horizontal intent below the move threshold: still a drag start, so
-          // the release must not be treated as an open-card tap.
-          if (dist > 8 && Math.abs(dx) > Math.abs(dy)) {
+          // ANY movement while touching is drag intent: the release must not
+          // be treated as an open-card tap. 2 px is a jitter tolerance so a
+          // zero-movement tap still opens the task detail page.
+          if (dist > 2) {
             touchMoved = true;
           }
           if (isTouchDragging) {
@@ -428,13 +429,8 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
         if (mouseDragIntent) return;
         const dx = (e as MouseEvent).clientX - mouseStartX;
         const dy = (e as MouseEvent).clientY - mouseStartY;
-        if (Math.hypot(dx, dy) > 6) {
+        if (Math.hypot(dx, dy) > 2) {
           mouseDragIntent = true;
-          // A real drag usually produces dragstart/dragend; this timer is the
-          // safety net for releases that never cross the drag threshold.
-          window.setTimeout(() => {
-            mouseDragIntent = false;
-          }, 500);
         }
       });
       card.addEventListener("dragstart", (e) => {

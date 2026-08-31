@@ -607,3 +607,55 @@ describe("Kanban mobile overflow, keep-board on move, topmost drop, tags in deta
     assert.ok(/grid-template-columns: repeat\(auto-fit, minmax\(130px, 1fr\)\)/.test(content));
   });
 });
+
+// ── Kanban drag micro-move keeps the board (task_omnidev_really_fix_dragging_a_kanban_card) ──
+
+describe("Kanban drag micro-move click suppression (drag keeps the selected board)", () => {
+  it("kanban-board.ts treats any >2px mousemove while pressed as drag intent", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+    // The intent threshold (2 px) must sit BELOW Chromium's native dragstart
+    // threshold (~4-5 px): a 1-4 px micro-drag never fires dragstart, so the
+    // mousemove intent is the only layer that stops its release-click from
+    // navigating away from the board.
+    const mousemoveBlock = content.slice(
+      content.indexOf('card.addEventListener("mousemove"'),
+      content.indexOf('card.addEventListener("dragstart"'),
+    );
+    assert.ok(
+      /if \(Math\.hypot\(dx, dy\) > 2\) \{[\s\S]*?mouseDragIntent = true;/.test(mousemoveBlock),
+      "mousemove intent threshold must be 2 px",
+    );
+  });
+
+  it("kanban-board.ts keeps drag intent armed until the release click is consumed", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+    // Intent must cover the whole press-release cycle: cleared by the click
+    // handler when consumed, never expired by a timer mid-hold.
+    const mousemoveBlock = content.slice(
+      content.indexOf('card.addEventListener("mousemove"'),
+      content.indexOf('card.addEventListener("dragstart"'),
+    );
+    assert.ok(
+      !/setTimeout\([\s\S]*?mouseDragIntent = false/.test(mousemoveBlock),
+      "no expiry timer may clear the intent while the button is still held",
+    );
+    // The click handler consumes and clears the flag when suppressing.
+    const clickBlock = content.slice(
+      content.indexOf('card.addEventListener("click"'),
+      content.indexOf("// ── Touch-based drag-and-drop"),
+    );
+    assert.ok(/if \(suppressClickAfterDrag \|\| mouseDragIntent\) \{/.test(clickBlock));
+    assert.ok(/suppressClickAfterDrag = false;\n\s*mouseDragIntent = false;\n\s*return;/.test(clickBlock));
+  });
+
+  it("kanban-board.ts genuine (zero-movement) clicks still open the task detail page", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+    assert.ok(/history\.pushState\(\{\}, "", `\/kanban\/\$\{taskId\}`\)/.test(content));
+  });
+
+  it("kanban-board.ts touch drags also arm click suppression for micro-moves (>2px)", () => {
+    const content = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+    assert.ok(/if \(dist > 2\) \{[\s\S]*?touchMoved = true;/.test(content));
+    assert.ok(/if \(isTouchDragging \|\| touchMoved\) armClickSuppression\(\);/.test(content));
+  });
+});
