@@ -201,3 +201,30 @@ describe("Kanban header layout: board controls below the subtitle", () => {
     );
   });
 });
+describe("Kanban drag+drop exact position (drop handler)", () => {
+  const src = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+
+  it("excludes the dragged card from the insert-index computation", () => {
+    // The dragged card is still in the DOM while the drag is in flight; computing
+    // the insertion index over the full list (dragged card included) made a
+    // same-place drop resolve one slot too far down (drift toward the bottom).
+    assert.match(
+      src,
+      /\.filter\(\(card\) => card\.getAttribute\("data-task-id"\) !== taskId\)/,
+      "drop handler must exclude the dragged card before computing the insert index",
+    );
+  });
+
+  it("computes the insert index from the actual drop Y (midpoint comparison, bottom default)", () => {
+    assert.match(src, /let insertIndex = cards\.length/, "default must be the bottom of the column");
+    assert.match(src, /if \(dropY < midY\)/, "insert index must come from the drop Y vs card midpoints");
+  });
+
+  it("sends the computed position to the /position endpoint", () => {
+    assert.match(
+      src,
+      /body: JSON\.stringify\(\{ status: newStatus, position: insertIndex \}\)/,
+      "move API must send the exact computed position",
+    );
+  });
+});
