@@ -287,23 +287,32 @@ describe("Workflows page responsive layout (small screens)", () => {
   });
 });
 
-// ── Workflow nav icon geometry: lines must connect (task_omnidev_fix_workflow_menu_icon_lines_don_t) ──
+// ── Workflow nav icon: outlined workflow diagram (square -> circle -> diamond -> circle) ──
 
-describe("Workflow nav icon geometry (index.html)", () => {
-  it("connects all three workflow nodes in the desktop and mobile icons", () => {
+describe("Workflow nav icon (index.html)", () => {
+  it("renders the outlined workflow diagram in the desktop and mobile icons", () => {
     // Both the desktop (nav-item) and mobile (mobile-nav-item) icons render the
-    // same 24x24 workflow: three r=3 circles at (6,6), (18,6), (6,18) joined by
-    // a vertical connector M6 9v6 (left node bottom -> bottom node top) and a
-    // horizontal connector M9 6h6 (left node right edge -> right node left edge).
-    // The connectors must meet the circle edges exactly (no gaps, no dangling
-    // segments) so the icon reads as one connected workflow at menu sizes.
-    const horizontals = html.match(/<path d="M9 6h6" \/>/g) ?? [];
-    assert.equal(horizontals.length, 2, "horizontal connector M9 6h6 present in both nav icons");
-    const verticals = html.match(/<path d="M6 9v6" \/>/g) ?? [];
-    assert.equal(verticals.length, 2, "vertical connector M6 9v6 present in both nav icons");
-    // The broken pre-fix geometry must be gone: the dangling arc below the left
-    // circle (M6 10h5a4 4 0 0 1 4 4v1) and the stray dot under the right circle
-    // (M18 9v.01).
+    // same 24x24 workflow diagram (mirrors icons8 id=2603): a square bottom-left,
+    // circle top-left, diamond (losangle) top-right and circle bottom-right, all
+    // outline-only (border, empty inside), joined by arrows:
+    // square -> circle (up), circle -> diamond (right), diamond -> circle (down).
+    const squares = html.match(/<rect x="2" y="16" width="6" height="6" \/>/g) ?? [];
+    assert.equal(squares.length, 2, "workflow square present in both nav icons");
+    const circles = html.match(/<circle cx="5" cy="5" r="3" \/>/g) ?? [];
+    assert.equal(circles.length, 2, "top-left circle present in both nav icons");
+    const diamonds = html.match(/<polygon points="19,1.5 22.5,5 19,8.5 15.5,5" \/>/g) ?? [];
+    assert.equal(diamonds.length, 2, "top-right diamond present in both nav icons");
+    const endCircles = html.match(/<circle cx="19" cy="19" r="3" \/>/g) ?? [];
+    assert.equal(endCircles.length, 2, "bottom-right circle present in both nav icons");
+    const upArrows = html.match(/<path d="M5 14.5v-2.7" \/>/g) ?? [];
+    assert.equal(upArrows.length, 2, "square->circle up arrow present in both nav icons");
+    const rightArrows = html.match(/<path d="M9.5 5h3.2" \/>/g) ?? [];
+    assert.equal(rightArrows.length, 2, "circle->diamond right arrow present in both nav icons");
+    const downArrows = html.match(/<path d="M19 10.5v3.2" \/>/g) ?? [];
+    assert.equal(downArrows.length, 2, "diamond->circle down arrow present in both nav icons");
+    // The old three-circle icon must be gone.
+    assert.ok(!html.includes("M6 9v6"), "no old vertical connector remains");
+    assert.ok(!html.includes("M9 6h6"), "no old horizontal connector remains");
     assert.ok(!html.includes("M6 10h5a4"), "no dangling arc path remains");
     assert.ok(!html.includes("M18 9v.01"), "no stray dot path remains");
   });
