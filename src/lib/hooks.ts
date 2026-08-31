@@ -13,7 +13,6 @@ export interface Hook {
   [key: string]: unknown;
   id: string;
   name: string;
-  display_name: string;
   event: string;
   scope: string;
   target: string | null;
@@ -40,12 +39,7 @@ export function hookField<T>(hook: Record<string, unknown>, snake: string, camel
 
 /** Human-friendly name for a hook (display_name > name > id). */
 export function hookName(hook: Record<string, unknown>): string {
-  return (
-    hookField<string>(hook, "display_name", "displayName") ||
-    hookField<string>(hook, "name", "name") ||
-    hookField<string>(hook, "id", "id") ||
-    "Unnamed hook"
-  );
+  return hookField<string>(hook, "name", "name") || hookField<string>(hook, "id", "id") || "Unnamed hook";
 }
 
 // ── Labels ──

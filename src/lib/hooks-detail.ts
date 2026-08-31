@@ -64,7 +64,6 @@ export async function showHookModal(
   const cur = {
     id: hook ? String(hookField<string>(hook, "id", "id") ?? "") : "",
     name: hook ? String(hookField<string>(hook, "name", "name") ?? "") : "",
-    display_name: hook ? String(hookField<string>(hook, "display_name", "displayName") ?? "") : "",
     event: hook ? String(hookField<string>(hook, "event", "event") ?? "thread_started") : "thread_started",
     scope: hook ? String(hookField<string>(hook, "scope", "scope") ?? "global") : "global",
     target: hook ? String(hookField<string>(hook, "target", "target") ?? "") : "",
@@ -91,16 +90,10 @@ export async function showHookModal(
       </div>
       <div style="padding:1.25rem;">
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem;margin-bottom:1rem;">
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Name (internal)</label>
-            <input id="hook-name" type="text" class="filter-input" value="${isEdit ? escapeHtml(cur.name) : ""}" ${isEdit ? "readonly" : ""} style="width:100%;${isEdit ? "opacity:0.6;" : ""}" />
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem;">${isEdit ? "Internal identifier, set at creation." : "Auto-generated from Display Name when left empty."}</div>
-          </div>
-          <div>
-            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Display Name</label>
-            <input id="hook-display" type="text" class="filter-input" value="${isEdit ? escapeHtml(cur.display_name || cur.name) : ""}" style="width:100%;" />
-          </div>
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Name <span style="color:var(--accent-rose);">*</span></label>
+          <input id="hook-name" type="text" class="filter-input" value="${isEdit ? escapeHtml(cur.name) : ""}" style="width:100%;" />
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem;">The name is the hook's identifier in the hooks section. Renaming an existing hook re-keys it.</div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem;margin-bottom:1rem;">
@@ -329,7 +322,6 @@ export async function showHookModal(
   modal.querySelector("#hook-modal-save")?.addEventListener("click", async () => {
     const saveBtn = modal.querySelector("#hook-modal-save") as HTMLButtonElement;
     const nameInput = modal.querySelector("#hook-name") as HTMLInputElement;
-    const displayInput = modal.querySelector("#hook-display") as HTMLInputElement;
     const event = (modal.querySelector("#hook-event") as HTMLSelectElement).value;
     const scope = (modal.querySelector("#hook-scope") as HTMLSelectElement).value;
     const target = (modal.querySelector("#hook-target") as HTMLInputElement).value.trim();
@@ -345,15 +337,12 @@ export async function showHookModal(
 
     // ── Validation ──
     let name = nameInput.value.trim();
-    const display_name = displayInput.value.trim();
-    if (!display_name && !name) {
-      showToast("Display Name is required", "error");
+    if (!name) {
+      showToast("Name is required", "error");
       return;
     }
-    if (isEdit) {
-      name = cur.name;
-    } else if (!name) {
-      name = display_name
+    if (!isEdit) {
+      name = name
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, "-")
         .replace(/-+/g, "-")
@@ -383,7 +372,6 @@ export async function showHookModal(
 
     const body: Record<string, unknown> = {
       name,
-      display_name: display_name || name,
       event,
       scope,
       target: scope === "global" ? "" : target,

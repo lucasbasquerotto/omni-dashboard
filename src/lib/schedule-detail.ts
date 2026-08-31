@@ -118,10 +118,6 @@ export async function loadScheduleDetail(cronId: string): Promise<any> {
             <div style="color:var(--text-primary);font-weight:500;">${escapeHtml(job.name || job.id)}</div>
           </div>
           <div style="margin-bottom:0.75rem;">
-            <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Display Name</div>
-            <div style="color:var(--text-primary);">${escapeHtml(job.display_name || job.name || job.id)}</div>
-          </div>
-          <div style="margin-bottom:0.75rem;">
             <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Schedule</div>
             <code style="background:var(--bg-card);padding:0.25rem 0.5rem;border-radius:4px;font-size:0.8rem;color:var(--accent-cyan);">${escapeHtml(job.cron)}</code>
           </div>
@@ -400,9 +396,9 @@ export async function showCronModal(
       </div>
       <div style="padding:1.25rem;">
         <div style="margin-bottom:1rem;">
-          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Display Name</label>
-          <input id="cron-display" type="text" class="filter-input" value="${isEdit ? escapeHtml((job as any).display_name || (job as any).name || "") : ""}" style="width:100%;" />
-          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">${isEdit ? "" : "The internal name is auto-generated from this value."}</div>
+          <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.375rem;">Name <span style="color:var(--accent-rose);">*</span></label>
+          <input id="cron-name" type="text" class="filter-input" value="${isEdit ? escapeHtml((job as any).name || (job as any).id || "") : ""}" style="width:100%;" />
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">The name is the job's identifier in the schedule section. Renaming an existing job re-keys it.</div>
         </div>
         <div style="margin-bottom:1rem;">
           <div style="display:flex;align-items:center;gap:0.375rem;margin-bottom:0.375rem;">
@@ -540,7 +536,7 @@ export async function showCronModal(
 
   // Save handler
   modal.querySelector("#modal-save")?.addEventListener("click", async () => {
-    const display_name = (modal.querySelector("#cron-display") as HTMLInputElement).value.trim();
+    const name = (modal.querySelector("#cron-name") as HTMLInputElement).value.trim();
     const schedule = (modal.querySelector("#cron-schedule") as HTMLInputElement).value.trim();
     const channelVal = (modal.querySelector("#cron-channel") as HTMLSelectElement).value;
     const profile = (modal.querySelector("#cron-profile") as HTMLSelectElement).value;
@@ -553,22 +549,22 @@ export async function showCronModal(
     const template = (modal.querySelector("#cron-instruction-file") as HTMLSelectElement).value;
     const channel = channelVal || null;
 
-    if (!display_name) {
-      showToast("Display Name is required", "error");
+    if (!name) {
+      showToast("Name is required", "error");
       return;
     }
-    let name: string;
+    let nameVal: string;
     if (isEdit) {
-      name = (job as any).name;
+      nameVal = name;
     } else {
-      name = display_name
+      nameVal = name
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, "-")
         .replace(/-+/g, "-")
         .replace(/^-|-$/g, "");
-      if (!name) name = "unnamed";
-      if (existingJobs.some((j: Record<string, unknown>) => j.id === name || j.name === name)) {
-        name = name + "-" + Date.now();
+      if (!nameVal) nameVal = "unnamed";
+      if (existingJobs.some((j: Record<string, unknown>) => j.id === nameVal || j.name === nameVal)) {
+        nameVal = nameVal + "-" + Date.now();
       }
     }
     if (!schedule) {
@@ -588,8 +584,7 @@ export async function showCronModal(
 
     try {
       const body: Record<string, unknown> = {
-        name,
-        display_name,
+        name: nameVal,
         schedule,
         prompt,
         active,

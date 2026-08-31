@@ -9,7 +9,6 @@ import {
   fetchHooks,
   formatHookCounter,
   formatHookDate,
-  hookField,
   hookName,
   EVENT_LABELS,
   SCOPE_LABELS,
@@ -204,12 +203,7 @@ function wireHookButtons(onStateChange?: () => void): void {
       const row = (btn as HTMLElement).closest("tr") as HTMLElement;
       const hookId = row?.getAttribute("data-hook-id");
       if (!hookId) return;
-      const name =
-        hookField<string>(
-          { display_name: row.querySelector("td")?.textContent?.trim() || "" },
-          "display_name",
-          "displayName",
-        ) || hookId;
+      const name = row.querySelector("td")?.textContent?.trim() || hookId;
       if (!confirm(`Delete hook "${name}"? This cannot be undone.`)) return;
       try {
         const res = await fetch(`/api/hooks/${encodeURIComponent(hookId)}`, { method: "DELETE" });
