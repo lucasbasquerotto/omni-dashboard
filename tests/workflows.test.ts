@@ -277,13 +277,14 @@ describe("Workflows page responsive layout (small screens)", () => {
     assert.ok(page.includes('class="wf-card-actions"'), "actions class present");
   });
 
-  it("wraps the card header and moves actions above roles on narrow viewports", () => {
+  it("wraps the card header and moves actions above roles below 900px", () => {
     assert.ok(css.includes(".wf-card .card-header"), "card header wrap rule for wf-card");
-    const mqStart = css.lastIndexOf("@media (max-width: 640px)");
-    assert.ok(mqStart !== -1, "640px media query exists");
+    const mqStart = css.lastIndexOf("@media (max-width: 899px)");
+    assert.ok(mqStart !== -1, "899px media query exists");
     const tail = css.slice(mqStart);
-    assert.ok(tail.includes(".wf-card-actions"), "actions styled inside a 640px media query");
-    assert.ok(tail.includes("width: 100%"), "actions take a full row on small screens");
+    assert.ok(tail.includes(".wf-card-actions"), "actions styled inside a 899px media query");
+    assert.ok(tail.includes("width: 100%"), "actions take a full row below 900px");
+    assert.ok(tail.includes("justify-content: flex-start"), "actions left-aligned when stacked");
   });
 });
 

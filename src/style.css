@@ -6126,17 +6126,17 @@ a.thread-task-link {
 
 /* ── Workflows page: responsive card actions ── */
 
-/* On narrow viewports the workflow card header wraps: the title/summary stay on
-   the first row and the action buttons move to a full-width row at the bottom of
-   the card, directly above the roles section (card-body). On larger screens the
-   header keeps its single-row desktop layout. */
-@media (max-width: 640px) {
+/* On viewports below 900px the workflow card header wraps: the title/summary stay
+   on the first row and the action buttons move to a full-width row at the bottom
+   of the card, directly above the roles section (card-body), left-aligned. On
+   larger screens the header keeps its single-row desktop layout. */
+@media (max-width: 899px) {
   .wf-card .card-header {
     flex-wrap: wrap;
   }
   .wf-card-actions {
     width: 100%;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 }
