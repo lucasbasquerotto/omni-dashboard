@@ -368,17 +368,6 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
       });
     });
 
-    // Wire up dep-card click handlers
-    el.querySelectorAll(".dep-card").forEach((card) => {
-      card.addEventListener("click", () => {
-        const depId = (card as HTMLElement).getAttribute("data-dep-id");
-        if (!depId) return;
-        const url = `/kanban-detail?task_id=${encodeURIComponent(depId)}`;
-        history.pushState({}, "", url);
-        void loadTaskDetail(depId);
-      });
-    });
-
     // Wire up Edit button: opens the SHARED task modal (same component as
     // Create Task) pre-filled with this task; only the submit differs (PATCH).
     const editBtn = document.getElementById("task-edit-btn");
@@ -395,10 +384,15 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
       });
     }
 
-    // ── Render dependencies table ──
-    renderDepsTable(task);
+    // ── Render dependencies (depends_on): the task detail endpoint does not
+    //    inline the dependency list, so fetch it separately. ──
+    renderDepsTable(await fetchTaskDeps(taskId));
+    wireDepRows();
     wireDepsAdd(taskId);
     wireDepsRemove(taskId);
+
+    // ── Render dependents (tasks that depend on this one) ──
+    void loadDependents(taskId);
 
     // Load activity
     void loadKanbanActivity(taskId);
@@ -407,11 +401,22 @@ export async function loadTaskDetail(taskId: string): Promise<void> {
   }
 }
 
-function renderDepsTable(task: any): void {
+/** Fetch a task's depends_on list, falling back to [] on any failure. */
+async function fetchTaskDeps(taskId: string): Promise<Record<string, unknown>[]> {
+  try {
+    const res = await apiGet<Record<string, unknown>[]>(
+      "/kanban/tasks/" + encodeURIComponent(taskId) + "/dependencies",
+    );
+    return res || [];
+  } catch {
+    return [];
+  }
+}
+
+function renderDepsTable(deps: Record<string, unknown>[]): void {
   const tbody = document.getElementById("deps-tbody");
   const countEl = document.getElementById("deps-count");
   if (!tbody) return;
-  const deps = (task.dependencies || []) as Record<string, unknown>[];
   if (countEl) countEl.textContent = `${deps.length} dependenc${deps.length === 1 ? "y" : "ies"}`;
   if (deps.length === 0) {
     tbody.innerHTML =
@@ -421,8 +426,8 @@ function renderDepsTable(task: any): void {
   tbody.innerHTML = deps
     .map(
       (dep: any) =>
-        `<tr data-dep-id="${escapeHtml(dep.depends_on_id || dep.id)}" style="border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.06));">
-          <td style="padding:0.4rem 0.5rem;"><code style="font-size:0.75rem;color:var(--accent-cyan);">${escapeHtml(dep.depends_on_id || dep.id)}</code></td>
+        `<tr class="dep-row" data-dep-id="${escapeHtml(dep.id)}" title="Open ${escapeHtml(dep.id)}" style="border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.06));cursor:pointer;">
+          <td style="padding:0.4rem 0.5rem;"><code style="font-size:0.75rem;color:var(--accent-cyan);">${escapeHtml(dep.id)}</code></td>
           <td style="padding:0.4rem 0.5rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary);">${escapeHtml(dep.title || "")}</td>
           <td style="padding:0.4rem 0.5rem;">${
             (dep as any).archived
@@ -438,6 +443,63 @@ function renderDepsTable(task: any): void {
     .join("");
 }
 
+/** Make dependency/dependent rows navigate to the linked task's details. */
+function wireDepRows(): void {
+  document.querySelectorAll(".dep-row").forEach((row) => {
+    row.addEventListener("click", () => {
+      const depId = (row as HTMLElement).getAttribute("data-dep-id");
+      if (!depId) return;
+      const url = `/kanban/${encodeURIComponent(depId)}`;
+      history.pushState({}, "", url);
+      void import("../lib/router").then(({ router }) => router.go(`kanban/${encodeURIComponent(depId)}`));
+    });
+  });
+}
+
+/**
+ * Load and render tasks that depend on this task (dependents).
+ * The API has no reverse-lookup endpoint, so this scans the flat task list
+ * and each task's dependency list in parallel. Best-effort: failures render
+ * an empty state rather than breaking the page.
+ */
+async function loadDependents(taskId: string): Promise<void> {
+  const tbody = document.getElementById("dependents-tbody");
+  const countEl = document.getElementById("dependents-count");
+  if (!tbody) return;
+  try {
+    const tasks = (await apiGet<Record<string, unknown>[]>("/kanban/tasks")) || [];
+    const withDeps = await Promise.all(
+      tasks.map(async (t) => ({ task: t, deps: await fetchTaskDeps(String(t.id)) })),
+    );
+    const dependents = withDeps
+      .filter(({ deps }) => deps.some((d) => String(d.id) === String(taskId)))
+      .map(({ task }) => task);
+    if (countEl) countEl.textContent = `${dependents.length} dependen${dependents.length === 1 ? "t" : "ts"}`;
+    if (dependents.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="3" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.8rem;">No dependents</td></tr>';
+      return;
+    }
+    tbody.innerHTML = dependents
+      .map(
+        (t: any) =>
+          `<tr class="dep-row" data-dep-id="${escapeHtml(String(t.id))}" title="Open ${escapeHtml(String(t.id))}" style="border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.06));cursor:pointer;">
+            <td style="padding:0.4rem 0.5rem;"><code style="font-size:0.75rem;color:var(--accent-cyan);">${escapeHtml(String(t.id))}</code></td>
+            <td style="padding:0.4rem 0.5rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary);">${escapeHtml(String(t.title || ""))}</td>
+            <td style="padding:0.4rem 0.5rem;">${
+              (t as any).archived
+                ? '<span class="badge badge-neutral" style="font-size:0.7rem;">Archived</span>'
+                : `<span class="badge ${statusBadge(t.status)}" style="font-size:0.7rem;">${STATUS_LABELS[t.status] || t.status}</span>`
+            }</td>
+          </tr>`,
+      )
+      .join("");
+    wireDepRows();
+  } catch {
+    tbody.innerHTML =
+      '<tr><td colspan="3" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.8rem;">Failed to load dependents</td></tr>';
+  }
+}
 function wireDepsAdd(taskId: string): void {
   const input = document.getElementById("dep-add-input") as HTMLInputElement;
   const btn = document.getElementById("dep-add-btn");
@@ -489,7 +551,9 @@ function wireDepsAdd(taskId: string): void {
 
 function wireDepsRemove(taskId: string): void {
   document.querySelectorAll(".dep-remove-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (e) => {
+      // Do not let the remove click bubble to the row's open-task handler.
+      e.stopPropagation();
       const depId = (btn as HTMLElement).getAttribute("data-dep-id");
       if (!depId) return;
       if (!confirm(`Remove dependency on "${depId}"?`)) return;
@@ -538,6 +602,7 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
         <span id="deps-count" style="font-size:0.8rem;color:var(--text-muted);"></span>
       </div>
       <div class="card-body">
+        <div class="detail-label" style="margin-bottom:0.35rem;">Depends on</div>
         <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem;line-height:1.4;">
           A dependency blocks this task from being dispatched until the dependee task is completed. Add the dependee task's ID below.
         </div>
@@ -560,6 +625,26 @@ export function renderKanbanDetail(container: HTMLElement, taskId: string): void
               <tr><td colspan="5" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.8rem;">No dependencies</td></tr>
             </tbody>
           </table>
+        </div>
+        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--glass-border,rgba(255,255,255,0.08));">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+            <span class="detail-label" style="margin:0;">Depended on by</span>
+            <span id="dependents-count" style="font-size:0.8rem;color:var(--text-muted);"></span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table id="dependents-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+              <thead>
+                <tr style="border-bottom:1px solid var(--glass-border);">
+                  <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-muted);font-weight:500;">Task ID</th>
+                  <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-muted);font-weight:500;">Preview</th>
+                  <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-muted);font-weight:500;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="dependents-tbody">
+                <tr><td colspan="3" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.8rem;">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
