@@ -10,7 +10,7 @@ describe("Kanban archived filter (show_archived)", () => {
 
   it("loadBoard filters tasks on the archived flag (not just the URL)", () => {
     assert.ok(
-      /visibleTasks\s*=\s*tasks\.filter\(\(t: KanbanTask\) =>/.test(src),
+      /const visibleTasks = tasks\s*\.filter\(\(t: KanbanTask\) =>/.test(src),
       "loadBoard should build a visibleTasks filter from the fetched list",
     );
     assert.ok(
@@ -137,5 +137,39 @@ describe("Modal latency: refcache prefetch", () => {
       /Promise\.all\(\[/.test(hook) && /cachedGet\("\/channels"\)/.test(hook),
       "hook modal parallel cachedGet",
     );
+  });
+});
+
+describe("Kanban tag filter (tag=)", () => {
+  const src = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+  const page = readFileSync(new URL("../src/pages/kanban.ts", import.meta.url), "utf-8");
+
+  it("loadBoard AND-combines the tag filter with the archived filter", () => {
+    assert.ok(
+      /\.filter\(\(t: KanbanTask\) => !tag \|\| \(Array\.isArray\(t\.tags\) && t\.tags\.includes\(tag\)\)\)/.test(
+        src,
+      ),
+      "visibleTasks must also filter by exact tag match",
+    );
+    assert.ok(
+      /\.filter\(\(t: KanbanTask\) => \(showArchived \? t\.archived === true : !t\.archived\)\)/.test(src),
+      "archived filter must stay in the chain (AND semantics)",
+    );
+  });
+
+  it("loadBoard restores the tag filter from the URL so it survives navigation", () => {
+    assert.ok(
+      /new URLSearchParams\(window\.location\.search\)\.get\("tag"\)/.test(src),
+      "tag filter is read back from the ?tag= URL param",
+    );
+    assert.ok(/const tag = tagFilter\.trim\(\)/.test(src), "tag is trimmed before matching");
+  });
+
+  it("kanban.ts exposes a tag input and a clear control wired to the URL", () => {
+    assert.ok(/kanban-tag-filter/.test(page), "tag filter input must exist");
+    assert.ok(/kanban-tag-clear/.test(page), "tag filter clear button must exist");
+    assert.ok(/params\.set\("tag", filterTag\)/.test(page), "tag state is written to the URL");
+    assert.ok(/params\.delete\("tag"\)/.test(page), "clearing the tag removes the URL param");
+    assert.ok(/filterTag = ""/.test(page), "clear control resets the page state");
   });
 });

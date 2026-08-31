@@ -198,11 +198,22 @@ function currentBoardKey(): string | null {
  * Load and render the full kanban board into the DOM.
  * Handles column layout, card rendering, drag-and-drop, and touch drag.
  */
-export async function loadBoard(showArchived: boolean, boardKey: string | null = null): Promise<void> {
+export async function loadBoard(
+  showArchived: boolean,
+  boardKey: string | null = null,
+  tagFilter?: string,
+): Promise<void> {
   // A reload after a card move may omit the board key; stay on the current
   // board (URL ?board= wins, then the last visited board) instead of falling
   // back to the "choose a board" prompt.
   if (!boardKey) boardKey = currentBoardKey();
+  // Tag filter: the page keeps it in the URL (?tag=), so a reload after a
+  // card move or a board switch preserves it automatically. A caller-provided
+  // filter wins over the URL value.
+  if (tagFilter === undefined) {
+    tagFilter = new URLSearchParams(window.location.search).get("tag") || "";
+  }
+  const tag = tagFilter.trim();
   const boardEl = document.getElementById("kanban-board")!;
   const summaryEl = document.getElementById("kanban-summary")!;
   const countEl = document.getElementById("kanban-count")!;
@@ -253,7 +264,12 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
     // Archived filter: default (Unarchived) shows ONLY non-archived tasks of
     // the chosen board; "Show archived" shows ONLY archived tasks. Filtering
     // happens here on the archived flag - not merely on the URL.
-    const visibleTasks = tasks.filter((t: KanbanTask) => (showArchived ? t.archived === true : !t.archived));
+    // Tag filter: AND-combined with the archived filter. Matching is exact
+    // (case-sensitive) against the task's tag list; an empty tag means no tag
+    // restriction, so the archived filter alone decides the shown set.
+    const visibleTasks = tasks
+      .filter((t: KanbanTask) => (showArchived ? t.archived === true : !t.archived))
+      .filter((t: KanbanTask) => !tag || (Array.isArray(t.tags) && t.tags.includes(tag)));
     const KANBAN_COLUMNS: { id: string; title: string }[] = [
       { id: "backlog", title: "Backlog" },
       { id: "todo", title: "Todo" },
@@ -272,7 +288,7 @@ export async function loadBoard(showArchived: boolean, boardKey: string | null =
     if (board.columns.length === 0 || board.total === 0) {
       boardEl.innerHTML = `<div class="empty-state">${
         showArchived ? "No archived tasks" : "No tasks yet"
-      }</div>`;
+      }${tag ? ` with tag "${escapeHtml(tag)}"` : ""}</div>`;
       countEl.textContent = "";
       return;
     }

@@ -17,6 +17,7 @@ import { enhanceSelect } from "../lib/dropdown";
 
 // ── State ──
 let showArchived = false;
+let filterTag = "";
 let currentBoard: string | null = null;
 
 // ── URL sync ──
@@ -27,6 +28,11 @@ function updateKanbanUrl(): void {
     params.set("show_archived", "true");
   } else {
     params.delete("show_archived");
+  }
+  if (filterTag) {
+    params.set("tag", filterTag);
+  } else {
+    params.delete("tag");
   }
   const qs = params.toString();
   const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
@@ -43,6 +49,15 @@ function updateArchivedButton(): void {
     btn.textContent = "Show archived";
     btn.classList.remove("showing-archived");
   }
+}
+
+/** Keep the tag filter input and clear button in sync with the page state. */
+function updateTagFilterUI(): void {
+  const input = document.getElementById("kanban-tag-filter") as HTMLInputElement | null;
+  const clear = document.getElementById("kanban-tag-clear");
+  if (!input) return;
+  if (input.value !== filterTag) input.value = filterTag;
+  if (clear) clear.style.display = filterTag ? "" : "none";
 }
 
 /**
@@ -70,6 +85,9 @@ export function renderKanban(container: HTMLElement): void {
   if (p.get("show_archived") === "true") {
     showArchived = true;
   }
+  // Restore the tag filter from the URL (?tag=) so it survives navigation.
+  const urlTag = p.get("tag");
+  if (urlTag) filterTag = urlTag;
   // Board selection: URL ?board= wins; else restore last visited (localStorage).
   const urlBoard = p.get("board");
   const storedBoard = getStoredBoard();
@@ -89,6 +107,8 @@ export function renderKanban(container: HTMLElement): void {
       <div class="kanban-summary" id="kanban-summary" style="display:flex;align-items:center;gap:0.75rem;">
         <span id="kanban-count" style="font-size:0.85rem;color:var(--text-muted);margin-right:auto;"></span>
         <span id="kanban-board-controls" style="display:inline-flex;align-items:center;gap:0.5rem;"></span>
+        <input id="kanban-tag-filter" type="text" placeholder="Filter by tag (exact match)" autocomplete="off" spellcheck="false" title="Show only tasks with this exact tag (case-sensitive)" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);color:var(--text-primary);border-radius:6px;padding:0.375rem 0.5rem;font-size:0.8rem;width:11rem;outline:none;" />
+        <button id="kanban-tag-clear" type="button" title="Clear tag filter" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.55rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;display:none;">Clear tag</button>
         <button id="toggle-archived-btn" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">Show archived</button>
         <button id="kanban-history-btn" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:var(--accent-blue);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">History</button>
         <button id="create-task-btn" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--accent-purple);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">+ Create Task</button>
@@ -120,6 +140,43 @@ export function renderKanban(container: HTMLElement): void {
     updateArchivedButton();
     void loadBoard(showArchived, currentBoard);
   });
+
+  // Tag filter: text input + clear button. The tag is committed on Enter or
+  // blur (change event) and stored in the URL (?tag=) so it survives board
+  // switches and page reloads. Matching is exact (case-sensitive) against the
+  // task's tag list and combines with the archived filter (AND semantics).
+  const tagInput = document.getElementById("kanban-tag-filter") as HTMLInputElement | null;
+  const tagClear = document.getElementById("kanban-tag-clear");
+  const applyTagFilter = (): void => {
+    const value = tagInput ? tagInput.value.trim() : "";
+    if (value === filterTag) {
+      updateTagFilterUI();
+      return;
+    }
+    filterTag = value;
+    updateKanbanUrl();
+    updateTagFilterUI();
+    void loadBoard(showArchived, currentBoard);
+  };
+  tagInput?.addEventListener("change", applyTagFilter);
+  tagInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      applyTagFilter();
+      tagInput?.blur();
+    }
+  });
+  tagInput?.addEventListener("input", () => {
+    if (tagClear) tagClear.style.display = tagInput?.value ? "" : "none";
+  });
+  tagClear?.addEventListener("click", () => {
+    if (tagInput) tagInput.value = "";
+    filterTag = "";
+    updateKanbanUrl();
+    updateTagFilterUI();
+    void loadBoard(showArchived, currentBoard);
+  });
+  updateTagFilterUI();
 
   // History button
   document.getElementById("kanban-history-btn")?.addEventListener("click", () => {
