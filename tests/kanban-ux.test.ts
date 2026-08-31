@@ -173,3 +173,31 @@ describe("Kanban tag filter (tag=)", () => {
     assert.ok(/filterTag = ""/.test(page), "clear control resets the page state");
   });
 });
+
+describe("Kanban header layout: board controls below the subtitle", () => {
+  const page = readFileSync(new URL("../src/pages/kanban.ts", import.meta.url), "utf-8");
+
+  it("orders the header: title, then subtitle, then board controls (dropdown + info line)", () => {
+    const titleIdx = page.indexOf("page-title");
+    const subIdx = page.indexOf("kanban-page-subtitle");
+    const controlsIdx = page.indexOf("kanban-board-controls");
+    const summaryIdx = page.indexOf('id="kanban-summary"');
+    assert.ok(titleIdx >= 0 && subIdx > titleIdx, "title comes before the subtitle");
+    assert.ok(controlsIdx > subIdx, "board controls must appear BELOW the subtitle");
+    assert.ok(
+      summaryIdx > controlsIdx,
+      "board controls must be OUTSIDE the summary row (moved below the subtitle)",
+    );
+  });
+
+  it("keeps the subtitle a plain heading (no embedded workflow/channel meta)", () => {
+    assert.ok(
+      /kanban-page-subtitle">Task board<\/p>/.test(page),
+      "subtitle should be plain 'Task board' text",
+    );
+    assert.ok(
+      !/sub\.textContent = meta \? `Task board \(\$\{meta\}\)`/.test(page),
+      "subtitle must not embed the board meta anymore (info line lives next to the dropdown)",
+    );
+  });
+});

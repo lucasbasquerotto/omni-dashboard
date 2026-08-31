@@ -4,13 +4,7 @@
  * and lib/kanban-create.ts (create-task modal + board/workflow fields).
  */
 import { loadBoard } from "../lib/kanban-board";
-import {
-  getStoredBoard,
-  setStoredBoard,
-  wireBoardControls,
-  fetchBoards,
-  boardMetaLabel,
-} from "../lib/kanban-boards";
+import { getStoredBoard, setStoredBoard, wireBoardControls } from "../lib/kanban-boards";
 import { taskModalHTML, wireTaskModal } from "../lib/kanban-create";
 import { prefetch } from "../lib/refcache";
 import { enhanceSelect } from "../lib/dropdown";
@@ -60,23 +54,6 @@ function updateTagFilterUI(): void {
   if (clear) clear.style.display = filterTag ? "" : "none";
 }
 
-/**
- * Show the selected board's meta near the title, e.g.
- * "Task board (workflow: omniagent-dev · channel: mm-kanban)".
- */
-async function updateBoardTitleMeta(boardKey: string | null): Promise<void> {
-  const sub = document.getElementById("kanban-page-subtitle");
-  if (!sub) return;
-  if (!boardKey) {
-    sub.textContent = "Task board";
-    return;
-  }
-  const boards = await fetchBoards();
-  const board = boards.find((b) => b.key === boardKey)?.board;
-  const meta = board ? boardMetaLabel(board) : "";
-  sub.textContent = meta ? `Task board (${meta})` : "Task board";
-}
-
 // ── Main render ──
 
 export function renderKanban(container: HTMLElement): void {
@@ -103,10 +80,10 @@ export function renderKanban(container: HTMLElement): void {
       <div>
         <h1 class="page-title">Kanban / Task board</h1>
         <p class="page-subtitle" id="kanban-page-subtitle">Task board</p>
+        <span id="kanban-board-controls" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem;margin-top:0.5rem;"></span>
       </div>
       <div class="kanban-summary" id="kanban-summary" style="display:flex;align-items:center;gap:0.75rem;">
         <span id="kanban-count" style="font-size:0.85rem;color:var(--text-muted);margin-right:auto;"></span>
-        <span id="kanban-board-controls" style="display:inline-flex;align-items:center;gap:0.5rem;"></span>
         <input id="kanban-tag-filter" type="text" placeholder="Filter by tag (exact match)" autocomplete="off" spellcheck="false" title="Show only tasks with this exact tag (case-sensitive)" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);color:var(--text-primary);border-radius:6px;padding:0.375rem 0.5rem;font-size:0.8rem;width:11rem;outline:none;" />
         <button id="kanban-tag-clear" type="button" title="Clear tag filter" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.55rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;display:none;">Clear tag</button>
         <button id="toggle-archived-btn" style="background:rgba(148,163,184,0.1);border:1px solid var(--glass-border);color:var(--text-secondary);border-radius:6px;padding:0.375rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:500;white-space:nowrap;">Show archived</button>
@@ -202,7 +179,6 @@ export function renderKanban(container: HTMLElement): void {
         const qs = params.toString();
         history.replaceState(null, "", qs ? `/kanban?${qs}` : "/kanban");
         updateArchivedButton();
-        void updateBoardTitleMeta(board);
         setupBoardControls();
         void loadBoard(showArchived, board);
       },
@@ -219,7 +195,6 @@ export function renderKanban(container: HTMLElement): void {
   // dropdown.ts) and keeps the enhancement explicit on the page path.
   const selectId = "kanban-board-select";
   enhanceSelect(selectId);
-  void updateBoardTitleMeta(currentBoard);
   void loadBoard(showArchived, currentBoard);
 }
 
