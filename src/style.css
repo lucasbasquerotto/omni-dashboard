@@ -3337,6 +3337,38 @@ a.thread-row {
   height: 14px;
 }
 
+/* Workflow badge (kanban workflow of the thread) */
+.ev-workflow-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--accent-cyan);
+  background: var(--bg-card, rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  white-space: nowrap;
+  gap: 0.25rem;
+  line-height: 1.4;
+}
+
+/* Workflow role badge (executor/tester/reviewer step of the thread) */
+.ev-workflow-role-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-family: var(--font-mono, monospace);
+  color: #e8b64c;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  white-space: nowrap;
+  gap: 0.25rem;
+  line-height: 1.4;
+}
+
 /* Agent badge */
 .agent-badge {
   display: inline-flex;

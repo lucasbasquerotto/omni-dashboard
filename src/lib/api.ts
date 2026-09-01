@@ -38,6 +38,8 @@ export interface Message {
   subtype: string | null;
   thread_status: string | null;
   iteration_number: number | null;
+  workflow?: string | null;
+  workflow_step?: string | null;
 }
 
 export interface TokenUsage {

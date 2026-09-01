@@ -26,6 +26,20 @@ function roleDisplayLabel(role: string): string {
   return role === "user" ? "cause" : role;
 }
 
+// ── Workflow role: map a kanban workflow step to its role name ──
+function workflowRole(step: string | null | undefined): string {
+  switch (step) {
+    case "running":
+      return "executor";
+    case "testing":
+      return "tester";
+    case "review":
+      return "reviewer";
+    default:
+      return step || "unknown";
+  }
+}
+
 // ── Type badge colors ──
 const TYPE_COLORS: Record<string, string> = {
   prompt: "#3b82f6",
@@ -159,6 +173,8 @@ export function renderMessageCard(msg: Message): string {
         ${msg.thread_id ? `<a href="/messages?thread_id=${encodeURIComponent(msg.thread_id)}" class="ev-thread-link" data-thread-id="${escapeHtml(msg.thread_id)}" title="Thread ID">T${escapeHtml(truncateMiddle(msg.thread_id, 12))}</a>` : ""}
         ${msg.thread_sequence !== null && msg.thread_sequence !== undefined ? `<span class="ev-seq-badge" title="Sequence">#${msg.thread_sequence}</span>` : ""}
         ${msg.iteration_number !== null && msg.iteration_number !== undefined ? `<span class="ev-iter-badge" title="LLM Iteration">⟳ ${msg.iteration_number}</span>` : ""}
+        ${msg.workflow ? `<span class="ev-workflow-badge" title="Workflow">${escapeHtml(msg.workflow)}</span>` : ""}
+        ${msg.workflow_step ? `<span class="ev-workflow-role-badge" title="Workflow role">${escapeHtml(workflowRole(msg.workflow_step))}</span>` : ""}
         ${channelStr ? `<span class="badge badge-neutral" title="Channel ID">${channelStr}</span>` : ""}
         <span class="agent-badge" title="Role: ${escapeHtml(role)}" style="--agent-color:${rColor};background:${rColor}22;border-color:${rColor}44;color:${rColor}">
           ${escapeHtml(roleDisplayLabel(role))}
