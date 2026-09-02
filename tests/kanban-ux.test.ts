@@ -81,6 +81,17 @@ describe("Shared create/edit task modal (kanban-create.ts)", () => {
     assert.ok(/submitTaskModal\(mode\)/.test(src), "submit dispatches on the mode");
     assert.ok(/_editTaskId/.test(src), "edit mode PATCHes the task id");
   });
+
+  it("submitTaskModal keeps an empty workflow selection so edit can clear to board default", () => {
+    // The workflow select value must be read with `?? undefined` (NOT `|| undefined`):
+    // the empty "(none)" option value "" must stay in the PATCH body so the server
+    // (PATCH workflow:"") clears workflow_id back to the board default.
+    assert.match(
+      src,
+      /getElementById\(`\$\{p\}-workflow`\) as HTMLSelectElement \| null\)\?\.value \?\? undefined/,
+      "workflow must be read with `?.value ?? undefined` so the empty string survives",
+    );
+  });
 });
 
 describe("Kanban detail reuses the shared task modal", () => {
