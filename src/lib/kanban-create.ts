@@ -392,7 +392,9 @@ async function submitTaskModal(mode: TaskModalMode): Promise<void> {
   const status = (document.getElementById(`${p}-status`) as HTMLSelectElement | null)?.value || "backlog";
   const template = (document.getElementById(`${p}-template`) as HTMLSelectElement | null)?.value || undefined;
   const board = (document.getElementById(`${p}-board`) as HTMLSelectElement | null)?.value || undefined;
-  const workflow = (document.getElementById(`${p}-workflow`) as HTMLSelectElement | null)?.value || undefined;
+  // Keep "" so the "(none)"/board-default option sends an empty workflow
+  // (PATCH workflow:"" clears the task workflow back to the board default).
+  const workflow = (document.getElementById(`${p}-workflow`) as HTMLSelectElement | null)?.value ?? undefined;
 
   const reqBody: Record<string, unknown> = {
     title,
