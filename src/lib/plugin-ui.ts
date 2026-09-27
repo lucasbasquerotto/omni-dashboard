@@ -246,7 +246,12 @@ export function wirePluginButtons(
         const detail = await apiGet<PluginData>(
           `/plugins/${typeDir}/${encodeURIComponent(source)}/${encodedName}`,
         );
-        if (detail && detail.source) source = String(detail.source);
+        // Only trust the detail when it really describes THIS plugin: a detail
+        // lookup can resolve a different plugin with a prefix name, and a wrong
+        // source must never be sent to DELETE.
+        if (detail && detail.source && detail.name === pluginName) {
+          source = String(detail.source);
+        }
       } catch {
         // Detail unavailable: keep the source the list reported.
       }
