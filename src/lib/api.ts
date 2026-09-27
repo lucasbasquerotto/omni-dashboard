@@ -514,7 +514,7 @@ export interface PluginData {
   pluginType: "platform" | "tool" | "provider";
   version?: string;
   source: "built-in" | "installed" | "bundled" | "remote" | "mcp_config" | "models.yml";
-  status: "enabled" | "disabled" | "error";
+  status: "enabled" | "disabled" | "error" | "not_found" | "missing_source";
   manifest: PluginManifest;
   config: PluginConfig;
   configSchema?: ConfigField[];

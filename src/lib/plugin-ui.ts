@@ -1,7 +1,7 @@
 import { showToast } from "./utils";
 // ── Shared plugin UI helpers for tools/platforms/providers pages ──
 
-import { apiDelete, apiPost, type PluginData } from "./api";
+import { apiDelete, apiGet, apiPost, type PluginData } from "./api";
 import { escapeHtml, formatApiError } from "./helpers";
 import {
   renderConfigField as renderConfigFieldV2,
@@ -24,6 +24,7 @@ export function getStatusBadgeClass(status: string, needsBuild?: boolean): strin
       return "badge badge-success";
     case "disabled":
     case "not_found":
+    case "missing_source":
       return "badge badge-neutral";
     case "error":
       return "badge badge-error";
@@ -47,6 +48,11 @@ export function renderPluginCard(
 ): string {
   const { hasTools, pluginTools, invalidTools, hasRemote, hasCompilableSource, isDuplicated } = opts;
 
+  // A YAML-only entry has no source on disk in ANY variant: it is a stale
+  // config entry (server status "missing_source"; "not_found" is the legacy
+  // label). Treated as missing-source, never as an ordinary built-in.
+  const isMissingSource = p.status === "missing_source" || p.status === "not_found";
+
   return `
     <div class="card settings-card${p.status === "disabled" ? " plugin-disabled-card" : ""}" data-plugin-name="${escapeHtml(p.name)}" data-source="${escapeHtml(p.source)}" data-plugin-type="${escapeHtml(p.pluginType)}" data-remote='${hasRemote ? escapeHtml(JSON.stringify(p.remote)) : ""}'>
       <div class="card-header" style="cursor:pointer;">
@@ -55,9 +61,9 @@ export function renderPluginCard(
           ${p.manifest?.label && p.manifest.label !== p.name ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.125rem;">${escapeHtml(p.manifest.label)}</div>` : ""}
         </span>
         <span class="tool-actions" style="display:flex;gap:0.25rem;align-items:center;">
-          <span class="badge ${getStatusBadgeClass(p.status, p.needsBuild)}">${p.needsBuild ? "○ Not Installed" : p.status === "enabled" ? "● Enabled" : p.status === "disabled" ? "○ Disabled" : p.status === "error" ? "● Error" : p.status === "not_found" ? "○ Not Found" : "○ Unknown"}</span>
+          <span class="badge ${getStatusBadgeClass(p.status, p.needsBuild)}">${p.needsBuild ? "○ Not Installed" : p.status === "enabled" ? "● Enabled" : p.status === "disabled" ? "○ Disabled" : p.status === "error" ? "● Error" : isMissingSource ? "○ No source" : p.status === "not_found" ? "○ Not Found" : "○ Unknown"}</span>
           ${isDuplicated ? `<span class="badge badge-warning" style="margin-left:0.125rem;" title="Another source is already active for this plugin name">Duplicated</span>` : ""}
-          ${!p.hasSourceCode && p.source !== "built-in" && !(p.manifest as unknown as Record<string, unknown>)?.api_mode ? `<span class="badge badge-warning" style="margin-left:0.125rem;" title="This plugin has no source code directory on disk. It exists only as a YAML config entry. Install it to fetch the source, or remove this entry if the plugin was removed.">No code</span>` : ""}
+          ${!p.hasSourceCode && (p.source !== "built-in" || isMissingSource) && !(p.manifest as unknown as Record<string, unknown>)?.api_mode ? `<span class="badge badge-warning" style="margin-left:0.125rem;" title="This plugin has no source code directory on disk. It exists only as a YAML config entry. Install it to fetch the source, or remove this entry if the plugin was removed.">No code</span>` : ""}
           ${p.isScript && !isDuplicated ? `<span class="badge badge-neutral" style="margin-left:0.125rem;">Script</span>` : ""}
           ${p.version ? `<span class="badge badge-info" style="margin-left:0.125rem;">v${escapeHtml(p.version)}</span>` : ""}
           ${p.language && p.language !== "unknown" ? `<span class="badge badge-neutral" style="margin-left:0.125rem;">${escapeHtml(p.language)}</span>` : ""}
@@ -130,7 +136,12 @@ export function renderActionButtons(
   _hasRemote?: boolean,
   _hasCompilableSource?: boolean,
 ): string {
-  const isBuiltin = p.source === "built-in";
+  // A YAML-only entry (no source on disk) is a STALE CONFIG ENTRY: it must be
+  // removable even when it declares `built-in`, because no built-in code is
+  // behind it. Before this the phantom built-in cards (cron/kanban) rendered NO
+  // buttons at all, so the operator could never remove them from the UI.
+  const isMissingSource = p.status === "missing_source" || p.status === "not_found";
+  const isBuiltin = p.source === "built-in" && !isMissingSource;
   const isInstalled = !p.needsBuild;
   const isCompilable = !p.isScript && !!p.hasSourceCode;
 
@@ -221,21 +232,38 @@ export function wirePluginButtons(
     btn.addEventListener("click", async () => {
       const card = (btn as HTMLElement).closest(".card") as HTMLElement;
       const pluginName = card?.getAttribute("data-plugin-name");
-      const source = card?.getAttribute("data-source") || "bundled";
+      let source = card?.getAttribute("data-source") || "bundled";
       const pType = card?.getAttribute("data-plugin-type") || "tool";
       if (!pluginName) return;
       const isUninstall = btn.getAttribute("title") === "Uninstall";
+      const encodedName = encodeURIComponent(pluginName);
+      const typeDir = pType + "s";
+      // Ask the DETAIL API for the plugin's real source instead of trusting the
+      // label rendered on the card. The list used to report a fabricated
+      // "bundled" for a YAML entry declared "built-in", and the DELETE then
+      // no-opped on the real entry; an unavailable detail keeps the list value.
+      try {
+        const detail = await apiGet<PluginData>(
+          `/plugins/${typeDir}/${encodeURIComponent(source)}/${encodedName}`,
+        );
+        if (detail && detail.source) source = String(detail.source);
+      } catch {
+        // Detail unavailable: keep the source the list reported.
+      }
       if (isUninstall && !confirm(`Uninstall plugin "${pluginName}"?`)) return;
       if (!isUninstall && !confirm(`Remove plugin "${pluginName}"?`)) return;
 
       try {
-        const encodedName = encodeURIComponent(pluginName);
-        const typeDir = pType + "s";
         const encodedSource = encodeURIComponent(source);
         const url = isUninstall
           ? `/plugins/${typeDir}/${encodedSource}/${encodedName}?mode=uninstall`
           : `/plugins/${typeDir}/${encodedSource}/${encodedName}`;
-        await apiDelete(url);
+        const result = await apiDelete<{ deleted?: boolean; uninstalled?: boolean }>(url);
+        // Never report a success the server did not confirm: a removal that
+        // deleted nothing must surface as an error, not as a green toast.
+        if (isUninstall ? result?.uninstalled !== true : result?.deleted !== true) {
+          throw new Error("the server reported that nothing was removed");
+        }
         showToast(isUninstall ? "Plugin uninstalled" : "Plugin removed", "success");
         loadFn();
       } catch (e) {
