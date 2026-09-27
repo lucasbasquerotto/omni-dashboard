@@ -469,7 +469,32 @@ async function loadThreads(): Promise<void> {
             const err = await res.text();
             throw new Error(err);
           }
-          showToast("Thread stopped", "success");
+          // The per-thread endpoint answers 200 with a PER-THREAD result body.
+          // Report what actually happened for THIS thread (a thread that was
+          // already terminal reports skipped: 0) instead of a blind success
+          // toast: the operator must see the real outcome of the click.
+          let payload: {
+            status?: string;
+            error?: string;
+            skipped?: number;
+            task_blocked?: boolean;
+          } = {};
+          try {
+            payload = await res.json();
+          } catch {
+            // Non-JSON body: fall through to the plain per-thread message.
+          }
+          if (payload.status === "error" || payload.error) {
+            throw new Error(payload.error || "stop-thread failed");
+          }
+          const skipped = payload.skipped ?? 0;
+          const blocked = payload.task_blocked ? ", its task moved to blocked" : "";
+          showToast(
+            skipped > 0
+              ? `Thread ${threadId} stopped${blocked}`
+              : `Thread ${threadId} was not running (nothing to stop)`,
+            skipped > 0 ? "success" : "error",
+          );
           void loadThreads();
         } catch (err) {
           showToast("Failed: " + (err instanceof Error ? err.message : "Unknown"), "error");
