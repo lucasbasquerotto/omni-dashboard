@@ -9,7 +9,7 @@ import {
   syncBooleanStatusSpans,
   configValueIsTrue,
 } from "./plugin-config";
-import { renderPluginCard, wirePluginButtons, showInstallModal } from "./plugin-ui";
+import { renderPluginCard, wirePluginButtons, showInstallModal, normalizePluginStatusFilter } from "./plugin-ui";
 import { showImportModal } from "./plugin-import";
 import { wireCopyButtons, wireToggleButtons } from "./secret-buttons";
 
@@ -99,7 +99,7 @@ function applyPluginFiltersFromUrl(): void {
   const source = p.get("source");
   if (source) currentSource = source;
   const status = p.get("status");
-  if (status) currentStatus = status;
+  if (status) currentStatus = normalizePluginStatusFilter(status);
   const name = p.get("name");
   if (name) currentName = name;
 }
@@ -150,7 +150,7 @@ export function createPluginPage(cfg: PluginPageConfig) {
             <option value="duplicated">Duplicated</option>
             <option value="not_installed">Not Installed</option>
             <option value="no_code">No code</option>
-            <option value="not_found">Not found</option>
+            <option value="missing_source">No source</option>
           </select>
         </div>
         <div class="filter-section">
@@ -302,7 +302,11 @@ async function loadPage(type: PluginPageType, cfg: PluginPageConfig, background?
 function filterPlugins(plugins: PluginData[]): PluginData[] {
   return plugins.filter((p: PluginData) => {
     if (currentSource !== "all" && p.source !== currentSource) return false;
-    if (currentStatus !== "all" && p.status !== currentStatus) return false;
+    if (
+      currentStatus !== "all" &&
+      normalizePluginStatusFilter(p.status) !== normalizePluginStatusFilter(currentStatus)
+    )
+      return false;
     if (currentName && !p.name.toLowerCase().includes(currentName.toLowerCase())) return false;
     return true;
   });
@@ -385,7 +389,7 @@ function wireFilterEvents(type: PluginPageType): void {
     void loadPage(type, PAGE_CONFIGS[type]);
   });
   document.getElementById("filter-status")?.addEventListener("change", (e) => {
-    currentStatus = (e.target as HTMLSelectElement).value;
+    currentStatus = normalizePluginStatusFilter((e.target as HTMLSelectElement).value);
     syncPluginFiltersToUrl();
     void loadPage(type, PAGE_CONFIGS[type]);
   });

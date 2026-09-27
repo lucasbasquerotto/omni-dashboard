@@ -35,6 +35,27 @@ export function getStatusBadgeClass(status: string, needsBuild?: boolean): strin
 
 // ── Card template ──
 
+/// True when a status means "discovery did not list a source for this YAML
+/// entry" rather than a real lifecycle state.
+///
+/// `missing_source` is the CURRENT label for a YAML-only entry (declared in
+/// plugins.yml, no source on disk); `not_found` is the LEGACY label older
+/// agents still emit. Lifecycle answers must never be mistaken for one of
+/// these, and both labels must drive the SAME UI treatment.
+export function isDiscoveryOnlyStatus(status: string | undefined): boolean {
+  return status === "missing_source" || status === "not_found";
+}
+
+/// Normalises a status filter label to the CURRENT server vocabulary.
+///
+/// The plugin list now reports YAML-only entries as `missing_source`; the
+/// legacy `not_found` label must resolve to the same filter value, otherwise
+/// the "No source" filter silently matches nothing
+/// (task_omnidev_phantom_plugin_entries).
+export function normalizePluginStatusFilter(value: string): string {
+  return value === "not_found" ? "missing_source" : value;
+}
+
 export function renderPluginCard(
   p: PluginData,
   opts: {
@@ -51,7 +72,7 @@ export function renderPluginCard(
   // A YAML-only entry has no source on disk in ANY variant: it is a stale
   // config entry (server status "missing_source"; "not_found" is the legacy
   // label). Treated as missing-source, never as an ordinary built-in.
-  const isMissingSource = p.status === "missing_source" || p.status === "not_found";
+  const isMissingSource = isDiscoveryOnlyStatus(p.status);
 
   return `
     <div class="card settings-card${p.status === "disabled" ? " plugin-disabled-card" : ""}" data-plugin-name="${escapeHtml(p.name)}" data-source="${escapeHtml(p.source)}" data-plugin-type="${escapeHtml(p.pluginType)}" data-remote='${hasRemote ? escapeHtml(JSON.stringify(p.remote)) : ""}'>
@@ -140,7 +161,7 @@ export function renderActionButtons(
   // removable even when it declares `built-in`, because no built-in code is
   // behind it. Before this the phantom built-in cards (cron/kanban) rendered NO
   // buttons at all, so the operator could never remove them from the UI.
-  const isMissingSource = p.status === "missing_source" || p.status === "not_found";
+  const isMissingSource = isDiscoveryOnlyStatus(p.status);
   const isBuiltin = p.source === "built-in" && !isMissingSource;
   const isInstalled = !p.needsBuild;
   const isCompilable = !p.isScript && !!p.hasSourceCode;
