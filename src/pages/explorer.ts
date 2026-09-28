@@ -9,6 +9,7 @@ import {
 } from "../lib/api";
 import { escapeHtml, formatApiError } from "../lib/helpers";
 import { renderMarkdown } from "../lib/markdown";
+import { planTreeWalk, type ExplorerTreeNode } from "../lib/explorer-tree";
 import { html as diffHtml } from "diff2html";
 import "diff2html/bundles/css/diff2html.min.css";
 
@@ -162,11 +163,7 @@ function getIcon(entry: FsEntry): string {
 
 // ── Router state ──
 
-interface TreeNode {
-  entry: FsEntry;
-  expanded: boolean;
-  children: TreeNode[] | null; // null = not yet loaded
-}
+type TreeNode = ExplorerTreeNode;
 
 let treeData: TreeNode[] | null = null;
 const expandedPaths = new Set<string>();
@@ -384,12 +381,22 @@ export function renderExplorer(container: HTMLElement): void {
     contentView.innerHTML = '<div class="loading">Loading file</div>';
   }
 
-  // Load the file tree, then check for persisted file in URL
-  void loadTree(false).then(() => {
-    const params = new URLSearchParams(location.search);
-    const filePath = params.get("file");
+  // Load the file tree, then restore the open file: the ?file= param when the
+  // URL still carries it, else the file opened earlier in this session (sidebar
+  // navigation pushes a plain /explorer URL and drops the query string).
+  void loadTree(false).then(async () => {
+    // A tree reload drops every node's children; re-fetch the ones belonging to
+    // directories that were already expanded before this (re-)mount.
+    await reloadAllExpanded();
+    const treeEl = document.getElementById("explorer-tree");
+    if (treeEl) renderTree(treeEl);
+
+    const filePath = new URLSearchParams(location.search).get("file") || lastOpenedFile;
     if (filePath) {
       void navigateToFile(filePath);
+    } else if (initialFileParam) {
+      // A file was requested but cannot be restored: never leave the loader.
+      renderContentError(initialFileParam, "The requested file could not be restored");
     }
   });
   // Load git status
@@ -578,52 +585,82 @@ async function toggleDirectory(path: string): Promise<void> {
 
 // ── Navigate to file (restore state from URL) ──
 
+/**
+ * Terminal error state for the content pane. Any path that cannot render a
+ * file must call this instead of returning while the "Loading file"
+ * placeholder is still on screen: an unbounded loader is a bug (thread 3404).
+ */
+function renderContentError(fullPath: string, message: string): void {
+  const contentView = document.getElementById("content-view");
+  if (!contentView) return;
+  contentView.innerHTML = `
+    <div class="file-header">
+      <span class="file-path">${escapeHtml(fullPath)}</span>
+    </div>
+    <div class="error-state" style="padding:3rem;text-align:center;">
+      <p>Could not open file</p>
+      <p style="font-size:0.875rem;margin-top:0.5rem;">${escapeHtml(message)}</p>
+    </div>
+  `;
+  contentView.scrollTop = 0;
+}
+
 async function navigateToFile(fullPath: string): Promise<void> {
-  const data = treeData;
-  if (!data) return;
-  const parts = fullPath.split("/").filter(Boolean);
-  if (parts.length === 0) return;
+  try {
+    // The tree may not be loaded yet (or its load failed): retry once, and if
+    // there is still no tree the content pane gets an explicit error instead of
+    // staying on the loading placeholder forever.
+    if (!treeData) {
+      await loadTree(false);
+    }
+    if (!treeData) {
+      renderContentError(fullPath, "The file tree could not be loaded");
+      return;
+    }
 
-  // Expand each directory along the path
-  let currentDir = "";
-  let currentLevel: TreeNode[] | null = data;
-
-  for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i];
-    currentDir += "/" + part;
-
-    if (!currentLevel) return;
-    const node: TreeNode | undefined = currentLevel.find((n) => n.entry.name === part);
-    if (!node) return;
-
-    // Expand if not already expanded
-    if (!node.expanded) {
-      node.expanded = true;
-      expandedPaths.add(currentDir);
-      if (node.children === null) {
+    // Walk the tree, loading (and re-planning) every directory whose children
+    // are still missing. A node can be `expanded` and still have children ===
+    // null after a tree reload: skipping that fetch used to leave the content
+    // pane stuck on "Loading file" (thread 3404).
+    let plan = planTreeWalk(treeData, fullPath);
+    const maxSteps = fullPath.split("/").filter(Boolean).length + 1;
+    for (let step = 0; plan.ok && plan.pending.length > 0 && step <= maxSteps; step++) {
+      for (const { dir, node } of plan.pending) {
         try {
           const response = await apiGet<{ entries: FsEntry[]; path: string }>(
-            `/fs/list?path=${encodeURIComponent(currentDir)}`,
+            `/fs/list?path=${encodeURIComponent(dir)}`,
           );
-          node.children = response.entries.map((e) => ({
+          node.children = response.entries.map((e: FsEntry) => ({
             entry: e,
-            expanded: false,
+            expanded: expandedPaths.has(e.path),
             children: null,
           }));
-        } catch {
+        } catch (e) {
           node.children = [];
+          renderContentError(fullPath, `Failed to load ${dir}: ${formatApiError(e)}`);
+          return;
         }
       }
+      plan = planTreeWalk(treeData, fullPath);
     }
-    currentLevel = node.children;
+    if (!plan.ok) {
+      renderContentError(fullPath, plan.reason || "The file could not be opened");
+      return;
+    }
+    for (const { dir, node } of plan.ancestors) {
+      node.expanded = true;
+      expandedPaths.add(dir);
+    }
+
+    // Re-render the fully-expanded tree
+    const treeEl = document.getElementById("explorer-tree");
+    if (treeEl) renderTree(treeEl);
+
+    // Open the file: openFile() renders the file or an explicit error state.
+    await openFile(fullPath);
+  } catch (e) {
+    renderContentError(fullPath, formatApiError(e));
   }
-
-  // Re-render the fully-expanded tree
-  const treeEl = document.getElementById("explorer-tree")!;
-  renderTree(treeEl);
-
-  // Open the file
-  void openFile(fullPath);
 }
 
 // ── File viewer ──
