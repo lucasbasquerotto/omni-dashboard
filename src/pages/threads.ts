@@ -34,6 +34,7 @@ interface ThreadRow {
   workflow_step: string | null;
   workflow: string | null;
   kanban_board: string | null;
+  toolset: string | null;
   hook_id: string | null;
 }
 
@@ -581,8 +582,9 @@ function renderRow(row: ThreadRow): string {
 
 /**
  * Details box content for a thread row: Cause, Type, Subtype, Plan Mode,
- * plus kanban board / workflow / workflow role for kanban-originated threads
- * and a task link for kanban / hook / cron threads.
+ * Toolset (the resolved toolset id stored on the thread), plus kanban board /
+ * workflow / workflow role for kanban-originated threads and a task link for
+ * kanban / hook / cron threads.
  */
 function threadDetailsContent(row: ThreadRow): string {
   const causeCol = causeColor(row.cause);
@@ -603,6 +605,7 @@ function threadDetailsContent(row: ThreadRow): string {
     <div class="thread-detail-item"><span class="thread-detail-label">Type</span><span class="thread-detail-value">${typeStr === "-" ? typeStr : `<span class="event-type-badge" title="Type: ${typeStr}" style="--type-color:${seq0TypeColor(row.cause_msg_type || "")};background:${seq0TypeColor(row.cause_msg_type || "")}22;border-color:${seq0TypeColor(row.cause_msg_type || "")}44;color:${seq0TypeColor(row.cause_msg_type || "")}">${typeStr}</span>`}</span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Subtype</span><span class="thread-detail-value">${subtypeStr}</span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Plan Mode</span><span class="thread-detail-value"><span class="badge" style="--type-color:${pmCol};background:${pmCol}22;border-color:${pmCol}44;color:${pmCol}">${row.plan ? "On" : "Off"}</span></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Toolset</span><span class="thread-detail-value">${row.toolset ? `<code style="font-size:0.8rem;">${escapeHtml(row.toolset)}</code>` : "<em>none (default toolset)</em>"}</span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Tokens (total input)</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.input_tokens)}</code></span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Cache hit (cached input)</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.cached_tokens)}</code></span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Cache miss (non-cached input)</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(Math.max((row.input_tokens || 0) - (row.cached_tokens || 0), 0))}</code></span></div>
