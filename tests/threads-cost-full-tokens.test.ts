@@ -38,11 +38,37 @@ describe("Threads page: cost after tokens and the full_* aggregates", () => {
     assert.ok(costCell > tokensCell, "cost cell follows the tokens cell");
   });
 
-  it("shows the aggregate total on a second line only when it differs from the bare total", () => {
+  it("shows the aggregate total on a second line only when a REAL aggregate differs from the bare total", () => {
     assert.ok(threadsSrc.includes("const fullTokens = fullInput + (row.full_output_tokens || 0);"), "full total = full input + full output");
-    assert.ok(threadsSrc.includes("fullTokens !== tokens"), "sub-line is guarded on the aggregate differing from the bare total");
+    // The guard must require a real aggregate (> 0) AND a difference from the
+    // bare total: a legacy row whose full_* columns are NULL/0 (threads that
+    // ended before the usage aggregates shipped) must render NO sub-line, not a
+    // literal "0" under a non-zero bare count (review thread 3836).
+    assert.ok(
+      threadsSrc.includes("fullTokens > 0 && fullTokens !== tokens"),
+      "sub-line is guarded on a real aggregate differing from the bare total",
+    );
+    assert.ok(
+      !/const fullLine =\s*\n\s*fullTokens !== tokens\n/.test(threadsSrc),
+      "the unguarded comparison (which printed a literal '0' for legacy rows) is gone",
+    );
     assert.ok(threadsSrc.includes('title="Full tokens (all usage entries)"'), "sub-line carries a human-readable title");
     assert.ok(!threadsSrc.includes('<div role="columnheader" style="text-align:right" title="Full tokens'), "no extra column for full_tokens");
+  });
+
+  it("evaluates the sub-line guard read from the source: legacy rows none, real aggregates yes", () => {
+    const guardMatch = threadsSrc.match(/const fullLine =\s*\n\s*([\s\S]*?)\n\s*\?/);
+    assert.ok(guardMatch, "fullLine guard expression found in the source");
+    const evaluate = new Function("fullTokens", "tokens", `return (${guardMatch![1]});`) as (
+      fullTokens: number,
+      tokens: number,
+    ) => boolean;
+    // Legacy row: bare total > 0 but the full_* columns are NULL/0 -> NO sub-line.
+    assert.equal(evaluate(0, 1200), false, "legacy row (no aggregate) renders no sub-line");
+    assert.equal(evaluate(0, 0), false, "empty row renders no sub-line");
+    // Real aggregate row (full > bare) -> sub-line; equal totals stay hidden.
+    assert.equal(evaluate(5000, 1200), true, "real aggregate differing from the bare total renders the sub-line");
+    assert.equal(evaluate(1200, 1200), false, "equal aggregate and bare total render no sub-line");
   });
 
   it("formats the aggregate cache percent like the omniagent token display (cached / input)", () => {

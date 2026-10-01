@@ -567,8 +567,13 @@ function renderRow(row: ThreadRow): string {
     fullInput > 0 && (row.full_cached_tokens || 0) > 0
       ? Math.min(100, Math.round(((row.full_cached_tokens || 0) / fullInput) * 100))
       : null;
+  // Only emit the sub-line when a REAL aggregate exists (full totals > 0) and
+  // it differs from the bare total. Legacy threads that ended before the usage
+  // aggregates shipped carry NULL/0 full_* columns: for them a missing
+  // aggregate is not an aggregate of zero, so the page must not print a
+  // literal "0" under a non-zero bare count (review thread 3836).
   const fullLine =
-    fullTokens !== tokens
+    fullTokens > 0 && fullTokens !== tokens
       ? `<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.3;" title="Full tokens (all usage entries)">${fullTokens.toLocaleString()}${fullCachePct !== null ? ` (${fullCachePct}%)` : ""}</div>`
       : "";
   const parentIdStr = row.parent_id
