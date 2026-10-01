@@ -78,6 +78,8 @@ function parsePaging(body: { page?: unknown; pageSize?: unknown }): {
 interface CoreDbResponse {
   success?: boolean;
   rows?: Record<string, unknown>[];
+  /** Result columns in STATEMENT order (core: sqlx `Row::columns()`). */
+  columns?: string[];
   row_count?: number;
   tables?: Record<string, unknown>[];
   count?: number;
@@ -116,14 +118,40 @@ async function coreDbRequest(path: string, init?: RequestInit): Promise<CoreDbRe
   return body;
 }
 
-/** Run one read-only statement through the core DB API and return its rows. */
-async function runCoreQuery(sql: string): Promise<Record<string, unknown>[]> {
+interface CoreQueryPage {
+  rows: Record<string, unknown>[];
+  /** Columns in the SELECT statement's order (never alphabetical key order). */
+  columns: string[];
+}
+
+/**
+ * Run one read-only statement through the core DB API and return its rows AND
+ * its columns in STATEMENT order.
+ *
+ * The core returns `columns` derived from sqlx `Row::columns()`, i.e. exactly
+ * the order the columns were written in the SELECT. The JSON row objects
+ * themselves serialize their keys ALPHABETICALLY (serde_json sorts object
+ * keys), so `Object.keys(rows[0])` must NEVER drive the result table headers
+ * (that was the alphabetical-ordering bug). The Object.keys form is kept only
+ * as a fallback for a core that does not send `columns` yet.
+ */
+async function runCoreQueryPage(sql: string): Promise<CoreQueryPage> {
   const body = await coreDbRequest("/db/query", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ sql }),
   });
-  return Array.isArray(body.rows) ? body.rows : [];
+  const rows = Array.isArray(body.rows) ? body.rows : [];
+  const coreColumns = Array.isArray(body.columns)
+    ? body.columns.filter((c): c is string => typeof c === "string")
+    : [];
+  const columns = coreColumns.length > 0 ? coreColumns : Object.keys(rows[0] ?? {});
+  return { rows, columns };
+}
+
+/** Run one read-only statement through the core DB API and return its rows. */
+async function runCoreQuery(sql: string): Promise<Record<string, unknown>[]> {
+  return (await runCoreQueryPage(sql)).rows;
 }
 
 /** Public-schema table list straight from the core DB API (no plugin needed). */
@@ -232,9 +260,14 @@ router.post("/query", async (req: Request, res: Response) => {
     // contains LIMIT inside a subquery or string literal).
     const countSql = `SELECT count(*)::bigint AS total FROM (${countBaseSql}) AS sub`;
 
-    const [dataRows, countRows] = await Promise.all([runCoreQuery(execSql), runCoreQuery(countSql)]);
+    const [dataPage, countRows] = await Promise.all([
+      runCoreQueryPage(execSql),
+      runCoreQuery(countSql),
+    ]);
 
-    const columns = dataRows.length > 0 ? Object.keys(dataRows[0]) : [];
+    // Columns come from the statement order (the core's `columns`), never from
+    // the row objects' alphabetically sorted keys.
+    const { rows: dataRows, columns } = dataPage;
     const total = Number(countRows[0]?.total ?? 0) || 0;
 
     res.json({ columns, rows: dataRows, total, sql: execSql });

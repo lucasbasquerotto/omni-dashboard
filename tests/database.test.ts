@@ -2,6 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+const dbRoute = readFileSync(new URL("../server/routes/db.ts", import.meta.url), "utf-8");
+
 // ── Database page (src/pages/database.ts + src/style.css) ──
 // Regression tests for: hidden-override (Loading… always visible), pagination
 // placement for 0-row results, and the Run button not looking like a button.
@@ -163,5 +165,36 @@ describe("Database page: Show full texts checkbox", () => {
       css.includes(".db-full-texts-label {\n  margin-top: 0.75rem;"),
       "label has spacing below the SQL box",
     );
+  });
+});
+
+// ── Result columns must follow the SELECT order, never alphabetical keys ──
+// serde_json serializes object keys alphabetically, so Object.keys(row) is the
+// WRONG source for the result table headers: the core now returns the columns
+// in statement order (sqlx Row::columns()) and the proxy must use them.
+
+describe("Database page: result columns follow the SELECT order", () => {
+  it("proxy takes the header order from the core-provided columns array", () => {
+    assert.ok(
+      dbRoute.includes("const coreColumns = Array.isArray(body.columns)"),
+      "the proxy reads the core `columns` array",
+    );
+    assert.ok(
+      dbRoute.includes("const columns = coreColumns.length > 0 ? coreColumns : Object.keys(rows[0] ?? {});"),
+      "core columns win; Object.keys is only a fallback for an older core",
+    );
+    assert.ok(
+      /const \{ rows: dataRows, columns \} = dataPage;/.test(dbRoute),
+      "/api/db/query answers with the statement-order columns",
+    );
+    assert.ok(
+      !dbRoute.includes("Object.keys(dataRows[0])"),
+      "the alphabetical Object.keys(dataRows[0]) header source is gone",
+    );
+  });
+
+  it("frontend renders headers and cells strictly in res.columns order", () => {
+    assert.ok(page.includes("thead.innerHTML = res.columns"), "the headers map over res.columns");
+    assert.ok(page.includes("const tds = res.columns"), "the cells map over res.columns");
   });
 });
