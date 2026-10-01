@@ -15,6 +15,13 @@ interface ThreadRow {
   input_tokens: number;
   cached_tokens: number;
   output_tokens: number;
+  /** Aggregate over the thread's usage entries (threads.full_*). */
+  full_input_tokens: number | null;
+  full_cached_tokens: number | null;
+  full_output_tokens: number | null;
+  full_reasoning_tokens: number | null;
+  /** Sum of the usage-array cost items, in USD. */
+  cost: number | null;
   duration_ms: number | null;
   created_at: string;
   started_at: string | null;
@@ -442,6 +449,7 @@ async function loadThreads(): Promise<void> {
               <div role="columnheader" class="col-preview">Preview</div>
               <div role="columnheader" style="text-align:right">Time (ms)</div>
               <div role="columnheader" style="text-align:right">Tokens</div>
+              <div role="columnheader" style="text-align:right" title="Cost of the thread's LLM usage (USD)">Cost</div>
             </div>
           </div>
           <div role="rowgroup">
@@ -546,6 +554,23 @@ function renderRow(row: ThreadRow): string {
     (row.input_tokens || 0) > 0 && (row.cached_tokens || 0) > 0
       ? Math.min(100, Math.round(((row.cached_tokens || 0) / (row.input_tokens || 0)) * 100))
       : null;
+  // Aggregate over the thread's usage entries (threads.full_*): the bare
+  // `tokens` above is the omniagent's own recorded total, `full_tokens` sums
+  // every usage entry (including the ones sub-agents / tools report). When the
+  // two differ, the aggregate is shown on a line BELOW the bare value, with
+  // its cache share in parentheses, mirroring the omniagent token display
+  // (operator request, thread 3734). No extra column: the second line lives
+  // inside the existing Tokens cell.
+  const fullInput = row.full_input_tokens || 0;
+  const fullTokens = fullInput + (row.full_output_tokens || 0);
+  const fullCachePct =
+    fullInput > 0 && (row.full_cached_tokens || 0) > 0
+      ? Math.min(100, Math.round(((row.full_cached_tokens || 0) / fullInput) * 100))
+      : null;
+  const fullLine =
+    fullTokens !== tokens
+      ? `<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.3;" title="Full tokens (all usage entries)">${fullTokens.toLocaleString()}${fullCachePct !== null ? ` (${fullCachePct}%)` : ""}</div>`
+      : "";
   const parentIdStr = row.parent_id
     ? `<span class="event-type-badge" title="Parent ID: ${escapeHtml(String(row.parent_id))}" style="--type-color:#64748b;background:rgba(100,116,139,0.12);border-color:rgba(100,116,139,0.25);color:#94a3b8;font-size:0.7rem;display:inline-flex;flex-direction:column;align-items:center;line-height:1.3;"><span style="font-size:0.65rem;opacity:0.7;">Parent:</span><span style="font-weight:600;">#${escapeHtml(String(row.parent_id))}</span></span>`
     : "";
@@ -571,7 +596,8 @@ function renderRow(row: ThreadRow): string {
         <div role="cell" class="cell-num">${row.iterations}</div>
         <div role="cell" class="cell-preview">${preview}</div>
         <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "-"}</div>
-        <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() + (cachePct !== null ? ` (${cachePct}%)` : "") : "-"}</div>
+        <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() + (cachePct !== null ? ` (${cachePct}%)` : "") : "-"}${fullLine}</div>
+        <div role="cell" class="cell-num" title="Cost (USD)">${fmtCost(row.cost)}</div>
       </a>
       <div class="thread-details">
         <div class="thread-details-box">${threadDetailsContent(row)}</div>
@@ -610,6 +636,11 @@ function threadDetailsContent(row: ThreadRow): string {
     <div class="thread-detail-item"><span class="thread-detail-label">Cache hit (cached input)</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.cached_tokens)}</code></span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Cache miss (non-cached input)</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(Math.max((row.input_tokens || 0) - (row.cached_tokens || 0), 0))}</code></span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Output tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.output_tokens)}</code></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Full input tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_input_tokens)}</code></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Full cached tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_cached_tokens)}</code></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Full output tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_output_tokens)}</code></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Full reasoning tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_reasoning_tokens)}</code></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Cost</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtCost(row.cost)}</code></span></div>
     ${kanbanExtra}
     ${taskLink ? `<div class="thread-detail-item"><span class="thread-detail-label">Task</span><span class="thread-detail-value">${taskLink}</span></div>` : ""}
   `;
@@ -672,6 +703,12 @@ function seq0TypeColor(type: string): string {
 function fmtTokens(n: number | null | undefined): string {
   const v = typeof n === "number" && n > 0 ? n : 0;
   return v > 0 ? v.toLocaleString() : "-";
+}
+
+/** Cost of the thread's usage in USD (sum of the usage entries' cost). */
+function fmtCost(n: number | null | undefined): string {
+  if (typeof n !== "number" || !Number.isFinite(n)) return "-";
+  return `$${n.toFixed(4)}`;
 }
 
 function formatRelativeTime(date: Date): string {

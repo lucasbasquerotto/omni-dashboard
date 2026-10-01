@@ -6211,7 +6211,7 @@ a.thread-row {
   display: grid;
   grid-template-columns:
     72px 108px 128px minmax(90px, 0.9fr) 108px minmax(100px, 1fr) 56px 76px minmax(140px, 1.6fr)
-    68px 78px;
+    68px 78px 72px;
 }
 .threads-table [role="rowgroup"],
 .threads-table [role="row"],
