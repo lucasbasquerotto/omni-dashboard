@@ -561,11 +561,20 @@ function renderRow(row: ThreadRow): string {
   // its cache share in parentheses, mirroring the omniagent token display
   // (operator request, thread 3734). No extra column: the second line lives
   // inside the existing Tokens cell.
+  const fullCached = row.full_cached_tokens || 0;
   const fullInput = row.full_input_tokens || 0;
   const fullTokens = fullInput + (row.full_output_tokens || 0);
+  // Cache share = cached input / TOTAL input, the SAME denominator shape the
+  // bare line above uses (cached / input_tokens). The threads full_* columns
+  // are DISJOINT parts: full_input_tokens is the fresh / non-cached input and
+  // full_cached_tokens is the cached input, so dividing by full_input_tokens
+  // alone gave 283% for dev thread 3899 and Math.min(100, ...) clamped it to a
+  // flat 100% (operator report, thread 3899). Derive the total here, in the
+  // page: no DB column (display-only).
+  const fullTotalInput = fullCached + fullInput;
   const fullCachePct =
-    fullInput > 0 && (row.full_cached_tokens || 0) > 0
-      ? Math.min(100, Math.round(((row.full_cached_tokens || 0) / fullInput) * 100))
+    fullTotalInput > 0 && fullCached > 0
+      ? Math.min(100, Math.round((fullCached / fullTotalInput) * 100))
       : null;
   // Only emit the sub-line when a REAL aggregate exists (full totals > 0) and
   // it differs from the bare total. Legacy threads that ended before the usage
@@ -623,6 +632,8 @@ function threadDetailsContent(row: ThreadRow): string {
   const typeStr = row.cause_msg_type ? escapeHtml(row.cause_msg_type) : "-";
   const subtypeStr = row.cause_msg_subtype ? escapeHtml(row.cause_msg_subtype) : "-";
 
+  const fullTotalInput = (row.full_cached_tokens || 0) + (row.full_input_tokens || 0);
+
   const kanbanExtra = row.task_id
     ? `<div class="thread-detail-item"><span class="thread-detail-label">Kanban board</span><span class="thread-detail-value">${row.kanban_board ? escapeHtml(row.kanban_board) : "<em>None</em>"}</span></div>
       <div class="thread-detail-item"><span class="thread-detail-label">Workflow</span><span class="thread-detail-value">${row.workflow ? `<code style="font-size:0.8rem;">${escapeHtml(row.workflow)}</code>` : "<em>None</em>"}</span></div>
@@ -641,8 +652,9 @@ function threadDetailsContent(row: ThreadRow): string {
     <div class="thread-detail-item"><span class="thread-detail-label">Cache hit (cached input)</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.cached_tokens)}</code></span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Cache miss (non-cached input)</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(Math.max((row.input_tokens || 0) - (row.cached_tokens || 0), 0))}</code></span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Output tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.output_tokens)}</code></span></div>
-    <div class="thread-detail-item"><span class="thread-detail-label">Full input tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_input_tokens)}</code></span></div>
-    <div class="thread-detail-item"><span class="thread-detail-label">Full cached tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_cached_tokens)}</code></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Full total input</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(fullTotalInput > 0 ? fullTotalInput : null)}</code></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Full cache hit (cached input)</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_cached_tokens)}</code></span></div>
+    <div class="thread-detail-item"><span class="thread-detail-label">Full cache miss (non-cached input)</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_input_tokens)}</code></span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Full output tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_output_tokens)}</code></span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Full reasoning tokens</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtTokens(row.full_reasoning_tokens)}</code></span></div>
     <div class="thread-detail-item"><span class="thread-detail-label">Cost</span><span class="thread-detail-value"><code style="font-size:0.8rem;">${fmtCost(row.cost)}</code></span></div>
