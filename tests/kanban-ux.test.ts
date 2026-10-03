@@ -338,3 +338,54 @@ describe("Kanban header board controls are always rendered", () => {
     assert.match(boards, /const \{ boards, error \} = await fetchBoardsResult\(\)/);
   });
 });
+
+describe("Kanban `released` status (manual-only parking column after Done)", () => {
+  const src = readFileSync(new URL("../src/lib/kanban-board.ts", import.meta.url), "utf-8");
+  const createSrc = readFileSync(new URL("../src/lib/kanban-create.ts", import.meta.url), "utf-8");
+
+  it("declares the released label/badge and renders the column AFTER done", () => {
+    assert.ok(src.includes('released: "Released"'), "STATUS_LABELS has Released");
+    assert.ok(src.includes('released: "badge-teal"'), "statusBadge maps released");
+    const doneIdx = src.indexOf('{ id: "done", title: "Done" }');
+    const releasedIdx = src.indexOf('{ id: "released", title: "Released" }');
+    assert.ok(doneIdx >= 0, "the Done column still exists");
+    assert.ok(releasedIdx > doneIdx, "the Released column comes AFTER Done");
+  });
+
+  it("offers released in the create/edit modal status select", () => {
+    assert.ok(
+      createSrc.includes('<option value="released">Released</option>'),
+      "the status select lists released",
+    );
+  });
+
+  it("renders each task card as a real anchor to the task details route", () => {
+    assert.ok(
+      src.includes(
+        '<a class="kanban-card" href="${href}" data-task-id="${escapeHtml(task.id)}" draggable="false">',
+      ),
+      "the card is an <a href> with the native link drag suppressed",
+    );
+    assert.ok(
+      src.includes("const href = `/kanban/${encodeURIComponent(task.id)}`;"),
+      "href points at the existing task details route",
+    );
+  });
+
+  it("lets modifier/middle clicks use native new-tab semantics, consumes plain clicks", () => {
+    assert.ok(
+      src.includes("if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;"),
+      "Ctrl/Cmd/Shift + click and middle-click reach the anchor",
+    );
+    assert.ok(src.includes("e.preventDefault();"), "the plain click is consumed by the SPA router");
+  });
+
+  it("keeps drag & drop wired on the card (drag & drop must not regress)", () => {
+    assert.ok(src.includes("(card as HTMLElement).draggable = true;"), "the card stays draggable");
+    assert.ok(src.includes('card.addEventListener("dragstart"'), "dragstart handler still wired");
+    assert.ok(
+      src.includes('dataTransfer!.setData("text/plain", taskId)'),
+      "the dragged payload is still the task id",
+    );
+  });
+});

@@ -559,6 +559,8 @@ function kanbanBadgeClass(statusId: string): string {
       return "badge-blue";
     case "done":
       return "badge-success";
+    case "released":
+      return "badge-teal";
     case "blocked":
       return "badge-error";
     default:

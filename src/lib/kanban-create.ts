@@ -251,6 +251,7 @@ export function taskModalHTML(mode: TaskModalMode): string {
                   <option value="review">Review</option>
                   <option value="blocked">Blocked</option>
                   <option value="done">Done</option>
+                  <option value="released">Released</option>
                 </select>
               </div>
               <div>

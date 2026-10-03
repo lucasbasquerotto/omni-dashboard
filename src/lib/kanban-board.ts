@@ -22,6 +22,9 @@ export const STATUS_LABELS: Record<string, string> = {
   review: "Review",
   done: "Done",
   blocked: "Blocked",
+  // Manual-only parking column AFTER `done` (nothing auto-moves a task in or
+  // out of it, no thread ever runs in it - see the omniagent dispatcher).
+  released: "Released",
 };
 
 // ── Column color classes ──
@@ -34,6 +37,7 @@ function columnColorClass(id: string): string {
     review: "kanban-col-sky",
     done: "kanban-col-emerald",
     blocked: "kanban-col-rose",
+    released: "kanban-col-teal",
   };
   return map[id] || "kanban-col-neutral";
 }
@@ -48,6 +52,7 @@ export function statusBadge(status: string): string {
     review: "badge-blue",
     done: "badge-success",
     blocked: "badge-error",
+    released: "badge-teal",
   };
   return map[status] || "badge-neutral";
 }
@@ -240,9 +245,18 @@ export function renderTaskCard(task: KanbanTask): string {
         ? "kanban-priority-med"
         : "kanban-priority-low";
   const timeAgo = formatRelativeTime(task.created_at);
+  // The card IS a real anchor to the task details route (`/kanban/<id>`), so
+  // the browser's native link semantics apply: middle-click and Ctrl/Cmd+click
+  // open the details page in a new tab, the context menu offers "open in new
+  // tab", the target URL shows on hover. The `draggable="false"` attribute
+  // suppresses the native LINK drag (which would put the URL, not the task id,
+  // on the dataTransfer); the board wires the card's own drag-and-drop via
+  // `card.draggable = true` in loadBoard, so press-and-drag still drags the
+  // card exactly as before.
+  const href = `/kanban/${encodeURIComponent(task.id)}`;
 
   return `
-    <div class="kanban-card" data-task-id="${task.id}">
+    <a class="kanban-card" href="${href}" data-task-id="${escapeHtml(task.id)}" draggable="false">
       <div class="kanban-card-top">
         <span class="kanban-priority ${priorityClass}">${priorityLabel}</span>
         <span class="kanban-task-id" style="font-size:0.7rem;color:var(--text-muted);font-family:monospace;">${task.display_id || task.id}</span>
@@ -254,7 +268,7 @@ export function renderTaskCard(task: KanbanTask): string {
         ${task.assignee ? `<span class="kanban-assignee">@${escapeHtml(task.assignee)}</span>` : ""}
         <span class="kanban-time">${timeAgo}</span>
       </div>
-    </div>
+    </a>
   `;
 }
 
@@ -396,6 +410,8 @@ export async function loadBoard(
       { id: "review", title: "Review" },
       { id: "blocked", title: "Blocked" },
       { id: "done", title: "Done" },
+      // Manual-only parking column AFTER `done` (after-done holding area).
+      { id: "released", title: "Released" },
     ];
     const columns = KANBAN_COLUMNS.map((col) => ({
       id: col.id,
@@ -444,8 +460,16 @@ export async function loadBoard(
           return;
         }
         if ((e.target as HTMLElement).closest("button, select, input, textarea")) return;
+        // Modifier / non-primary clicks belong to the BROWSER: the card is a
+        // real <a>, so Ctrl/Cmd/Shift+click and middle-click must fall through
+        // to the native behavior (new tab / new window) instead of the SPA
+        // navigation below.
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
         const taskId = card.getAttribute("data-task-id");
         if (taskId) {
+          // The anchor has a real href: consume the plain click and let the
+          // SPA router handle it, so it does not also do a full page load.
+          e.preventDefault();
           history.pushState({}, "", `/kanban/${taskId}`);
           // Dynamic import to avoid circular dependency
           void import("../lib/router").then(({ router }) => router.go(`kanban/${taskId}`));

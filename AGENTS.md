@@ -278,6 +278,7 @@ All filter controls use these classes: never raw `<input>` with inline styles:
 | `running` | `kanban-col-cyan` / `badge-cyan`       | Cyan          |
 | `review`  | `kanban-col-sky` / `badge-blue`        | Blue          |
 | `done`    | `kanban-col-emerald` / `badge-success` | Green/emerald |
+| `released` | `kanban-col-teal` / `badge-teal`      | Teal (manual-only parking column AFTER `done`; no workflow role, no thread ever runs in it, reached only by an explicit manual move and never left automatically) |
 | `blocked` | `kanban-col-rose` / `badge-error`      | Rose/red      |
 
 ---
