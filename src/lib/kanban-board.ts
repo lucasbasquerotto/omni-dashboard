@@ -464,7 +464,8 @@ export async function loadBoard(
         // real <a>, so Ctrl/Cmd/Shift+click and middle-click must fall through
         // to the native behavior (new tab / new window) instead of the SPA
         // navigation below.
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        const me = e as MouseEvent;
+        if (me.metaKey || me.ctrlKey || me.shiftKey || me.altKey || me.button !== 0) return;
         const taskId = card.getAttribute("data-task-id");
         if (taskId) {
           // The anchor has a real href: consume the plain click and let the
