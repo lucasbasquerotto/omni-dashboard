@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 //     (fresh) input only, never cache hit + miss. The cache hit lives in
 //     `cached_tokens` / `full_cached_tokens`.
 //   * `threads.cost` is the OMNIAGENT-only cost; the NEW `threads.full_cost`
-//     column is omniagent + external/sub-agent (dsh).
+//     column is omniagent + external agents/sub-agents.
 //   * Details box rows (human-readable labels, no snake_case):
 //     Omniagent cache / Omniagent input / Omniagent output / Omniagent cost /
 //     Full cache / Full input / Full output / Full cost (+ Full reasoning
@@ -34,7 +34,7 @@ const cssSrc = read("style.css");
 
 // Thread 3899 numbers, expressed with the NEW (cache-miss only) semantics:
 // omniagent cache 1,567,488 / miss 360,897 / out 48,126; the full_* columns add
-// the 112 dsh items (cached 5,025,024, miss 398,032, out 101,612).
+// the 112 external items (cached 5,025,024, miss 398,032, out 101,612).
 const T3899 = {
   cached: 1567488,
   input: 360897,
@@ -60,23 +60,32 @@ const pullJs = (name: string, replacements: Array<[string, string]>): string => 
 describe("Threads page: cost split, details box and the usage aggregates", () => {
   it("renders a Cost column header right after Tokens", () => {
     const tokensHdr = threadsSrc.indexOf('<div role="columnheader" style="text-align:right">Tokens</div>');
-    const costHdr = threadsSrc.indexOf('<div role="columnheader" style="text-align:right" title="Cost of the thread\'s LLM usage (USD)">Cost</div>');
+    const costHdr = threadsSrc.indexOf(
+      '<div role="columnheader" style="text-align:right" title="Cost of the thread\'s LLM usage (USD)">Cost</div>',
+    );
     assert.ok(tokensHdr >= 0, "Tokens column header present");
     assert.ok(costHdr > tokensHdr, "Cost column header comes after the Tokens header");
   });
 
   it("renders ONE stacked cost field in the main row (cost above, full_cost below smaller)", () => {
     assert.ok(
-      threadsSrc.includes('<div role="cell" class="cell-num" title="Cost (USD): omniagent, then Full (omniagent + sub-agent/dsh)">${costBlock(row.cost, row.full_cost)}</div>'),
+      threadsSrc.includes(
+        '<div role="cell" class="cell-num" title="Cost (USD): omniagent, then Full (omniagent + external agents/sub-agents)">${costBlock(row.cost, row.full_cost)}</div>',
+      ),
       "the main-row cost cell renders the stacked costBlock of cost + full_cost",
     );
     // The stacked block: main value, then the Full value on a smaller line.
     assert.ok(
-      threadsSrc.includes('${main}<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.3;" title="Full cost (omniagent + sub-agent/dsh)">${full}</div>'),
+      threadsSrc.includes(
+        '${main}<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.3;" title="Full cost (omniagent + external agents/sub-agents)">${full}</div>',
+      ),
       "costBlock stacks the Full cost below the omniagent cost, a bit smaller",
     );
     // Collapse-when-equal (no external/sub-agent ran in the thread).
-    assert.ok(threadsSrc.includes("if (main === full) return main;"), "equal cost and full_cost collapse to ONE value");
+    assert.ok(
+      threadsSrc.includes("if (main === full) return main;"),
+      "equal cost and full_cost collapse to ONE value",
+    );
     // No extra cost column.
     const costHdrCount = (threadsSrc.match(/>Cost<\/div>/g) || []).length;
     assert.equal(costHdrCount, 1, "exactly one Cost column header");
@@ -113,7 +122,9 @@ describe("Threads page: cost split, details box and the usage aggregates", () =>
       "full total = full cached + full (miss) input + full output",
     );
     assert.ok(
-      threadsSrc.includes("const tokens = (row.cached_tokens || 0) + (row.input_tokens || 0) + (row.output_tokens || 0);"),
+      threadsSrc.includes(
+        "const tokens = (row.cached_tokens || 0) + (row.input_tokens || 0) + (row.output_tokens || 0);",
+      ),
       "bare total = cached + (miss) input + output",
     );
     // Real aggregate (> 0) AND different from the bare total: legacy rows with
@@ -123,8 +134,14 @@ describe("Threads page: cost split, details box and the usage aggregates", () =>
       threadsSrc.includes("fullTokens > 0 && fullTokens !== tokens"),
       "sub-line is guarded on a real aggregate differing from the bare total",
     );
-    assert.ok(threadsSrc.includes('title="Full tokens (omniagent + sub-agent/dsh usage entries)"'), "sub-line carries a human-readable title");
-    assert.ok(!threadsSrc.includes('<div role="columnheader" style="text-align:right" title="Full tokens'), "no extra column for full_tokens");
+    assert.ok(
+      threadsSrc.includes('title="Full tokens (omniagent + external agents/sub-agents usage entries)"'),
+      "sub-line carries a human-readable title",
+    );
+    assert.ok(
+      !threadsSrc.includes('<div role="columnheader" style="text-align:right" title="Full tokens'),
+      "no extra column for full_tokens",
+    );
   });
 
   it("evaluates the sub-line guard read from the source: collapse when equal", () => {
@@ -135,7 +152,11 @@ describe("Threads page: cost split, details box and the usage aggregates", () =>
       tokens: number,
     ) => boolean;
     assert.equal(evaluate(0, 1200), false, "legacy row (no aggregate) renders no sub-line");
-    assert.equal(evaluate(5000, 1200), true, "real aggregate differing from the bare total renders the sub-line");
+    assert.equal(
+      evaluate(5000, 1200),
+      true,
+      "real aggregate differing from the bare total renders the sub-line",
+    );
     assert.equal(evaluate(1200, 1200), false, "equal aggregate and bare total render NO second line");
   });
 
@@ -150,7 +171,11 @@ describe("Threads page: cost split, details box and the usage aggregates", () =>
       "row",
       `const bareTotalInput = ${bareTotalDecl![1]};\nconst cachePct = ${bareExpr![1]}\nreturn cachePct;`,
     ) as (row: unknown) => number | null;
-    assert.equal(bare({ cached_tokens: 1567488, input_tokens: 360897 }), 81, "thread 3899 bare cache share = 81%");
+    assert.equal(
+      bare({ cached_tokens: 1567488, input_tokens: 360897 }),
+      81,
+      "thread 3899 bare cache share = 81%",
+    );
     assert.equal(bare({ cached_tokens: 0, input_tokens: 1200 }), null, "no cached tokens -> no percent");
 
     // Full line: round(full_cached / (full_cached + full_miss_input)).
@@ -197,7 +222,14 @@ describe("Threads page: cost split, details box and the usage aggregates", () =>
       assert.ok(threadsSrc.includes(label), `detail row/helper label "${label}"`);
     }
     // The dropped/renamed rows are gone (HTML label OR quoted helper argument).
-    for (const label of ["Tokens (total input)", "Cache hit (cached input)", "Cache miss (non-cached input)", "Full total input", "Full cache hit (cached input)", "Full cache miss (non-cached input)"]) {
+    for (const label of [
+      "Tokens (total input)",
+      "Cache hit (cached input)",
+      "Cache miss (non-cached input)",
+      "Full total input",
+      "Full cache hit (cached input)",
+      "Full cache miss (non-cached input)",
+    ]) {
       assert.ok(!threadsSrc.includes(label), `old detail row "${label}" is gone`);
     }
     // Ordering: the bare trio precedes the Full trio.
@@ -208,8 +240,14 @@ describe("Threads page: cost split, details box and the usage aggregates", () =>
     assert.ok(cacheIdx > 0 && inputIdx > cacheIdx && outIdx > inputIdx, "bare rows: cache / input / output");
     assert.ok(fullCacheIdx > outIdx, "the Full rows follow the bare rows");
     // The bare rows read the raw columns; no derived cache-miss subtraction.
-    assert.ok(threadsSrc.includes("fmtTokens(row.input_tokens)"), "no derived miss row: the column IS the miss");
-    assert.ok(!threadsSrc.includes("Full total input"), "the old Full total input label is gone (renamed Full input)");
+    assert.ok(
+      threadsSrc.includes("fmtTokens(row.input_tokens)"),
+      "no derived miss row: the column IS the miss",
+    );
+    assert.ok(
+      !threadsSrc.includes("Full total input"),
+      "the old Full total input label is gone (renamed Full input)",
+    );
   });
 
   it("details box cost rows: both when they differ, one when they are equal", () => {
@@ -226,8 +264,14 @@ describe("Threads page: cost split, details box and the usage aggregates", () =>
     const fmt = (n: number | null | undefined) => (typeof n === "number" ? `$${n.toFixed(4)}` : "-");
     const costDetailRows = evaluate(fmt);
     const different = costDetailRows({ cost: 0.1754, full_cost: 0.4469 });
-    assert.ok(different.omniagent.includes("Omniagent cost") && different.omniagent.includes("$0.1754"), "Omniagent cost row");
-    assert.ok(different.full.includes("Full cost") && different.full.includes("$0.4469"), "Full cost row, separated");
+    assert.ok(
+      different.omniagent.includes("Omniagent cost") && different.omniagent.includes("$0.1754"),
+      "Omniagent cost row",
+    );
+    assert.ok(
+      different.full.includes("Full cost") && different.full.includes("$0.4469"),
+      "Full cost row, separated",
+    );
     const equal = costDetailRows({ cost: 0.4469, full_cost: 0.4469 });
     assert.ok(equal.omniagent.includes(">Cost</span>"), "equal -> a single Cost row");
     assert.equal(equal.full, "", "equal -> no second cost row");
@@ -245,18 +289,28 @@ describe("Threads page: cost split, details box and the usage aggregates", () =>
     };
     const bareTotal = (row.cached_tokens || 0) + (row.input_tokens || 0) + (row.output_tokens || 0);
     assert.equal(bareTotal, 1_976_511, "bare cell total for thread 3899");
-    const cachePct = Math.round(((row.cached_tokens || 0) / ((row.cached_tokens || 0) + (row.input_tokens || 0))) * 100);
+    const cachePct = Math.round(
+      ((row.cached_tokens || 0) / ((row.cached_tokens || 0) + (row.input_tokens || 0))) * 100,
+    );
     assert.equal(cachePct, 81, "bare cache share 81%");
     const fullTotal =
       (row.full_cached_tokens || 0) + (row.full_input_tokens || 0) + (row.full_output_tokens || 0);
     assert.equal(fullTotal, 7_501_179, "full sub-line total = full cache + full input + full output");
-    const fullPct = Math.round(((row.full_cached_tokens || 0) / ((row.full_cached_tokens || 0) + (row.full_input_tokens || 0))) * 100);
+    const fullPct = Math.round(
+      ((row.full_cached_tokens || 0) / ((row.full_cached_tokens || 0) + (row.full_input_tokens || 0))) * 100,
+    );
     assert.equal(fullPct, 90, "full cache share is NOT a flat 100%");
   });
 
   it("formats the cost in USD with four decimals and '-' when absent", () => {
-    assert.ok(threadsSrc.includes("function fmtCost(n: number | null | undefined): string {"), "fmtCost helper");
-    assert.ok(threadsSrc.includes('if (typeof n !== "number" || !Number.isFinite(n)) return "-";'), "missing cost renders '-'");
+    assert.ok(
+      threadsSrc.includes("function fmtCost(n: number | null | undefined): string {"),
+      "fmtCost helper",
+    );
+    assert.ok(
+      threadsSrc.includes('if (typeof n !== "number" || !Number.isFinite(n)) return "-";'),
+      "missing cost renders '-'",
+    );
     assert.ok(threadsSrc.includes("return `$${n.toFixed(4)}`;"), "USD formatting with 4 decimals");
   });
 

@@ -22,7 +22,7 @@ interface ThreadRow {
   full_reasoning_tokens: number | null;
   /** omniagent-only cost (USD): the omniagent's OWN LLM calls. */
   cost: number | null;
-  /** FULL cost (USD): omniagent + external/sub-agent (dsh) LLM calls. */
+  /** FULL cost (USD): omniagent + external agents/sub-agents LLM calls. */
   full_cost: number | null;
   duration_ms: number | null;
   created_at: string;
@@ -591,7 +591,7 @@ function renderRow(row: ThreadRow): string {
   // literal "0" under a non-zero bare count (review thread 3836).
   const fullLine =
     fullTokens > 0 && fullTokens !== tokens
-      ? `<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.3;" title="Full tokens (omniagent + sub-agent/dsh usage entries)">${fullTokens.toLocaleString()}${fullCachePct !== null ? ` (${fullCachePct}%)` : ""}</div>`
+      ? `<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.3;" title="Full tokens (omniagent + external agents/sub-agents usage entries)">${fullTokens.toLocaleString()}${fullCachePct !== null ? ` (${fullCachePct}%)` : ""}</div>`
       : "";
   const parentIdStr = row.parent_id
     ? `<span class="event-type-badge" title="Parent ID: ${escapeHtml(String(row.parent_id))}" style="--type-color:#64748b;background:rgba(100,116,139,0.12);border-color:rgba(100,116,139,0.25);color:#94a3b8;font-size:0.7rem;display:inline-flex;flex-direction:column;align-items:center;line-height:1.3;"><span style="font-size:0.65rem;opacity:0.7;">Parent:</span><span style="font-weight:600;">#${escapeHtml(String(row.parent_id))}</span></span>`
@@ -619,7 +619,7 @@ function renderRow(row: ThreadRow): string {
         <div role="cell" class="cell-preview">${preview}</div>
         <div role="cell" class="cell-num">${row.duration_ms !== null ? row.duration_ms.toFixed(0) : "-"}</div>
         <div role="cell" class="cell-num">${tokens > 0 ? tokens.toLocaleString() + (cachePct !== null ? ` (${cachePct}%)` : "") : "-"}${fullLine}</div>
-        <div role="cell" class="cell-num" title="Cost (USD): omniagent, then Full (omniagent + sub-agent/dsh)">${costBlock(row.cost, row.full_cost)}</div>
+        <div role="cell" class="cell-num" title="Cost (USD): omniagent, then Full (omniagent + external agents/sub-agents)">${costBlock(row.cost, row.full_cost)}</div>
       </a>
       <div class="thread-details">
         <div class="thread-details-box">${threadDetailsContent(row)}</div>
@@ -732,7 +732,7 @@ function fmtTokens(n: number | null | undefined): string {
 /** Cost of the thread's usage in USD (sum of the usage entries' cost). */
 /**
  * Main-row cost field: ONE cell carrying the omniagent-only cost on top and the
- * FULL (omniagent + external/sub-agent dsh) cost below and a bit smaller -
+ * FULL (omniagent + external agents/sub-agents) cost below and a bit smaller -
  * exactly the stacked layout the token cell already uses (operator threads
  * 3921/3922). When NO external agent ran the two values are equal and only ONE
  * is rendered, so the field never shows a duplicated value.
@@ -741,7 +741,7 @@ function costBlock(cost: number | null | undefined, fullCost: number | null | un
   const main = fmtCost(cost);
   const full = fmtCost(fullCost);
   if (main === full) return main;
-  return `${main}<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.3;" title="Full cost (omniagent + sub-agent/dsh)">${full}</div>`;
+  return `${main}<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.3;" title="Full cost (omniagent + external agents/sub-agents)">${full}</div>`;
 }
 
 /**
