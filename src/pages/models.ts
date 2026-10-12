@@ -11,6 +11,7 @@
  * (shared implementation in lib/plugin-import.ts, showModelsImportModal).
  */
 import { apiGet, apiPost, apiPut } from "../lib/api";
+import { mergeEditorProvider } from "../lib/models-merge";
 import { escapeHtml, formatApiError } from "../lib/helpers";
 import { showToast } from "../lib/utils";
 import { showModelsImportModal } from "../lib/plugin-import";
@@ -25,6 +26,9 @@ export interface ModelConfig {
   token_budget_hard?: number;
   max_tokens?: number;
   max_tokens_on_truncation?: number;
+  /** Per-model custom HTTP headers. NOT rendered by the inline editor, so it is
+   * preserved verbatim by mergeEditorProvider when a model entry is edited. */
+  headers?: Record<string, unknown>;
 }
 
 export interface ProviderOverride {
@@ -41,6 +45,13 @@ export interface ProviderOverride {
   max_tokens?: number;
   max_tokens_on_truncation?: number;
   model_config?: Record<string, ModelConfig>;
+  // Fields the inline editor does NOT render: never overwritten by an edit that
+  // does not touch them (see lib/models-merge.ts).
+  headers?: Record<string, unknown>;
+  auth_style?: string;
+  api_key_header_name?: string;
+  api_version_header?: { name: string; value: string };
+  thinking_param?: boolean;
 }
 
 export interface ModelsFile {
@@ -448,7 +459,10 @@ function wireEditor(name: string): void {
     const p = collectEditor(name);
     if (!p) return;
     try {
-      currentFile.providers[name] = p;
+      // Preserve the fields the editor does not render (headers, auth_style,
+      // ...): replacing the whole entry would silently drop e.g. opencode-go's
+      // x-opencode-session header when only default_model is changed.
+      currentFile.providers[name] = mergeEditorProvider(currentFile.providers[name], p);
       await apiPut("/models", currentFile);
       editName = null;
       showToast(`Saved provider "${name}"`, "success");
