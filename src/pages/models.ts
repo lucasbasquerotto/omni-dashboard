@@ -12,6 +12,19 @@
  */
 import { apiGet, apiPost, apiPut } from "../lib/api";
 import { mergeEditorProvider } from "../lib/models-merge";
+import {
+  buildHeaderValue,
+  entriesToRecord,
+  headerFallback,
+  headerKind,
+  headerLiteral,
+  headersDisplay,
+  isValidHeaderName,
+  recordToEntries,
+  type HeaderEntry,
+  type HeaderKind,
+  type HeaderValue,
+} from "../lib/models-headers";
 import { escapeHtml, formatApiError } from "../lib/helpers";
 import { showToast } from "../lib/utils";
 import { showModelsImportModal } from "../lib/plugin-import";
@@ -26,9 +39,9 @@ export interface ModelConfig {
   token_budget_hard?: number;
   max_tokens?: number;
   max_tokens_on_truncation?: number;
-  /** Per-model custom HTTP headers. NOT rendered by the inline editor, so it is
-   * preserved verbatim by mergeEditorProvider when a model entry is edited. */
-  headers?: Record<string, unknown>;
+  /** Per-model custom HTTP headers (rendered + edited inline, see
+   * lib/models-headers.ts). */
+  headers?: Record<string, HeaderValue>;
 }
 
 export interface ProviderOverride {
@@ -45,9 +58,10 @@ export interface ProviderOverride {
   max_tokens?: number;
   max_tokens_on_truncation?: number;
   model_config?: Record<string, ModelConfig>;
+  /** Provider-level custom HTTP headers (rendered + edited inline). */
+  headers?: Record<string, HeaderValue>;
   // Fields the inline editor does NOT render: never overwritten by an edit that
   // does not touch them (see lib/models-merge.ts).
-  headers?: Record<string, unknown>;
   auth_style?: string;
   api_key_header_name?: string;
   api_version_header?: { name: string; value: string };
@@ -123,6 +137,68 @@ function providerSubtitle(p: ProviderOverride): string {
   return bits.join(" · ") || "provider definition";
 }
 
+/** "headers: name: value, ..." line for a provider card ("" when none). */
+function renderHeadersInline(headers: Record<string, HeaderValue> | undefined): string {
+  const disp = headersDisplay(headers);
+  if (!disp) return "";
+  return `<div><span style="color:var(--text-muted);">headers:</span> ${escapeHtml(disp)}</div>`;
+}
+
+/** One editable header row: name + value-type + value/fallback + remove. */
+function headerRow(entry: HeaderEntry): string {
+  const kind = headerKind(entry.value);
+  const literal = headerLiteral(entry.value);
+  const fallback = headerFallback(entry.value);
+  const showLiteral = kind === "literal" ? "" : "display:none;";
+  const showFallback = kind === "literal" ? "display:none;" : "";
+  return `
+    <div data-hrow="1" style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.3rem;">
+      <input type="text" data-hfield="name" class="filter-input" value="${escapeHtml(entry.name)}" placeholder="header name" style="width:11rem;" />
+      <span style="width:7rem;flex-shrink:0;display:inline-block;">
+        <select data-hfield="type" class="filter-select" style="width:100%;">
+          <option value="literal"${kind === "literal" ? " selected" : ""}>literal</option>
+          <option value="channel"${kind === "channel" ? " selected" : ""}>channel</option>
+          <option value="profile"${kind === "profile" ? " selected" : ""}>profile</option>
+        </select>
+      </span>
+      <input type="text" data-hfield="value" class="filter-input" value="${escapeHtml(literal)}" placeholder="literal value" style="width:13rem;${showLiteral}" />
+      <input type="text" data-hfield="fallback" class="filter-input" value="${escapeHtml(fallback)}" placeholder="fallback (optional)" style="width:11rem;${showFallback}" />
+      <button type="button" data-hremove="1" title="Remove header" style="background:none;border:none;color:#fb7185;cursor:pointer;">✕</button>
+    </div>`;
+}
+
+/**
+ * Inline headers editor. `scope="provider"` edits `providers.<name>.headers`,
+ * `scope="model"` (with `model`) edits
+ * `providers.<name>.model_config.<model>.headers`. Rows are read by
+ * `collectHeaderEditor` on save, so name/value edits persist even before the
+ * Save button is pressed (add/remove re-read the DOM first).
+ */
+function renderHeaderEditor(
+  scope: "provider" | "model",
+  model: string | null,
+  headers: Record<string, HeaderValue> | undefined,
+): string {
+  const rows = recordToEntries(headers).map(headerRow).join("");
+  const modelAttr = model === null ? "" : ` data-hmodel="${escapeHtml(model)}"`;
+  return `
+    <div data-heditor="${scope}"${modelAttr} style="margin-top:0.4rem;">
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.3rem;">headers (custom HTTP headers; channel/profile resolve at request time, literal values are sent verbatim)</div>
+      ${rows || '<div style="font-size:0.78rem;color:var(--text-muted);">No custom headers.</div>'}
+      <div style="display:flex;gap:0.4rem;align-items:center;margin-top:0.25rem;">
+        <input type="text" data-hnew-name class="filter-input" placeholder="header name" style="width:11rem;" />
+        <span style="width:7rem;flex-shrink:0;display:inline-block;">
+          <select data-hnew-type class="filter-select" style="width:100%;">
+            <option value="literal">literal</option>
+            <option value="channel">channel</option>
+            <option value="profile">profile</option>
+          </select>
+        </span>
+        <button type="button" data-hadd="1" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);color:#a78bfa;border-radius:6px;padding:0.25rem 0.6rem;cursor:pointer;font-size:0.78rem;">+ header</button>
+      </div>
+    </div>`;
+}
+
 function renderModelConfigInline(mc: Record<string, ModelConfig> | undefined): string {
   if (!mc || Object.keys(mc).length === 0) return "";
   const lines = Object.entries(mc)
@@ -135,6 +211,8 @@ function renderModelConfigInline(mc: Record<string, ModelConfig> | undefined): s
       if (cfg.max_tokens !== undefined) parts.push(`max_tokens: ${cfg.max_tokens}`);
       if (cfg.max_tokens_on_truncation !== undefined)
         parts.push(`max_tok_trunc: ${cfg.max_tokens_on_truncation}`);
+      const hdr = headersDisplay(cfg.headers);
+      if (hdr) parts.push(`headers: ${hdr}`);
       const detail = parts.length ? parts.join(", ") : "(no overrides)";
       return `<div style="padding-left:1rem;"><code style="background:rgba(255,255,255,0.05);padding:0.0625rem 0.25rem;border-radius:2px;font-size:0.75rem;">${escapeHtml(model)}</code>: <span style="color:var(--text-muted);font-size:0.78rem;">${escapeHtml(detail)}</span></div>`;
     })
@@ -168,6 +246,7 @@ function renderProviders(file: ModelsFile): string {
           </div>
           <div style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-secondary);">
             ${models ? `<div><span style="color:var(--text-muted);">models:</span> ${escapeHtml(models)}</div>` : ""}
+            ${renderHeadersInline(p.headers)}
             ${renderModelConfigInline(p.model_config)}
           </div>
         </div>`;
@@ -216,15 +295,18 @@ function renderModelConfigEditor(_provider: string, mc: Record<string, ModelConf
           v ?? "",
         )}" placeholder="${escapeHtml(ph)}" style="width:7.5rem;" />`;
       return `
-        <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.35rem;">
-          <span style="font-weight:600;font-size:0.78rem;width:10rem;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(model)}</span>
-          ${input("api_mode", cfg.api_mode, "api_mode")}
-          ${input("supports_reasoning", cfg.supports_reasoning === undefined ? "" : String(cfg.supports_reasoning), "reasoning")}
-          ${input("token_budget_soft", cfg.token_budget_soft === undefined ? "" : String(cfg.token_budget_soft), "soft")}
-          ${input("token_budget_hard", cfg.token_budget_hard === undefined ? "" : String(cfg.token_budget_hard), "hard")}
-          ${input("max_tokens", cfg.max_tokens === undefined ? "" : String(cfg.max_tokens), "max_tokens")}
-          ${input("max_tokens_on_truncation", cfg.max_tokens_on_truncation === undefined ? "" : String(cfg.max_tokens_on_truncation), "max_tok_trunc")}
-          <button type="button" data-mc-remove="${escapeHtml(model)}" title="Remove model config" style="background:none;border:none;color:#fb7185;cursor:pointer;">✕</button>
+        <div style="border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:0.4rem;margin-bottom:0.4rem;">
+          <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+            <span style="font-weight:600;font-size:0.78rem;width:10rem;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(model)}</span>
+            ${input("api_mode", cfg.api_mode, "api_mode")}
+            ${input("supports_reasoning", cfg.supports_reasoning === undefined ? "" : String(cfg.supports_reasoning), "reasoning")}
+            ${input("token_budget_soft", cfg.token_budget_soft === undefined ? "" : String(cfg.token_budget_soft), "soft")}
+            ${input("token_budget_hard", cfg.token_budget_hard === undefined ? "" : String(cfg.token_budget_hard), "hard")}
+            ${input("max_tokens", cfg.max_tokens === undefined ? "" : String(cfg.max_tokens), "max_tokens")}
+            ${input("max_tokens_on_truncation", cfg.max_tokens_on_truncation === undefined ? "" : String(cfg.max_tokens_on_truncation), "max_tok_trunc")}
+            <button type="button" data-mc-remove="${escapeHtml(model)}" title="Remove model config" style="background:none;border:none;color:#fb7185;cursor:pointer;">✕</button>
+          </div>
+          ${renderHeaderEditor("model", model, cfg.headers)}
         </div>`;
     })
     .join("");
@@ -273,6 +355,7 @@ function renderEditor(name: string, p: ProviderOverride): string {
         ${fieldRow("max_tokens", "max_tokens", p.max_tokens === undefined ? "" : String(p.max_tokens), "e.g. 8192")}
         ${fieldRow("max_tokens_on_truncation", "max_tokens_on_truncation", p.max_tokens_on_truncation === undefined ? "" : String(p.max_tokens_on_truncation), "e.g. 16384")}
       </div>
+      ${renderHeaderEditor("provider", null, p.headers)}
       ${renderModelConfigEditor(name, p.model_config)}
     </div>`;
 }
@@ -361,6 +444,136 @@ function wireRows(): void {
   });
 }
 
+interface RawHeaderRow {
+  name: string;
+  kind: HeaderKind;
+  literal: string;
+  fallback: string;
+}
+
+/** Raw (unvalidated) header rows of one editor, in DOM order. */
+function readHeaderRowsRaw(ed: HTMLElement): RawHeaderRow[] {
+  return Array.from(ed.querySelectorAll<HTMLElement>("[data-hrow]")).map((row) => ({
+    name: row.querySelector<HTMLInputElement>('[data-hfield="name"]')?.value ?? "",
+    kind: (row.querySelector<HTMLSelectElement>('[data-hfield="type"]')?.value || "literal") as HeaderKind,
+    literal: row.querySelector<HTMLInputElement>('[data-hfield="value"]')?.value ?? "",
+    fallback: row.querySelector<HTMLInputElement>('[data-hfield="fallback"]')?.value ?? "",
+  }));
+}
+
+/** Raw rows -> a headers block (unnamed rows dropped, empty values kept). */
+function rawToRecord(rows: RawHeaderRow[]): Record<string, HeaderValue> | undefined {
+  const entries: HeaderEntry[] = [];
+  for (const r of rows) {
+    const name = r.name.trim();
+    if (!name) continue;
+    entries.push({ name, value: buildHeaderValue(r.kind, r.literal, r.fallback) ?? "" });
+  }
+  return entriesToRecord(entries).record;
+}
+
+/**
+ * Read one header editor into a models.yml headers block. Rejects an empty or
+ * non-token header name and a duplicate name (duplicate policy: REJECT, never a
+ * silent overwrite of an operator-provided value). A row left entirely blank is
+ * an untouched placeholder and is skipped; removing the last row yields
+ * `record === undefined`, so the block is omitted from models.yml entirely.
+ */
+function collectHeaderEditor(ed: HTMLElement): { record?: Record<string, HeaderValue>; error?: string } {
+  const entries: HeaderEntry[] = [];
+  for (const r of readHeaderRowsRaw(ed)) {
+    const name = r.name.trim();
+    if (!name && !r.literal.trim() && !r.fallback.trim()) continue;
+    if (!name) return { error: "header name must not be empty" };
+    const value = buildHeaderValue(r.kind, r.literal, r.fallback);
+    if (value === undefined) return { error: `header "${name}" needs a value` };
+    entries.push({ name, value });
+  }
+  return entriesToRecord(entries);
+}
+
+/** Write a headers block back into currentFile for the editor's scope. */
+function setHeadersForEditor(
+  provider: string,
+  ed: HTMLElement,
+  record: Record<string, HeaderValue> | undefined,
+): void {
+  const current = currentFile.providers[provider];
+  if (!current) return;
+  if (ed.getAttribute("data-heditor") === "provider") {
+    if (record && Object.keys(record).length > 0) current.headers = record;
+    else delete current.headers;
+    return;
+  }
+  const model = ed.getAttribute("data-hmodel");
+  if (!model) return;
+  current.model_config = current.model_config || {};
+  const mc = current.model_config[model] || (current.model_config[model] = {});
+  if (record && Object.keys(record).length > 0) mc.headers = record;
+  else delete mc.headers;
+}
+
+function rerenderEditor(name: string): void {
+  const content = document.getElementById("models-content")!;
+  content.innerHTML = renderProviders(currentFile);
+  wireRows();
+  wireEditor(name);
+}
+
+/**
+ * Add / remove / type wiring for every headers editor on the page. Rows are
+ * re-read from the DOM before a structural change, so editing one row never
+ * discards the in-progress text of the others.
+ */
+function wireHeaderEditors(provider: string): void {
+  document.querySelectorAll<HTMLElement>("[data-hadd]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const ed = btn.closest<HTMLElement>("[data-heditor]");
+      if (!ed) return;
+      const newName = (ed.querySelector<HTMLInputElement>("[data-hnew-name]")?.value || "").trim();
+      const newKind = (ed.querySelector<HTMLSelectElement>("[data-hnew-type]")?.value ||
+        "literal") as HeaderKind;
+      if (!newName) {
+        showToast("Header name must not be empty", "error");
+        return;
+      }
+      if (!isValidHeaderName(newName)) {
+        showToast(`"${newName}" is not a valid HTTP header name`, "error");
+        return;
+      }
+      const rows = readHeaderRowsRaw(ed);
+      if (rows.some((r) => r.name.trim().toLowerCase() === newName.toLowerCase())) {
+        showToast(`Header "${newName}" already exists`, "error");
+        return;
+      }
+      rows.push({ name: newName, kind: newKind, literal: "", fallback: "" });
+      setHeadersForEditor(provider, ed, rawToRecord(rows));
+      rerenderEditor(provider);
+    });
+  });
+  document.querySelectorAll<HTMLElement>("[data-hremove]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const ed = btn.closest<HTMLElement>("[data-heditor]");
+      const row = btn.closest<HTMLElement>("[data-hrow]");
+      if (!ed || !row) return;
+      row.remove();
+      setHeadersForEditor(provider, ed, rawToRecord(readHeaderRowsRaw(ed)));
+      rerenderEditor(provider);
+    });
+  });
+  document.querySelectorAll<HTMLSelectElement>('[data-hfield="type"]').forEach((sel) => {
+    sel.addEventListener("change", () => {
+      const row = sel.closest<HTMLElement>("[data-hrow]");
+      if (!row) return;
+      const isLiteral = sel.value === "literal";
+      const literalInput = row.querySelector<HTMLElement>('[data-hfield="value"]');
+      const fallbackInput = row.querySelector<HTMLElement>('[data-hfield="fallback"]');
+      if (literalInput) literalInput.style.display = isLiteral ? "" : "none";
+      if (fallbackInput) fallbackInput.style.display = isLiteral ? "none" : "";
+    });
+  });
+}
+
 function parseNum(v: string): number | undefined {
   const t = v.trim();
   if (t === "") return undefined;
@@ -384,6 +597,7 @@ function collectEditor(name: string): ProviderOverride | null {
   else if (pluginRaw) plugin = pluginRaw;
 
   const p: ProviderOverride = { plugin };
+  let headerError: string | null = null;
   const modelsRaw = (get("models") as HTMLInputElement)?.value || "";
   p.models = modelsRaw
     .split(",")
@@ -413,6 +627,14 @@ function collectEditor(name: string): ProviderOverride | null {
   num("max_tokens");
   num("max_tokens_on_truncation");
 
+  // Provider-level custom headers (editor-owned; see lib/models-headers.ts).
+  const provHeaderEditor = document.querySelector<HTMLElement>('[data-heditor="provider"]');
+  if (provHeaderEditor) {
+    const col = collectHeaderEditor(provHeaderEditor);
+    if (col.error) headerError = col.error;
+    else if (col.record) p.headers = col.record;
+  }
+
   // model_config entries from the editor inputs
   const mcEntries = document.querySelectorAll<HTMLInputElement>("[data-mcmodel]");
   const mcMap: Record<string, ModelConfig> = {};
@@ -432,7 +654,22 @@ function collectEditor(name: string): ProviderOverride | null {
       if (n !== undefined) (mcMap[model] as Record<string, unknown>)[field] = n;
     }
   });
+  // Per-model custom headers (editor-owned, same validation as provider-level).
+  document.querySelectorAll<HTMLElement>('[data-heditor="model"][data-hmodel]').forEach((ed) => {
+    const model = ed.getAttribute("data-hmodel")!;
+    const col = collectHeaderEditor(ed);
+    if (col.error) {
+      headerError = headerError || `${model}: ${col.error}`;
+      return;
+    }
+    if (!mcMap[model]) mcMap[model] = {};
+    if (col.record) mcMap[model].headers = col.record;
+  });
   if (Object.keys(mcMap).length > 0) p.model_config = mcMap;
+  if (headerError) {
+    showToast(`${name}: ${headerError}`, "error");
+    return null;
+  }
 
   // Validate budget > 0
   for (const [k, v] of Object.entries(p)) {
@@ -449,6 +686,10 @@ function wireEditor(name: string): void {
   document.querySelectorAll<HTMLSelectElement>("#m-api_mode, #m-supports_reasoning").forEach((el) => {
     enhanceSelectElement(el);
   });
+  document.querySelectorAll<HTMLSelectElement>('[data-hfield="type"], [data-hnew-type]').forEach((el) => {
+    enhanceSelectElement(el);
+  });
+  wireHeaderEditors(name);
   document.getElementById("m-cancel")?.addEventListener("click", () => {
     editName = null;
     const content = document.getElementById("models-content")!;

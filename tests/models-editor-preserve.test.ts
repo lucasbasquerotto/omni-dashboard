@@ -4,9 +4,15 @@
  *
  * Before the fix, `wireEditor` replaced the stored provider entry with the
  * object rebuilt from the form inputs (`collectEditor`), which silently erased
- * every field the editor does not render - notably the custom `headers` block
- * (opencode-go's `x-opencode-session`, without which the provider answers HTTP
- * 400 MissingSessionID) and per-model `headers`.
+ * every field the editor does not render (provider `auth_style`,
+ * `api_key_header_name`, `api_version_header`, `thinking_param`).
+ *
+ * NOTE (custom-headers feature): provider and per-model `headers` are now
+ * RENDERED by the editor, so the editor OWNS them - `collectEditor` re-emits
+ * the header block from the form rows on every save (which is what makes
+ * add/edit/remove work). The guarantee "a default-model-only save keeps the
+ * headers" is therefore carried by the form round-trip, and the merge only has
+ * to preserve the fields the form still does not render.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -39,7 +45,8 @@ const STORED = {
   },
 };
 
-/** Exactly what collectEditor() emits when ONLY default_model was changed. */
+/** Exactly what collectEditor() emits when ONLY default_model was changed:
+ * every other form field - including the header rows - is re-emitted as-is. */
 const EDITOR_PAYLOAD = {
   plugin: false,
   models: ["deepseek-v4-flash"],
@@ -50,7 +57,10 @@ const EDITOR_PAYLOAD = {
   default_model: "deepseek-v4-pro",
   api_key: "$secret:OPENCODE_API_KEY",
   token_budget_soft: 90000,
-  model_config: { "deepseek-v4-flash": { api_mode: "anthropic" } },
+  headers: { "x-opencode-session": { type: "channel", fallback: "omniagent" } },
+  model_config: {
+    "deepseek-v4-flash": { api_mode: "anthropic", headers: { "x-model-flag": "1" } },
+  },
 };
 
 describe("mergeEditorProvider: default-model-only edit keeps the rest", () => {
@@ -72,7 +82,7 @@ describe("mergeEditorProvider: default-model-only edit keeps the rest", () => {
     assert.deepEqual(merged.thinking_param, STORED.thinking_param);
   });
 
-  it("keeps per-model headers for model entries that survive the edit", () => {
+  it("keeps per-model headers the form re-emits", () => {
     assert.deepEqual(merged.model_config?.["deepseek-v4-flash"]?.headers, { "x-model-flag": "1" });
     assert.equal(merged.model_config?.["deepseek-v4-flash"]?.api_mode, "anthropic");
   });
@@ -83,8 +93,18 @@ describe("mergeEditorProvider: default-model-only edit keeps the rest", () => {
     assert.equal(cleared.token_budget_soft, undefined);
     assert.equal(cleared.default_base_url, undefined);
     assert.equal(cleared.default_model, "x");
-    // ... while the untouched header block still survives.
-    assert.deepEqual(cleared.headers, STORED.headers);
+    // ... while the untouched auth/version fields still survive.
+    assert.deepEqual(cleared.auth_style, STORED.auth_style);
+  });
+
+  it("removing every header row (payload without headers) clears the block", () => {
+    const cleared = mergeEditorProvider(STORED, {
+      ...EDITOR_PAYLOAD,
+      headers: undefined,
+      model_config: { "deepseek-v4-flash": { api_mode: "anthropic" } },
+    });
+    assert.equal(cleared.headers, undefined, "the editor owns headers, so removal must persist");
+    assert.equal(cleared.model_config?.["deepseek-v4-flash"]?.headers, undefined);
   });
 
   it("adds a brand-new provider unchanged (no stored entry)", () => {
@@ -93,10 +113,10 @@ describe("mergeEditorProvider: default-model-only edit keeps the rest", () => {
   });
 
   it("regression-fails if the entry is replaced wholesale instead of merged", () => {
-    // The pre-fix save path did exactly this; the headers block vanished.
-    const wholesale = { ...EDITOR_PAYLOAD };
-    assert.equal((wholesale as Record<string, unknown>).headers, undefined);
-    assert.ok((merged as Record<string, unknown>).headers !== undefined);
+    // The pre-fix save path dropped the fields the form did not render.
+    const wholesale = { ...EDITOR_PAYLOAD, auth_style: undefined };
+    assert.equal((wholesale as Record<string, unknown>).auth_style, undefined);
+    assert.equal((merged as Record<string, unknown>).auth_style, "bearer");
   });
 });
 
